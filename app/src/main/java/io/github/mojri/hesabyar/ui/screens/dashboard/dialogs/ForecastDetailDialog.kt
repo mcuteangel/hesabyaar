@@ -24,10 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import io.github.mojri.hesabyar.ui.UiResult
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarDialog
+import io.github.mojri.hesabyar.ui.components.MarkdownText
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
-import io.github.mojri.hesabyar.ui.screens.MarkdownText
 
 @Suppress("LongMethod")
 @Composable

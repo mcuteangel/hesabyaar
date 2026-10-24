@@ -30,7 +30,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
@@ -56,6 +55,7 @@ import io.github.mojri.hesabyar.ui.components.HesabyarChip
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.HesabyarTabRow
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
+import io.github.mojri.hesabyar.ui.components.MarkdownText
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
@@ -714,104 +714,6 @@ fun SmartAssistantScreen(
       }
     }
   }
-}
-
-@Composable
-fun MarkdownText(
-  text: String,
-  modifier: Modifier = Modifier,
-  textStyle: TextStyle = LocalTextStyle.current,
-  textColor: Color = Color.Unspecified
-) {
-  val lines = text.split("\n")
-  Column(
-    modifier = modifier.fillMaxWidth(),
-    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-  ) {
-    lines.forEach { line ->
-      val trimmed = line.trim()
-      if (trimmed.isEmpty()) {
-        Spacer(modifier = Modifier.height(SpacingTokens.xs))
-      } else if (trimmed.startsWith("###")) {
-        val headerText = trimmed.removePrefix("###").trim()
-        Text(
-          text = headerText,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary,
-          modifier = Modifier.padding(top = SpacingTokens.sm, bottom = 2.dp)
-        )
-      } else if (trimmed.startsWith("##")) {
-        val headerText = trimmed.removePrefix("##").trim()
-        Text(
-          text = headerText,
-          style = MaterialTheme.typography.titleLarge,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary,
-          modifier = Modifier.padding(top = SpacingTokens.md, bottom = SpacingTokens.xs)
-        )
-      } else if (trimmed.startsWith("#")) {
-        val headerText = trimmed.removePrefix("#").trim()
-        Text(
-          text = headerText,
-          style = MaterialTheme.typography.headlineSmall,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary,
-          modifier = Modifier.padding(top = SpacingTokens.md, bottom = SpacingTokens.sm)
-        )
-      } else if (trimmed.startsWith("-") || trimmed.startsWith("*")) {
-        val itemText = trimmed.removePrefix("-").removePrefix("*").trim()
-        Row(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(horizontal = SpacingTokens.xs),
-          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
-          verticalAlignment = Alignment.Top
-        ) {
-          Text(
-            text = "•",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-          )
-          Text(
-            text = parseBoldMarkdown(itemText),
-            style = textStyle,
-            color = textColor,
-            lineHeight = 22.sp
-          )
-        }
-      } else {
-        Text(
-          text = parseBoldMarkdown(trimmed),
-          style = textStyle,
-          color = if (textColor != Color.Unspecified) textColor else MaterialTheme.colorScheme.onSurface,
-          lineHeight = 22.sp
-        )
-      }
-    }
-  }
-}
-
-fun parseBoldMarkdown(text: String): androidx.compose.ui.text.AnnotatedString {
-  val builder =
-    androidx.compose.ui.text.AnnotatedString
-      .Builder()
-  val parts = text.split("**")
-  for (i in parts.indices) {
-    if (i % 2 == 1) {
-      builder.pushStyle(
-        androidx.compose.ui.text
-          .SpanStyle(fontWeight = FontWeight.Bold)
-      )
-      builder.append(parts[i])
-      builder.pop()
-    } else {
-      builder.append(parts[i])
-    }
-  }
-  return builder.toAnnotatedString()
 }
 
 @Composable
