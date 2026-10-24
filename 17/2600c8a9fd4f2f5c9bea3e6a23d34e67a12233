@@ -1,0 +1,25 @@
+plans/023-consolidate-ai-result-card-and-markdown-text.md
+  s_7834825321feb6::t_2fc4290c656f9e 7
+  s_7834825321feb6::t_d17427e6c142f4 1-6,8-253
+plans/README.md
+  s_7834825321feb6::t_8aeabda498cc93 44
+progress.md
+  s_7834825321feb6::t_791ee3065092f2 10-11
+  s_7834825321feb6::t_fd6cfa39e32a26 9,12,16-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "172600c8a9fd4f2f5c9bea3e6a23d34e67a12233",
+  "prompts": {},
+  "sessions": {
+    "s_7834825321feb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80a9f2de-9f8b-4716-987e-ddef57f12602",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
