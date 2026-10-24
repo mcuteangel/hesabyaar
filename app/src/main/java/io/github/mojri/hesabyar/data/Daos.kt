@@ -190,17 +190,24 @@ interface TransactionLinkDao {
   // Issue #532: ids of legacy (pre-#242, unstamped) disbursement candidates.
   // Uses the persisted (pre-edit) fields, the same match deleteLoan's legacy
   // fallback uses. No loan identity exists for these rows, so the caller
-  // must only move them when the match is unambiguous.
+  // must only move them when the match is unambiguous. Issue #537: also
+  // filters on the expected disbursement transaction type — a repayment row
+  // with identical fields (person, category, amount, date) has the opposite
+  // direction and must never be matched. Rows linked to a payment history
+  // entry are repayments by construction, so they are excluded as well.
   @Query(
     "SELECT id FROM transactions WHERE loanId IS NULL " +
       "AND personName IN (:personNames) AND categoryId = :categoryId " +
-      "AND amount = :amount AND date = :oldDate"
+      "AND amount = :amount AND date = :oldDate AND type = :type " +
+      "AND id NOT IN (SELECT linkedTransactionId FROM payment_history " +
+      "WHERE linkedTransactionId IS NOT NULL)"
   )
   suspend fun findLegacyDisbursementIds(
     personNames: Set<String>,
     categoryId: Long,
     amount: Long,
-    oldDate: Long
+    oldDate: Long,
+    type: TransactionType
   ): List<Long>
 
   // Issue #532: update one transaction, identified by primary key: move it
