@@ -1,0 +1,23 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/components/AiResultCardTest.kt
+  s_7834825321feb6::t_3d85f2df7000e1 1-146
+app/src/main/java/io/github/mojri/hesabyar/ui/components/AiResultCard.kt
+  s_7834825321feb6::t_e87976f97487f2 181
+  s_7834825321feb6::t_87aba68f2fedf9 1-180,182-235,241-264,270-339
+  s_7834825321feb6::t_68f3730fa17705 236-240,265-269
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1929382477d50dca1a59fbc7cf44462f1cfc0295",
+  "prompts": {},
+  "sessions": {
+    "s_7834825321feb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80a9f2de-9f8b-4716-987e-ddef57f12602",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
