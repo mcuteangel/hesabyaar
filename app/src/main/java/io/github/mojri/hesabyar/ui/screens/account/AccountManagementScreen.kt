@@ -189,6 +189,11 @@ private fun AccountManagementScaffoldSection(
   scope: kotlinx.coroutines.CoroutineScope,
   currentDialogState: () -> AccountDialogState = { dialogState },
 ) {
+  // Blocks re-entrant saves while addAccount suspends. The flag is set
+  // synchronously on the main thread before the save coroutine launches.
+  // The finally block re-enables Save after success, failure, or cancellation.
+  var isSavingAccount by remember { mutableStateOf(false) }
+
   HesabyarScaffold(
     modifier = modifier,
     title = "مدیریت حساب‌ها",
@@ -211,25 +216,33 @@ private fun AccountManagementScaffoldSection(
 
   AccountManagementDialogs(
     dialogState = dialogState,
+    isSavingAccount = isSavingAccount,
     onDismiss = { onDialogStateChange(AccountDialogState.None) },
     onSaveAccount = { form ->
-      val initiatingDialog = currentDialogState()
-      scope.launch {
-        val result =
-          accountViewModel.addAccount(
-            name = form.name,
-            type = form.type,
-            bankName = form.bankName,
-            cardNumber = form.cardNumber,
-            accountNumber = form.accountNumber,
-            iban = form.iban,
-            initialBalance = form.initialBalance,
-            color = form.color
-          )
-        // Close only the dialog this save started from. A later dialog,
-        // opened while the insert was suspended, must stay open.
-        if (result is AccountViewModel.AddAccountResult.Success && currentDialogState() == initiatingDialog) {
-          onDialogStateChange(AccountDialogState.None)
+      if (!isSavingAccount) {
+        isSavingAccount = true
+        val initiatingDialog = currentDialogState()
+        scope.launch {
+          try {
+            val result =
+              accountViewModel.addAccount(
+                name = form.name,
+                type = form.type,
+                bankName = form.bankName,
+                cardNumber = form.cardNumber,
+                accountNumber = form.accountNumber,
+                iban = form.iban,
+                initialBalance = form.initialBalance,
+                color = form.color
+              )
+            // Close only the dialog this save started from. A later dialog,
+            // opened while the insert was suspended, must stay open.
+            if (result is AccountViewModel.AddAccountResult.Success && currentDialogState() == initiatingDialog) {
+              onDialogStateChange(AccountDialogState.None)
+            }
+          } finally {
+            isSavingAccount = false
+          }
         }
       }
     },
@@ -260,6 +273,7 @@ private fun AccountManagementDialogs(
   onSaveAccount: (AccountFormData) -> Unit,
   onUpdateAccount: (AccountEntity, AccountFormData) -> Unit,
   onDeleteAccount: (AccountEntity) -> Unit,
+  isSavingAccount: Boolean = false,
 ) {
   when (dialogState) {
     AccountDialogState.None -> {}
@@ -267,7 +281,8 @@ private fun AccountManagementDialogs(
       AccountDialog(
         initialAccount = null,
         onDismiss = onDismiss,
-        onSave = onSaveAccount
+        onSave = onSaveAccount,
+        isSaving = isSavingAccount
       )
     is AccountDialogState.Edit ->
       AccountDialog(
@@ -535,7 +550,8 @@ private fun AccountOverflowMenu(
 private fun AccountDialog(
   initialAccount: AccountEntity?,
   onDismiss: () -> Unit,
-  onSave: (AccountFormData) -> Unit
+  onSave: (AccountFormData) -> Unit,
+  isSaving: Boolean = false
 ) {
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -545,7 +561,7 @@ private fun AccountDialog(
         fontWeight = FontWeight.Bold
       )
     },
-    text = { AccountDialogForm(initialAccount = initialAccount, onSave = onSave) },
+    text = { AccountDialogForm(initialAccount = initialAccount, onSave = onSave, isSaving = isSaving) },
     confirmButton = {},
     dismissButton = {
       HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Text)
@@ -558,7 +574,8 @@ private fun AccountDialog(
 @Composable
 private fun AccountDialogForm(
   initialAccount: AccountEntity?,
-  onSave: (AccountFormData) -> Unit
+  onSave: (AccountFormData) -> Unit,
+  isSaving: Boolean = false
 ) {
   var name by remember { mutableStateOf(initialAccount?.name.orEmpty()) }
   var selectedType by remember { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
@@ -663,7 +680,7 @@ private fun AccountDialogForm(
       },
       text = "ذخیره",
       variant = ButtonVariant.Filled,
-      enabled = name.isNotBlank() && !balanceError
+      enabled = name.isNotBlank() && !balanceError && !isSaving
     )
   }
 }
