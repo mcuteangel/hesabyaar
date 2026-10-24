@@ -31,6 +31,7 @@ on:
       - "OCR Resolver Tests"
       - "OpenCodeReview PR Review"
       - "PR Agent (Gemini 3.1 Flash Lite)"
+      - "PR Title Check"
       - "Release"
       - "Rust Lint"
       - "Deploy landing page"
