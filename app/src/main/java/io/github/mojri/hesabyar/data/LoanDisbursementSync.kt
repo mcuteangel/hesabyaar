@@ -95,7 +95,7 @@ internal class LoanDisbursementSync(
     persisted: Loan,
     updated: Loan
   ): Long? {
-    val id = findSingleLegacyDisbursementId(persisted, updated) ?: return null
+    val id = findSingleLegacyDisbursementId(persisted) ?: return null
     transactionLinkDao.updateTransactionById(id, persisted.date, updated.id)
     return id
   }
@@ -108,14 +108,14 @@ internal class LoanDisbursementSync(
    * rows. Issue #537: the match also requires the expected disbursement
    * direction — a repayment row with identical fields has the opposite
    * direction and must not be stamped or moved. The row moves only when
-   * exactly one row matches.
+   * exactly one row matches. The lookup runs only when the persisted row
+   * is tracked: a disbursement row could only have been recorded while the
+   * loan was tracked, so on an untracked->tracked flip any match would
+   * belong to another loan and must never be stamped.
    */
-  private suspend fun findSingleLegacyDisbursementId(
-    persisted: Loan,
-    updated: Loan
-  ): Long? {
+  private suspend fun findSingleLegacyDisbursementId(persisted: Loan): Long? {
     val loansCategoryId =
-      if (persisted.tracked || updated.tracked) {
+      if (persisted.tracked) {
         categoryDao.getCategoryByKey(LoansCategoryExclusion.CATEGORY_KEY)?.id
       } else {
         null
