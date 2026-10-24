@@ -1,0 +1,29 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/MarkdownText.kt
+  s_7834825321feb6::t_367e17d0286f6c 1-155,160-170,175-210
+  s_7834825321feb6::t_581ee8b774bfad 156-159,171-174
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt
+  s_7834825321feb6::t_581ee8b774bfad 58
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt
+  s_7834825321feb6::t_48e2f88493410d 46
+app/src/test/java/io/github/mojri/hesabyar/ui/components/MarkdownTextTest.kt
+  s_7834825321feb6::t_d86c1081fc154e 1-54,57-59,61-83,86-87,89-99,102-103,105-117,120-122,124-132
+  s_7834825321feb6::t_581ee8b774bfad 55-56,60,84-85,88,100-101,104,118-119,123
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ForecastDetailDialog.kt
+  s_7834825321feb6::t_581ee8b774bfad 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "38c3bec233942fcce00b9e74ca294039e9efb2dd",
+  "prompts": {},
+  "sessions": {
+    "s_7834825321feb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80a9f2de-9f8b-4716-987e-ddef57f12602",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
