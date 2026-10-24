@@ -353,7 +353,7 @@ class LoanDisbursementDateUpdateTest {
       val persistedA = requireNotNull(database.loanDao().getLoanById(loanAId))
       assertEquals(
         LoanUpdateResult.Success,
-        repo.updateLoan(persistedA.copy(tracked = true, personName = "Sara"))
+        repo.updateLoan(persistedA.copy(tracked = true, personName = "Sara", accountId = 1L))
       )
 
       val rowB = database.transactionDao().getAllTransactionsBlocking().single()
@@ -398,7 +398,7 @@ class LoanDisbursementDateUpdateTest {
       val persistedA = requireNotNull(database.loanDao().getLoanById(loanAId))
       assertEquals(
         LoanUpdateResult.Success,
-        repo.updateLoan(persistedA.copy(tracked = true, date = 9_000L))
+        repo.updateLoan(persistedA.copy(tracked = true, date = 9_000L, accountId = 1L))
       )
 
       val rowB = database.transactionDao().getAllTransactionsBlocking().single()
