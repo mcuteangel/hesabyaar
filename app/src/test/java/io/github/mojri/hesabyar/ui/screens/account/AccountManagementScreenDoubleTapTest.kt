@@ -12,8 +12,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.domain.usecase.FakeRepository
 import io.github.mojri.hesabyar.ui.AccountViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -58,20 +61,56 @@ class AccountManagementScreenDoubleTapTest {
 
   @Test
   fun doubleTapSaveInsertsOnlyOneAccount() {
+    val insertGate = CompletableDeferred<Unit>()
+    val gatedRepo = GatedFakeRepository(fakeRepo, insertGate)
+    val gatedViewModel = AccountViewModel(RuntimeEnvironment.getApplication(), gatedRepo)
     composeRule.setContent {
-      AccountManagementScreen(accountViewModel = viewModel, onBack = {})
+      AccountManagementScreen(accountViewModel = gatedViewModel, onBack = {})
     }
     openAddDialog()
     typeAccountName("test account")
     clickSave()
-    // The launched save has not run yet under StandardTestDispatcher, so
-    // this proves the synchronous flag already disabled Save: a second tap
-    // through the UI cannot reach onSaveAccount. Never click a disabled node.
+    // Hold the first insert at the gate: Save must stay disabled for the
+    // whole suspension, not only before the coroutine runs.
+    settle()
     saveButton().assertIsNotEnabled()
+    assertEquals(
+      "Only one insert must start while the first is pending",
+      1,
+      gatedRepo.insertCalls
+    )
+    assertEquals(
+      "No row must persist before the gate releases",
+      0,
+      fakeRepo.accountsList.size
+    )
+    // A second dialog opened mid-save shares the flag, so its Save must
+    // also stay disabled and must not start a second insert.
+    composeRule.onNodeWithText(CANCEL_BUTTON_TEXT).performClick()
+    openAddDialog()
+    typeAccountName("second account")
+    saveButton().assertIsNotEnabled()
+    assertEquals(
+      "The second dialog must not start a second insert",
+      1,
+      gatedRepo.insertCalls
+    )
+    // Release the gate: the first insert completes, but it must not close
+    // the second dialog, and the second dialog's Save becomes enabled again.
+    insertGate.complete(Unit)
     settle()
     assertEquals(
-      "Double tap must insert exactly one account",
+      "The first insert must persist exactly one account",
       1,
+      fakeRepo.accountsList.size
+    )
+    composeRule.onNodeWithText(ADD_DIALOG_TITLE).assertIsDisplayed()
+    saveButton().assertIsEnabled()
+    clickSave()
+    settle()
+    assertEquals(
+      "The second dialog save must insert the second account",
+      2,
       fakeRepo.accountsList.size
     )
     composeRule.onNodeWithText(ADD_DIALOG_TITLE).assertDoesNotExist()
@@ -155,5 +194,25 @@ class AccountManagementScreenDoubleTapTest {
     const val ADD_DIALOG_TITLE = "افزودن حساب جدید"
     const val NAME_LABEL = "نام حساب"
     const val SAVE_BUTTON_TEXT = "ذخیره"
+    const val CANCEL_BUTTON_TEXT = "انصراف"
+  }
+}
+
+/**
+ * Wraps [FakeRepository] and holds each insert at [insertGate] so a test
+ * can assert on the in-flight state before any row persists. All other
+ * repository calls delegate unchanged, and [insertCalls] counts how many
+ * inserts were launched.
+ */
+private class GatedFakeRepository(
+  private val delegate: FakeRepository,
+  private val insertGate: CompletableDeferred<Unit>,
+) : HesabyarRepositoryInterface by delegate {
+  var insertCalls = 0
+
+  override suspend fun insertAccount(account: AccountEntity): Long {
+    insertCalls++
+    insertGate.await()
+    return delegate.insertAccount(account)
   }
 }

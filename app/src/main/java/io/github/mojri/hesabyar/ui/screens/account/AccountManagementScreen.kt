@@ -189,11 +189,6 @@ private fun AccountManagementScaffoldSection(
   scope: kotlinx.coroutines.CoroutineScope,
   currentDialogState: () -> AccountDialogState = { dialogState },
 ) {
-  // Blocks re-entrant saves while addAccount suspends. The flag is set
-  // synchronously on the main thread before the save coroutine launches.
-  // The finally block re-enables Save after success, failure, or cancellation.
-  var isSavingAccount by remember { mutableStateOf(false) }
-
   HesabyarScaffold(
     modifier = modifier,
     title = "مدیریت حساب‌ها",
@@ -213,6 +208,29 @@ private fun AccountManagementScaffoldSection(
       onOverflowDelete = { onDialogStateChange(AccountDialogState.PendingDelete(it)) },
     )
   }
+
+  AccountManagementSaveDialogs(
+    dialogState = dialogState,
+    accountViewModel = accountViewModel,
+    onDialogStateChange = onDialogStateChange,
+    scope = scope,
+    currentDialogState = currentDialogState
+  )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountManagementSaveDialogs(
+  dialogState: AccountDialogState,
+  accountViewModel: AccountViewModel,
+  onDialogStateChange: (AccountDialogState) -> Unit,
+  scope: kotlinx.coroutines.CoroutineScope,
+  currentDialogState: () -> AccountDialogState,
+) {
+  // Blocks a second save while addAccount runs.
+  // The code sets this flag on the main thread before it launches the save.
+  // The finally block enables Save again after success, failure, or cancellation.
+  var isSavingAccount by remember { mutableStateOf(false) }
 
   AccountManagementDialogs(
     dialogState = dialogState,
