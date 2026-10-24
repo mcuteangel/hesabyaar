@@ -6,18 +6,19 @@
 
 ## Active Task
 
-- **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
-- **Status:** Completed and verified (PR #540 open against `main`).
-- **Branch:** `feat/issue-361-topbar-heading-semantics`
-- **Verification:** `./gradlew testDebugUnitTest` → 1212 tests, 0 failures; `./gradlew ktlintCheck detekt` → 0 findings; `python3 scripts/check_docs.py` → 0 broken references; emoji scan of `ui/` → 0 matches.
+- **Task:** Plan 023 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Issue #356)
+- **Status:** In progress — Phase 1 (Extract `MarkdownText`).
+- **Branch:** `feat/issue-356-ai-result-card-consolidation`
+- **Verification:** Plan drift check and doc reference checks passing (`python3 scripts/check_docs.py` → 0 broken references).
 
 ## Goal
 
-- [x] Create reusable `HesabyarTopBar` with heading semantics and RTL auto-mirrored back navigation.
-- [x] Add heading semantics to `SectionHeader` and primary headers on core screens.
-- [x] Integrate `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`.
-- [x] Remove all literal emoji characters from `ui/` package and enforce via `UiEmojiIntegrityTest`.
-- [x] Archive Plan 022 and verify CI on PR #540.
+- [ ] Extract `MarkdownText` and `parseBoldMarkdown` from `SmartAssistantScreen.kt` to `ui/components/MarkdownText.kt`.
+- [ ] Create reusable `AiResultCard` and `AiResultContent` in `ui/components/AiResultCard.kt` for `UiResult<T>`.
+- [ ] Decouple `AiAssistantViewModel` data loading with `GetDashboardDataUseCase` and eliminate all direct `.value` reads in composables.
+- [ ] Consolidate full budget advice rendering in `ReportsScreen.kt` and replace duplicate UI in `SmartAssistantScreen.kt` with a navigation referral card.
+- [ ] Adopt `AiResultCard` / `AiResultContent` across target sites (`ReportsScreen`, `ForecastDetailDialog`, `SmartForecastCard`).
+- [ ] Add unit tests for `MarkdownTextTest` and `AiResultCardTest`, and verify `./gradlew ktlintCheck detekt testDebugUnitTest`.
 
 ## Completed
 
