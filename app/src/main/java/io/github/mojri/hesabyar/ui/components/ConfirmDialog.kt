@@ -1,11 +1,9 @@
 package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,19 +55,21 @@ fun ConfirmDialog(
     },
     text = { Text(text = message) },
     confirmButton = {
-      Button(
+      HesabyarButton(
         onClick = onConfirm,
+        text = confirmText,
+        variant = ButtonVariant.Filled,
         colors = ButtonDefaults.buttonColors(containerColor = confirmColor, contentColor = confirmContentColor)
-      ) {
-        Text(text = confirmText)
-      }
+      )
     },
     dismissButton =
       if (dismissText.isNotBlank()) {
         {
-          TextButton(onClick = onDismiss) {
-            Text(text = dismissText)
-          }
+          HesabyarButton(
+            onClick = onDismiss,
+            text = dismissText,
+            variant = ButtonVariant.Text
+          )
         }
       } else {
         null

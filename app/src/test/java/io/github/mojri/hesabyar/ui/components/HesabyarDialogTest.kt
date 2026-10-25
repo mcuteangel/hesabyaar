@@ -59,6 +59,7 @@ class HesabyarDialogTest {
       HesabyarDialog(
         title = DIALOG_TITLE,
         onDismissRequest = { dismissed = true },
+        isFullScreen = true,
         showCloseButton = true
       ) {
         Text(DIALOG_CONTENT)
@@ -67,6 +68,47 @@ class HesabyarDialogTest {
 
     composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertIsDisplayed()
     composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).performClick()
+    assertTrue(dismissed)
+  }
+
+  @Test
+  fun dialogHidesCloseButtonEvenIfRequestedWhenNotFullScreen() {
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        isFullScreen = false,
+        showCloseButton = true
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertDoesNotExist()
+  }
+
+  @Test
+  fun dialogRendersStandardButtonsFromTextParameters() {
+    var confirmed = false
+    var dismissed = false
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmText = CONFIRM_TEXT,
+        onConfirm = { confirmed = true },
+        dismissText = DISMISS_TEXT,
+        onDismiss = { dismissed = true }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertIsDisplayed().performClick()
+    assertTrue(confirmed)
+
+    composeRule.onNodeWithText(DISMISS_TEXT).assertIsDisplayed().performClick()
     assertTrue(dismissed)
   }
 

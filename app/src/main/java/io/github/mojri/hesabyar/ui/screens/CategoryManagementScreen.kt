@@ -253,8 +253,8 @@ private fun CategoryManagementDialogs(
     ConfirmDialog(
       title = "حذف دسته‌بندی",
       message = "آیا از حذف دسته‌بندی «${categoryToDelete.name}» اطمینان دارید؟",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = onDismissDelete,
       onConfirm = {
         categoryViewModel.deleteCategory(categoryToDelete)

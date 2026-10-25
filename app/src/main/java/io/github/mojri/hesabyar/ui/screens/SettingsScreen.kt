@@ -1238,8 +1238,8 @@ private fun ConfigDeleteButton(
       message =
         "آیا از حذف پیکربندی «${target.displayName}» اطمینان دارید؟" +
           " کلید API ذخیره‌شده هم پاک می‌شود و این عمل قابل بازگشت نیست.",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = { pendingDelete = null },
       onConfirm = {
         pendingDelete = null
@@ -1319,14 +1319,15 @@ fun AiConfigDialog(
           )
           onClearModelFetchState()
         },
-        text = "ذخیره"
+        text = stringResource(R.string.action_save),
+        variant = ButtonVariant.Filled
       )
       HesabyarButton(
         onClick = {
           onClearModelFetchState()
           onDismiss()
         },
-        text = stringResource(R.string.cancel_label),
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }

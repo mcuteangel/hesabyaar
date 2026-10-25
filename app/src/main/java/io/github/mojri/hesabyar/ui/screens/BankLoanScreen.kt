@@ -109,8 +109,8 @@ private fun BankLoanItem(
     ConfirmDialog(
       title = "حذف وام بانکی",
       message = "آیا از حذف این وام و اقساط تولید شده اطمینان دارید؟ این عمل قابل بازگشت نیست.",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = { showDeleteConfirm = false },
       onConfirm = {
         showDeleteConfirm = false
@@ -250,7 +250,7 @@ private fun AddBankLoanDialog(
             state.description.trim()
           )
         },
-        text = "ثبت",
+        text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,
         enabled = state.canConfirm
       )

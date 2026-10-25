@@ -64,7 +64,7 @@ internal fun AddPersonLoanDialog(
           }
         },
         enabled = isValidAmount && !isSubmitting,
-        text = "ثبت",
+        text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled
       )
     },

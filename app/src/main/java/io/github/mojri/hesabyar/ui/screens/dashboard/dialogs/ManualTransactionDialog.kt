@@ -182,7 +182,12 @@ internal fun ManualTransactionDialog(
           }
         },
         modifier = Modifier.weight(1f),
-        text = if (isEditMode) "ذخیره تغییرات" else "ثبت تراکنش",
+        text =
+          if (isEditMode) {
+            stringResource(R.string.transaction_save_changes)
+          } else {
+            stringResource(R.string.transaction_submit)
+          },
         variant = ButtonVariant.Filled,
         colors = ButtonDefaults.buttonColors(containerColor = typeColor),
         enabled = !isSubmitting

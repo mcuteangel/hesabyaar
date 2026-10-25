@@ -23,7 +23,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
 import io.github.mojri.hesabyar.ui.AiAssistantViewModel
@@ -309,7 +311,8 @@ fun DashboardScreen(
     ConfirmDialog(
       title = "حذف تراکنش",
       message = "آیا از حذف این تراکنش اطمینان دارید؟",
-      confirmText = "حذف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onConfirm = {
         transactionViewModel.deleteTransaction(deletingTransaction!!)
         deletingTransaction = null

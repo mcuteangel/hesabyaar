@@ -28,8 +28,6 @@
     - [x] Added unit tests in `HesabyarDialogTest.kt` (5 tests) and `ConfirmDialogTest.kt` (3 tests).
     - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python3 scripts/check_docs.py` reporting 0 broken references.
 
-## Completed
-
 - **Task:** Issue #361 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Plan 022)
 - **Status:** Completed and verified (branch `feat/issue-361-topbar-heading-semantics`, PR #540)
 - **Completed Date:** 2026-10-23

@@ -461,7 +461,7 @@ fun CustomTimePickerDialog(
               onDismissRequest()
             },
             modifier = Modifier.weight(1.3f),
-            text = "تایید",
+            text = stringResource(R.string.action_confirm),
             variant = ButtonVariant.Filled
           )
         }

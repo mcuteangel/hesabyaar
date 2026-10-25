@@ -182,10 +182,20 @@
     <!-- Standard action keys per docs/LOCALIZATION.md -->
     <string name="action_cancel">انصراف</string>
     <string name="action_confirm">تأیید</string>
+    <string name="action_confirm_and_continue">تأیید و ادامه</string>
     <string name="action_save">ذخیره</string>
     <string name="action_delete">حذف</string>
+    <string name="action_edit">ویرایش</string>
     <string name="action_close">بستن</string>
     <string name="action_understood">متوجه شدم</string>
+
+    <!-- Specific feature dialog actions -->
+    <string name="transaction_submit">ثبت تراکنش</string>
+    <string name="transaction_save_changes">ذخیره تغییرات</string>
+    <string name="installment_save">ذخیره قسط</string>
+    <string name="loan_submit">ثبت و ذخیره</string>
+    <string name="loan_save_changes">ذخیره تغییرات</string>
+    <string name="loan_repayment_paid">پرداخت شد</string>
 
     <!-- Shared top-bar back navigation icon -->
     <string name="action_back">بازگشت</string>

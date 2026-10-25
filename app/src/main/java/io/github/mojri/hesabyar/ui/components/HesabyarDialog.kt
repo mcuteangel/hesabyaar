@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
@@ -65,8 +67,16 @@ fun HesabyarDialog(
   modifier: Modifier = Modifier,
   widthFraction: Float = 0.92f,
   heightFraction: Float? = null,
+  isFullScreen: Boolean = false,
   showCloseButton: Boolean = false,
   leadingIcon: ImageVector? = null,
+  confirmText: String? = null,
+  onConfirm: (() -> Unit)? = null,
+  confirmEnabled: Boolean = true,
+  confirmLoading: Boolean = false,
+  confirmColor: Color? = null,
+  dismissText: String? = null,
+  onDismiss: (() -> Unit)? = null,
   confirmButton: (@Composable () -> Unit)? = null,
   dismissButton: (@Composable () -> Unit)? = null,
   actions: (@Composable RowScope.() -> Unit)? = null,
@@ -98,6 +108,7 @@ fun HesabyarDialog(
           title = title,
           leadingIcon = leadingIcon,
           showCloseButton = showCloseButton,
+          isFullScreen = isFullScreen,
           onDismissRequest = onDismissRequest
         )
 
@@ -118,6 +129,13 @@ fun HesabyarDialog(
         }
 
         HesabyarDialogActions(
+          confirmText = confirmText,
+          onConfirm = onConfirm,
+          confirmEnabled = confirmEnabled,
+          confirmLoading = confirmLoading,
+          confirmColor = confirmColor,
+          dismissText = dismissText,
+          onDismiss = onDismiss,
           confirmButton = confirmButton,
           dismissButton = dismissButton,
           actions = actions
@@ -132,6 +150,7 @@ private fun HesabyarDialogHeader(
   title: String,
   leadingIcon: ImageVector?,
   showCloseButton: Boolean,
+  isFullScreen: Boolean,
   onDismissRequest: () -> Unit
 ) {
   Row(
@@ -157,7 +176,9 @@ private fun HesabyarDialogHeader(
         color = MaterialTheme.colorScheme.primary
       )
     }
-    if (showCloseButton) {
+    // Per M3 guidelines, close icons belong on bottom sheets/full-screen surfaces,
+    // not on standard alert/confirm dialogs.
+    if (showCloseButton && isFullScreen) {
       IconButton(onClick = onDismissRequest) {
         Icon(
           imageVector = Icons.Filled.Close,
@@ -171,25 +192,63 @@ private fun HesabyarDialogHeader(
 
 @Composable
 private fun HesabyarDialogActions(
+  confirmText: String?,
+  onConfirm: (() -> Unit)?,
+  confirmEnabled: Boolean,
+  confirmLoading: Boolean,
+  confirmColor: Color?,
+  dismissText: String?,
+  onDismiss: (() -> Unit)?,
   confirmButton: (@Composable () -> Unit)?,
   dismissButton: (@Composable () -> Unit)?,
   actions: (@Composable RowScope.() -> Unit)?
 ) {
-  if (confirmButton != null || dismissButton != null) {
+  val resolvedConfirm: (@Composable () -> Unit)? =
+    when {
+      confirmText != null && onConfirm != null -> {
+        {
+          HesabyarButton(
+            onClick = onConfirm,
+            text = confirmText,
+            variant = ButtonVariant.Filled,
+            enabled = confirmEnabled,
+            loading = confirmLoading,
+            colors = confirmColor?.let { ButtonDefaults.buttonColors(containerColor = it) }
+          )
+        }
+      }
+      else -> confirmButton
+    }
+
+  val resolvedDismiss: (@Composable () -> Unit)? =
+    when {
+      dismissText != null && onDismiss != null -> {
+        {
+          HesabyarButton(
+            onClick = onDismiss,
+            text = dismissText,
+            variant = ButtonVariant.Text
+          )
+        }
+      }
+      else -> dismissButton
+    }
+
+  if (resolvedConfirm != null || resolvedDismiss != null) {
     Spacer(modifier = Modifier.size(SpacingTokens.sm))
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.End,
       verticalAlignment = Alignment.CenterVertically
     ) {
-      if (dismissButton != null) {
-        dismissButton()
-        if (confirmButton != null) {
+      if (resolvedDismiss != null) {
+        resolvedDismiss()
+        if (resolvedConfirm != null) {
           Spacer(modifier = Modifier.width(SpacingTokens.sm))
         }
       }
-      if (confirmButton != null) {
-        confirmButton()
+      if (resolvedConfirm != null) {
+        resolvedConfirm()
       }
     }
   } else if (actions != null) {

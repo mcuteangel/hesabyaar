@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Loan
@@ -32,9 +31,11 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.LoanViewModel
 import io.github.mojri.hesabyar.ui.SettingsViewModel
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
@@ -303,40 +304,16 @@ private fun DeleteLoanDialog(
   onConfirm: () -> Unit,
   onDismiss: () -> Unit
 ) {
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = {
-      Text(
-        "حذف قرض",
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Right
-      )
-    },
-    text = {
-      val message =
-        "قرض $personName و تمام تاریخچه بازپرداخت‌های آن حذف شود؟ " +
-          "تراکنش‌هایی که قبلاً ثبت شده‌اند باقی می‌مانند."
-      Text(message)
-    },
-    confirmButton = {
-      HesabyarButton(
-        onClick = onConfirm,
-        text = "حذف",
-        colors =
-          ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.error,
-            contentColor = MaterialTheme.colorScheme.onError
-          )
-      )
-    },
-    dismissButton = {
-      HesabyarButton(
-        onClick = onDismiss,
-        text = stringResource(R.string.cancel_label),
-        variant = ButtonVariant.Text
-      )
-    }
+  val message =
+    "قرض $personName و تمام تاریخچه بازپرداخت‌های آن حذف شود؟ " +
+      "تراکنش‌هایی که قبلاً ثبت شده‌اند باقی می‌مانند."
+  ConfirmDialog(
+    title = "حذف قرض",
+    message = message,
+    confirmText = stringResource(R.string.action_delete),
+    dismissText = stringResource(R.string.action_cancel),
+    onConfirm = onConfirm,
+    onDismiss = onDismiss
   )
 }
 
@@ -612,17 +589,9 @@ internal fun AddLoanDialog(
   val form = remember { LoanFormState(initialType) }
   val tooLargeMessage = stringResource(R.string.loan_amount_too_large)
 
-  AlertDialog(
+  HesabyarDialog(
     onDismissRequest = onDismiss,
-    title = {
-      Text(
-        "ثبت قرض جدید",
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Right
-      )
-    },
-    text = { LoanFormFields(form) },
+    title = "ثبت قرض جدید",
     confirmButton = {
       HesabyarButton(
         onClick = {
@@ -645,17 +614,20 @@ internal fun AddLoanDialog(
             showMessage("لطفا اطلاعات را کامل و صحیح پر کنید")
           }
         },
-        text = "ثبت و ذخیره"
+        text = stringResource(R.string.loan_submit),
+        variant = ButtonVariant.Filled
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
-        text = stringResource(R.string.cancel_label),
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    LoanFormFields(form)
+  }
 }
 
 internal class LoanFormState(
@@ -694,17 +666,9 @@ internal fun EditLoanDialog(
     }
   val tooLargeMessage = stringResource(R.string.loan_amount_too_large)
 
-  AlertDialog(
+  HesabyarDialog(
     onDismissRequest = { if (!submitting) onDismiss() },
-    title = {
-      Text(
-        "ویرایش قرض",
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Right
-      )
-    },
-    text = { LoanFormFields(form) },
+    title = "ویرایش قرض",
     confirmButton = {
       HesabyarButton(
         enabled = !submitting,
@@ -719,18 +683,21 @@ internal fun EditLoanDialog(
             tooLargeMessage = tooLargeMessage
           )
         },
-        text = "ذخیره تغییرات"
+        text = stringResource(R.string.loan_save_changes),
+        variant = ButtonVariant.Filled
       )
     },
     dismissButton = {
       HesabyarButton(
         enabled = !submitting,
         onClick = onDismiss,
-        text = stringResource(R.string.cancel_label),
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    LoanFormFields(form)
+  }
 }
 
 internal fun submitLoanEdit(
@@ -865,17 +832,9 @@ private fun LoanRepaymentDialog(
   val form = remember { RepaymentFormState() }
   var submitting by remember { mutableStateOf(false) }
 
-  AlertDialog(
+  HesabyarDialog(
     onDismissRequest = { if (!submitting) onDismiss() },
-    title = {
-      Text(
-        "ثبت بازپرداخت",
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Right
-      )
-    },
-    text = { RepaymentFormFields(form) },
+    title = "ثبت بازپرداخت",
     confirmButton = {
       HesabyarButton(
         enabled = !submitting,
@@ -904,15 +863,18 @@ private fun LoanRepaymentDialog(
             }
           }
         },
-        text = "پرداخت شد"
+        text = stringResource(R.string.loan_repayment_paid),
+        variant = ButtonVariant.Filled
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
-        text = stringResource(R.string.cancel_label),
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    RepaymentFormFields(form)
+  }
 }

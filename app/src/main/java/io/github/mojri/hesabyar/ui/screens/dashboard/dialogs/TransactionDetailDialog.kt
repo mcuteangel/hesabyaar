@@ -62,7 +62,7 @@ internal fun TransactionDetailDialog(
       ) {
         HesabyarButton(
           onClick = onEdit,
-          text = "ویرایش",
+          text = stringResource(R.string.action_edit),
           icon = Icons.Filled.Edit,
           variant = ButtonVariant.Filled
         )

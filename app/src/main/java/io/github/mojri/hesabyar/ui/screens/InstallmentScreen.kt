@@ -241,7 +241,7 @@ private fun AddInstallmentDialog(
             }
           }
         },
-        text = "ذخیره قسط",
+        text = stringResource(R.string.installment_save),
         variant = ButtonVariant.Filled
       )
     },
@@ -514,8 +514,8 @@ fun InstallmentListItem(
     ConfirmDialog(
       title = "حذف قسط",
       message = "آیا از حذف این قسط اطمینان دارید؟ این عمل قابل بازگشت نیست.",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = { pendingDelete = null },
       onConfirm = {
         val target = pendingDelete

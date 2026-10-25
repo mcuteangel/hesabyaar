@@ -207,27 +207,58 @@ private fun AccountManagementScaffoldSection(
     )
   }
 
+  AccountManagementSaveDialogs(
+    dialogState = dialogState,
+    accountViewModel = accountViewModel,
+    onDialogStateChange = onDialogStateChange,
+    scope = scope,
+    currentDialogState = currentDialogState
+  )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountManagementSaveDialogs(
+  dialogState: AccountDialogState,
+  accountViewModel: AccountViewModel,
+  onDialogStateChange: (AccountDialogState) -> Unit,
+  scope: kotlinx.coroutines.CoroutineScope,
+  currentDialogState: () -> AccountDialogState,
+) {
+  // Blocks a second save while addAccount runs.
+  // The code sets this flag on the main thread before it launches the save.
+  // The finally block enables Save again after success, failure, or cancellation.
+  var isSavingAccount by remember { mutableStateOf(false) }
+
   AccountManagementDialogs(
     dialogState = dialogState,
+    isSavingAccount = isSavingAccount,
     onDismiss = { onDialogStateChange(AccountDialogState.None) },
     onSaveAccount = { form ->
-      val initiatingDialog = currentDialogState()
-      scope.launch {
-        val result =
-          accountViewModel.addAccount(
-            name = form.name,
-            type = form.type,
-            bankName = form.bankName,
-            cardNumber = form.cardNumber,
-            accountNumber = form.accountNumber,
-            iban = form.iban,
-            initialBalance = form.initialBalance,
-            color = form.color
-          )
-        // Close only the dialog this save started from. A later dialog,
-        // opened while the insert was suspended, must stay open.
-        if (result is AccountViewModel.AddAccountResult.Success && currentDialogState() == initiatingDialog) {
-          onDialogStateChange(AccountDialogState.None)
+      if (!isSavingAccount) {
+        isSavingAccount = true
+        val initiatingDialog = currentDialogState()
+        scope.launch {
+          try {
+            val result =
+              accountViewModel.addAccount(
+                name = form.name,
+                type = form.type,
+                bankName = form.bankName,
+                cardNumber = form.cardNumber,
+                accountNumber = form.accountNumber,
+                iban = form.iban,
+                initialBalance = form.initialBalance,
+                color = form.color
+              )
+            // Close only the dialog this save started from. A later dialog,
+            // opened while the insert was suspended, must stay open.
+            if (result is AccountViewModel.AddAccountResult.Success && currentDialogState() == initiatingDialog) {
+              onDialogStateChange(AccountDialogState.None)
+            }
+          } finally {
+            isSavingAccount = false
+          }
         }
       }
     },
@@ -258,6 +289,7 @@ private fun AccountManagementDialogs(
   onSaveAccount: (AccountFormData) -> Unit,
   onUpdateAccount: (AccountEntity, AccountFormData) -> Unit,
   onDeleteAccount: (AccountEntity) -> Unit,
+  isSavingAccount: Boolean = false,
 ) {
   when (dialogState) {
     AccountDialogState.None -> {}
@@ -265,7 +297,8 @@ private fun AccountManagementDialogs(
       AccountDialog(
         initialAccount = null,
         onDismiss = onDismiss,
-        onSave = onSaveAccount
+        onSave = onSaveAccount,
+        isSaving = isSavingAccount
       )
     is AccountDialogState.Edit ->
       AccountDialog(
@@ -532,7 +565,8 @@ private fun AccountOverflowMenu(
 private fun AccountDialog(
   initialAccount: AccountEntity?,
   onDismiss: () -> Unit,
-  onSave: (AccountFormData) -> Unit
+  onSave: (AccountFormData) -> Unit,
+  isSaving: Boolean = false
 ) {
   val state = rememberAccountFormState(initialAccount)
 
@@ -544,7 +578,7 @@ private fun AccountDialog(
         onClick = { onSave(state.toFormData()) },
         text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,
-        enabled = state.isSaveEnabled
+        enabled = state.isSaveEnabled && !isSaving
       )
     },
     dismissButton = {

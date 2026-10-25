@@ -1177,8 +1177,8 @@ fun ParsedResultCard(
         HesabyarButton(
           onClick = onCancel,
           modifier = Modifier.weight(1f),
-          text = "انصراف",
-          variant = ButtonVariant.Outlined
+          text = stringResource(R.string.action_cancel),
+          variant = ButtonVariant.Text
         )
 
         HesabyarButton(
@@ -1260,7 +1260,7 @@ fun ConfirmationDialog(
     confirmButton = {
       HesabyarButton(
         onClick = onConfirm,
-        text = "تایید و ادامه",
+        text = stringResource(R.string.action_confirm_and_continue),
         variant = ButtonVariant.Filled
       )
     },

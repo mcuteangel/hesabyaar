@@ -50,6 +50,19 @@ Rule of thumb for test authors: a test that claims to cover the fallback or the 
 - There are no Android instrumentation tests.
 - The test config is in `app/build.gradle.kts`. It uses `isIncludeAndroidResources = true` and `isReturnDefaultValues = true`.
 
+## Coverage on Touch
+
+Cover every line you change. This rule applies to new files and to changed lines in existing files. It applies even when the file has no tests today. Coverage then grows with every change instead of shrinking.
+
+- A new file needs tests for its new code.
+- A changed file needs tests for its changed lines.
+- A behavior-preserving swap needs a test that renders the touched screen and asserts the swapped part exists.
+- `codecov/patch` reports patch coverage. Reviewers check it on every PR. It is a review policy, not a required merge gate.
+- A passing check still allows uncovered lines within the configured threshold, so review the uncovered-lines list for your touched lines.
+- Exemptions: documentation-only changes, generated code, and pure formatting or rename changes with zero behavior change. State the exemption in the PR body.
+- Test sources need no coverage proof. Codecov excludes test sources, so cover them by running the suite.
+- If you cannot cover the touched lines, file a coverage issue under epic #559. Link the issue in the PR body. Do not ship the gap silently.
+
 ## Mandatory Post-Modification Verification Workflow
 
 Every time you modify, refactor, or introduce code, do the verification steps below. Do this before you mark the task complete or ask for feedback. Do not skip these steps. The user can override this workflow. A trivial documentation change or an edit with no behavior change is exempt.
