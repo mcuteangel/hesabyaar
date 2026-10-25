@@ -39,6 +39,7 @@
 - [ ] **Persian & RTL:** Persian-first UI, Jalali calendar via `JalaliCalendarHelper.kt`, and native RTL layout (LTR used only for numerical formatting where justified).
 - [ ] **Secrets:** No API keys or credentials hardcoded.
 - [ ] **Style & Detekt:** Code passes `./gradlew ktlintCheck detekt`. No `@Suppress` added to bypass new findings.
+- [ ] **Coverage on Touch:** Every changed line is covered by a test, or the gap is tracked under epic #559 (see exemptions in docs/agents/testing.md). `codecov/patch` passes.
 
 ## Verification & Evidence
 
