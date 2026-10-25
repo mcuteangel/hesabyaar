@@ -51,6 +51,13 @@ class MarkdownTextTest {
   }
 
   @Test
+  fun parseBoldMarkdownWithUnpairedMarkersRendersAsPlainText() {
+    val annotated = parseBoldMarkdown("Unpaired **bold text without closing")
+    assertEquals("Unpaired **bold text without closing", annotated.text)
+    assertEquals(0, annotated.spanStyles.size)
+  }
+
+  @Test
   fun markdownTextRendersHeadersWithHeadingSemantics() {
     val markdown =
       """

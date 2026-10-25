@@ -247,9 +247,10 @@ open class AiAssistantViewModel
 
     fun parseSmartSentence(
       sentence: String,
-      isOnlineMode: Boolean = this.isOnlineMode.value
+      isOnlineMode: Boolean? = null
     ) {
       if (sentence.isBlank()) return
+      val effectiveOnlineMode = isOnlineMode ?: this.isOnlineMode.value
       // Sequence guard: a parse whose response arrived just before cancellation
       // (past the last suspension point) must not overwrite a newer parse's state.
       val sequence = ++parseSequence
@@ -258,10 +259,10 @@ open class AiAssistantViewModel
         viewModelScope.launch {
           _parserState.value = ParserUIState.Loading
           try {
-            val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
+            val config = if (effectiveOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
             AppLogger.d(
               "AiAssistantViewModel",
-              "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let {
+              "parseSmartSentence: isOnlineMode=$effectiveOnlineMode, config=${config?.let {
                 "found(${it.providerType}, model=${it.model})"
               } ?: "null"}"
             )
@@ -328,8 +329,9 @@ open class AiAssistantViewModel
       val isOnlineMode: Boolean
     )
 
-    private suspend fun loadDashboardSnapshot(): DashboardSnapshot =
-      combine(
+    private suspend fun loadDashboardSnapshot(): DashboardSnapshot {
+      val onlineMode = runCatching { manageAiConfigUseCase.isOnlineMode() }.getOrDefault(false)
+      return combine(
         getDashboardDataUseCase.transactions,
         getDashboardDataUseCase.loans,
         getDashboardDataUseCase.installments,
@@ -342,9 +344,10 @@ open class AiAssistantViewModel
           installments = insts,
           categories = cats,
           bankLoans = bankLoans,
-          isOnlineMode = manageAiConfigUseCase.isOnlineMode()
+          isOnlineMode = onlineMode
         )
       }.first()
+    }
 
     fun fetchBudgetAdvice(forceRefresh: Boolean = false) {
       viewModelScope.launch {

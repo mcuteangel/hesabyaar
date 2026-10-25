@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 private val NUMBERED_LIST_REGEX = Regex("""^(\d+)[.)]\s+(.*)""")
+private val BOLD_MARKDOWN_REGEX = Regex("""\*\*(.+?)\*\*""")
 private const val H1_LEVEL = 1
 private const val H2_LEVEL = 2
 private const val H3_LEVEL = 3
@@ -202,18 +203,22 @@ private fun ListItemRow(
 
 /**
  * Parses `**bold text**` segments into an [AnnotatedString] with [FontWeight.Bold].
+ * Unpaired or dangling `**` markers are treated as literal text.
  */
 fun parseBoldMarkdown(text: String): AnnotatedString {
   val builder = AnnotatedString.Builder()
-  val parts = text.split("**")
-  for (i in parts.indices) {
-    if (i % 2 == 1) {
-      builder.pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-      builder.append(parts[i])
-      builder.pop()
-    } else {
-      builder.append(parts[i])
+  var lastIndex = 0
+  for (match in BOLD_MARKDOWN_REGEX.findAll(text)) {
+    if (match.range.first > lastIndex) {
+      builder.append(text.substring(lastIndex, match.range.first))
     }
+    builder.pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+    builder.append(match.groupValues[1])
+    builder.pop()
+    lastIndex = match.range.last + 1
+  }
+  if (lastIndex < text.length) {
+    builder.append(text.substring(lastIndex))
   }
   return builder.toAnnotatedString()
 }
