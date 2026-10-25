@@ -52,6 +52,8 @@ Read only the guides that match your task. Each one is short.
 
 Before you report a code change as done: run `./gradlew ktlintFormat ktlintCheck detekt --no-daemon`, the matching tests (`testDebugUnitTest`, `testDebugUnitTestRust`, or `cargo test --manifest-path rust/Cargo.toml`), and give the evidence below. Details: `docs/agents/testing.md`.
 
+Coverage on touch: cover every line you change, even in files without tests. Details: `docs/agents/testing.md` (`## Coverage on Touch`).
+
 ## Evidence Standard for Completion Reports
 
 When you report that a task, fix, or test is "done," "fixed," "already passes," or "pre-existing," always include the evidence below without a prompt:
