@@ -1,0 +1,39 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/components/MarkdownText.kt
+  s_7834825321feb6::t_2f854478f60d97 106
+  s_7834825321feb6::t_4ab1d4e2f1f668 30-35
+  s_7834825321feb6::t_b3c3eac5ec4739 82,84,87,90,92,98,100,107,147
+  s_7834825321feb6::t_e0cbd0b575dc27 198
+  s_7834825321feb6::t_554f7da7c1ab05 78-80
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ForecastDetailDialog.kt
+  s_7834825321feb6::t_30e4a33bd9e567 25-34
+app/src/main/java/io/github/mojri/hesabyar/ui/components/AiResultCard.kt
+  s_7834825321feb6::t_ea9dadf66e81dd 317-321,324,331,336-350
+app/src/test/java/io/github/mojri/hesabyar/ui/components/MarkdownTextTest.kt
+  s_7834825321feb6::t_c6d08df1508eb8 144-166
+  s_7834825321feb6::t_3342d47e824158 132-143
+app/src/main/java/io/github/mojri/hesabyar/ui/AiAssistantViewModel.kt
+  s_7834825321feb6::t_0668cde864ee7a 443-459
+  s_7834825321feb6::t_e5ee4c31bb1fec 351-367
+  s_7834825321feb6::t_4e1495dda18d5a 322-339,341,344-345,347-350
+plans/archive/023-consolidate-ai-result-card-and-markdown-text.md
+  s_7834825321feb6::t_69c0858961ea59 48,50-52
+app/src/test/java/io/github/mojri/hesabyar/ui/AiAssistantViewModelTest.kt
+  s_7834825321feb6::t_f27c3420f61f80 23-24
+  s_7834825321feb6::t_e6213616acfecd 126-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6ae31f132f5068cadd84c75572d66883acd27cef",
+  "prompts": {},
+  "sessions": {
+    "s_7834825321feb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80a9f2de-9f8b-4716-987e-ddef57f12602",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
