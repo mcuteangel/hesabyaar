@@ -1,0 +1,22 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/AiAssistantViewModelTest.kt
+  s_7834825321feb6::t_0bcec3868803d7 149,176
+app/src/main/java/io/github/mojri/hesabyar/ui/AiAssistantViewModel.kt
+  s_7834825321feb6::t_3a7ca72ac6c34e 333,368-373
+  s_7834825321feb6::t_4c247a7370739e 464-469
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "209ca54734a7d819867fdf69f5f2513f8d63a50c",
+  "prompts": {},
+  "sessions": {
+    "s_7834825321feb6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80a9f2de-9f8b-4716-987e-ddef57f12602",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
