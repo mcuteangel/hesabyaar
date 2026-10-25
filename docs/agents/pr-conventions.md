@@ -73,6 +73,7 @@ The script prints the template rules, then validates before creating the PR:
   the branch content)
 - body must contain `## Summary`, `## Changes`, `## Type of Change` and
   `## Verification & Evidence`, with the `- [x]` box matching the title type
+- The API never shows the template checklist, so include the checklist in the body you pass to the script. This includes the Coverage on Touch item.
 
 If you must use the API directly (no `gh` auth), run with `--validate-only`
 first and fix every violation before creating the PR.
