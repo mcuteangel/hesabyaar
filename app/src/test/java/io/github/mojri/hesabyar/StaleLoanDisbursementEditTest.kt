@@ -30,6 +30,13 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class StaleLoanDisbursementEditTest {
+  private companion object {
+    const val ORIGINAL_DATE = 5_000L
+    const val NEW_DATE = 9_000L
+    const val LOAN_AMOUNT = 5_000L
+    const val ORPHAN_LOAN_ID = 999_999L
+  }
+
   private lateinit var database: AppDatabase
 
   @Before
@@ -76,8 +83,7 @@ class StaleLoanDisbursementEditTest {
     )
   }
 
-  private suspend fun loansCategoryId(): Long =
-    requireNotNull(database.categoryDao().getCategoryByKey("Loans")).id
+  private suspend fun loansCategoryId(): Long = requireNotNull(database.categoryDao().getCategoryByKey("Loans")).id
 
   private fun transactionById(id: Long): Transaction =
     database.transactionDao().getAllTransactionsBlocking().single { it.id == id }
@@ -92,10 +98,10 @@ class StaleLoanDisbursementEditTest {
           Loan(
             personName = "Ali",
             type = LoanType.DEBTOR,
-            originalAmount = 5_000L,
-            remainingAmount = 5_000L,
+            originalAmount = LOAN_AMOUNT,
+            remainingAmount = LOAN_AMOUNT,
             description = "test",
-            date = 5_000L,
+            date = ORIGINAL_DATE,
             tracked = true,
             accountId = 1L
           ),
@@ -104,18 +110,18 @@ class StaleLoanDisbursementEditTest {
       // The editor loads the disbursement row before the loan date edit.
       val snapshot =
         database.transactionDao().getAllTransactionsBlocking().single { it.loanId == loanId }
-      assertEquals(5_000L, snapshot.date)
+      assertEquals(ORIGINAL_DATE, snapshot.date)
 
       val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
-      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = 9_000L)))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = NEW_DATE)))
 
       // The stale editor saves after the loan date edit. The disbursement
       // date must follow the loan, while the edited description still lands.
-      repo.updateTransaction(snapshot.copy(description = "edited", date = 5_000L))
+      repo.updateTransaction(snapshot.copy(description = "edited", date = ORIGINAL_DATE))
 
-      assertEquals(9_000L, requireNotNull(database.loanDao().getLoanById(loanId)).date)
+      assertEquals(NEW_DATE, requireNotNull(database.loanDao().getLoanById(loanId)).date)
       val updated = transactionById(snapshot.id)
-      assertEquals(9_000L, updated.date)
+      assertEquals(NEW_DATE, updated.date)
       assertEquals("edited", updated.description)
     }
 
@@ -129,18 +135,18 @@ class StaleLoanDisbursementEditTest {
           Transaction(
             type = TransactionType.EXPENSE,
             categoryId = loansCategoryId(),
-            amount = 5_000L,
+            amount = LOAN_AMOUNT,
             description = "original",
             personName = "Ali",
-            date = 5_000L
+            date = ORIGINAL_DATE
           )
         )
       val stored = transactionById(txId)
 
-      repo.updateTransaction(stored.copy(date = 9_000L, description = "edited"))
+      repo.updateTransaction(stored.copy(date = NEW_DATE, description = "edited"))
 
       val updated = transactionById(txId)
-      assertEquals(9_000L, updated.date)
+      assertEquals(NEW_DATE, updated.date)
       assertEquals("edited", updated.description)
     }
 
@@ -154,19 +160,72 @@ class StaleLoanDisbursementEditTest {
           Transaction(
             type = TransactionType.EXPENSE,
             categoryId = loansCategoryId(),
-            amount = 5_000L,
+            amount = LOAN_AMOUNT,
             description = "orphan",
             personName = "Ali",
-            date = 5_000L,
-            loanId = 999_999L
+            date = ORIGINAL_DATE,
+            loanId = ORPHAN_LOAN_ID
           )
         )
       val stored = transactionById(txId)
 
       // No loan row exists for this stamp, so the edit falls back to
       // the editor's date instead of failing or dropping the write.
-      repo.updateTransaction(stored.copy(date = 9_000L))
+      repo.updateTransaction(stored.copy(date = NEW_DATE))
 
-      assertEquals(9_000L, transactionById(txId).date)
+      assertEquals(NEW_DATE, transactionById(txId).date)
+    }
+
+  @Test
+  fun staleLegacyDisbursementEditKeepsStampAndNewDate() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      val loanId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "Ali",
+            type = LoanType.DEBTOR,
+            originalAmount = LOAN_AMOUNT,
+            remainingAmount = LOAN_AMOUNT,
+            description = "test",
+            date = ORIGINAL_DATE,
+            tracked = true,
+            accountId = 1L
+          ),
+          recordInitial = false
+        )
+      // Legacy row: the loan predates the loanId stamp, so the editor
+      // snapshot carries no loanId at all.
+      database.transactionDao().insertTransaction(
+        Transaction(
+          type = TransactionType.EXPENSE,
+          categoryId = loansCategoryId(),
+          amount = LOAN_AMOUNT,
+          description = "legacy disbursement",
+          personName = "Ali",
+          date = ORIGINAL_DATE
+        )
+      )
+      val snapshot =
+        database.transactionDao().getAllTransactionsBlocking().single()
+      assertEquals(null, snapshot.loanId)
+      assertEquals(ORIGINAL_DATE, snapshot.date)
+
+      // The loan date edit stamps the legacy row and moves it.
+      val persisted = requireNotNull(database.loanDao().getLoanById(loanId))
+      assertEquals(LoanUpdateResult.Success, repo.updateLoan(persisted.copy(date = NEW_DATE)))
+      val stamped = transactionById(snapshot.id)
+      assertEquals(loanId, stamped.loanId)
+      assertEquals(NEW_DATE, stamped.date)
+
+      // The stale editor saves its pre-stamp snapshot. The persisted
+      // link and the loan date must both survive the save.
+      repo.updateTransaction(snapshot.copy(description = "edited", date = ORIGINAL_DATE))
+
+      val updated = transactionById(snapshot.id)
+      assertEquals(loanId, updated.loanId)
+      assertEquals(NEW_DATE, updated.date)
+      assertEquals("edited", updated.description)
     }
 }
