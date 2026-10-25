@@ -9,7 +9,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import io.github.mojri.hesabyar.R
 
 /**
  * Standardized confirmation / delete dialog used across the app for
@@ -24,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
  * @param title Heading shown at the top of the dialog.
  * @param message Body text describing the consequence of confirming.
  * @param confirmText Label for the confirm (destructive) action, e.g. "حذف".
- * @param dismissText Label for the dismiss action, e.g. "انصراف".
+ * @param dismissText Label for the dismiss action, e.g. "انصراف". If blank, no dismiss button is rendered.
  * @param onConfirm Called when the user accepts the action.
  * @param onDismiss Called when the dialog is dismissed without confirming.
  * @param confirmColor Fill color of the confirm button; defaults to the
@@ -39,8 +41,8 @@ fun ConfirmDialog(
   onConfirm: () -> Unit,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
-  confirmText: String = "تایید",
-  dismissText: String = "انصراف",
+  confirmText: String = stringResource(R.string.action_confirm),
+  dismissText: String = stringResource(R.string.action_cancel),
   confirmColor: Color = MaterialTheme.colorScheme.error,
   confirmContentColor: Color = MaterialTheme.colorScheme.onError
 ) {
@@ -62,10 +64,15 @@ fun ConfirmDialog(
         Text(text = confirmText)
       }
     },
-    dismissButton = {
-      TextButton(onClick = onDismiss) {
-        Text(text = dismissText)
+    dismissButton =
+      if (dismissText.isNotBlank()) {
+        {
+          TextButton(onClick = onDismiss) {
+            Text(text = dismissText)
+          }
+        }
+      } else {
+        null
       }
-    }
   )
 }

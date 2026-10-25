@@ -6,18 +6,27 @@
 
 ## Active Task
 
-- **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
-- **Status:** Completed and verified (PR #540 open against `main`).
-- **Branch:** `feat/issue-361-topbar-heading-semantics`
-- **Verification:** `./gradlew testDebugUnitTest` → 1212 tests, 0 failures; `./gradlew ktlintCheck detekt` → 0 findings; `python3 scripts/check_docs.py` → 0 broken references; emoji scan of `ui/` → 0 matches.
+- None currently active.
 
 ## Goal
 
-- [x] Create reusable `HesabyarTopBar` with heading semantics and RTL auto-mirrored back navigation.
-- [x] Add heading semantics to `SectionHeader` and primary headers on core screens.
-- [x] Integrate `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`.
-- [x] Remove all literal emoji characters from `ui/` package and enforce via `UiEmojiIntegrityTest`.
-- [x] Archive Plan 022 and verify CI on PR #540.
+- None.
+
+## Completed
+
+- **Task:** Issue #350 — [UX][Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 023)
+- **Status:** Completed and verified (branch `feat/issue-350-dialog-policy`)
+- **Completed Date:** 2026-10-25
+- **Deliverables:**
+    - [x] Standardized `HesabyarDialog` in `ui/components/HesabyarDialog.kt` with structured `confirmButton` and `dismissButton` slots (trailing RTL layout) and `showCloseButton: Boolean = false` default.
+    - [x] Standardized `ConfirmDialog` in `ui/components/ConfirmDialog.kt`: suppresses empty dismiss buttons when `dismissText` is blank and uses standard `action_confirm` / `action_cancel` string resources.
+    - [x] Added standardized `action_*` string keys in `res/values/strings.xml` per `docs/LOCALIZATION.md` (`action_cancel`, `action_confirm`, `action_save`, `action_delete`, `action_close`, `action_understood`).
+    - [x] Fixed buried "ذخیره" button in `AccountManagementScreen.kt` by moving save action out of scrollable body into sticky dialog action row.
+    - [x] Fixed cramped action buttons in `ConfirmationDialog` (`SmartAssistantScreen.kt`) by removing `Modifier.fillMaxWidth()` and adopting `ButtonVariant.Text` for dismiss.
+    - [x] Migrated all raw `AlertDialog` calls across feature screens (`AddPersonLoanDialog`, `InstallmentScreen`, `BankLoanScreen`, `CategoryManagementScreen`, `TransactionDetailDialog`, `SettingsScreen`) to `HesabyarDialog` with 0 `@Suppress` additions.
+    - [x] Standardized all dismiss buttons across pickers and dialogs to `ButtonVariant.Text` (`CustomTimePickerDialog`, `JalaliDatePickerDialog`, `ManualTransactionDialog`, `ReportsScreen`).
+    - [x] Added unit tests in `HesabyarDialogTest.kt` (5 tests) and `ConfirmDialogTest.kt` (3 tests).
+    - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python3 scripts/check_docs.py` reporting 0 broken references.
 
 ## Completed
 

@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,7 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.core.filterDigits
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.LoanType
@@ -20,6 +20,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
@@ -52,24 +53,9 @@ internal fun AddPersonLoanDialog(
   val isValidAmount = parsedAmount in 1L..maxAllowedDisplay
   val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
 
-  AlertDialog(
+  HesabyarDialog(
+    title = "ثبت $typeLabel $personName",
     onDismissRequest = { if (!isSubmitting) onDismiss() },
-    title = {
-      Text(
-        text = "ثبت $typeLabel $personName",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      AddPersonLoanInputs(
-        amountText = amountText,
-        onAmountChange = { amountText = it },
-        description = description,
-        onDescriptionChange = { description = it },
-        errorMessage = errorMessage
-      )
-    },
     confirmButton = {
       HesabyarButton(
         onClick = {
@@ -78,18 +64,27 @@ internal fun AddPersonLoanDialog(
           }
         },
         enabled = isValidAmount && !isSubmitting,
-        text = "ثبت"
+        text = "ثبت",
+        variant = ButtonVariant.Filled
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
         enabled = !isSubmitting,
-        text = "انصراف",
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    AddPersonLoanInputs(
+      amountText = amountText,
+      onAmountChange = { amountText = it },
+      description = description,
+      onDescriptionChange = { description = it },
+      errorMessage = errorMessage
+    )
+  }
 }
 
 @Composable

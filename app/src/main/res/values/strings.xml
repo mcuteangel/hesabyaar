@@ -179,6 +179,14 @@
     <string name="nav_tab_settings">تنظیمات</string>
     <string name="nav_tab_more">بیشتر</string>
 
+    <!-- Standard action keys per docs/LOCALIZATION.md -->
+    <string name="action_cancel">انصراف</string>
+    <string name="action_confirm">تأیید</string>
+    <string name="action_save">ذخیره</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_close">بستن</string>
+    <string name="action_understood">متوجه شدم</string>
+
     <!-- Shared top-bar back navigation icon -->
     <string name="action_back">بازگشت</string>
 </resources>

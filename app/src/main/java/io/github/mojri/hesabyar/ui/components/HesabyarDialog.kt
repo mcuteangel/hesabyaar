@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,8 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -50,10 +53,11 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
  *   dialog sizes to its content and the body is not forced to fill height.
  * @param showCloseButton Whether to render the close [IconButton] in the header.
  * @param leadingIcon Optional icon rendered before the title in the header.
- * @param actions Optional composable rendered as a bottom row (e.g. Cancel / Save).
+ * @param confirmButton Structured confirm button slot placed at the trailing edge.
+ * @param dismissButton Structured dismiss button slot placed adjacent to confirm.
+ * @param actions Optional fallback composable rendered as a bottom row when structured slots are not used.
  * @param content Scrollable body content of the dialog.
  */
-@Suppress("LongMethod")
 @Composable
 fun HesabyarDialog(
   title: String,
@@ -61,8 +65,10 @@ fun HesabyarDialog(
   modifier: Modifier = Modifier,
   widthFraction: Float = 0.92f,
   heightFraction: Float? = null,
-  showCloseButton: Boolean = true,
+  showCloseButton: Boolean = false,
   leadingIcon: ImageVector? = null,
+  confirmButton: (@Composable () -> Unit)? = null,
+  dismissButton: (@Composable () -> Unit)? = null,
   actions: (@Composable RowScope.() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit
 ) {
@@ -88,39 +94,12 @@ fun HesabyarDialog(
       Column(
         modifier = Modifier.padding(SpacingTokens.xl)
       ) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-          ) {
-            if (leadingIcon != null) {
-              Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-              )
-            }
-            Text(
-              text = title,
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-          }
-          if (showCloseButton) {
-            IconButton(onClick = onDismissRequest) {
-              Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "بستن",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-            }
-          }
-        }
+        HesabyarDialogHeader(
+          title = title,
+          leadingIcon = leadingIcon,
+          showCloseButton = showCloseButton,
+          onDismissRequest = onDismissRequest
+        )
 
         HorizontalDivider(
           color = MaterialTheme.colorScheme.surfaceContainer
@@ -138,16 +117,88 @@ fun HesabyarDialog(
           content()
         }
 
-        if (actions != null) {
-          Spacer(modifier = Modifier.size(SpacingTokens.sm))
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-          ) {
-            actions()
-          }
+        HesabyarDialogActions(
+          confirmButton = confirmButton,
+          dismissButton = dismissButton,
+          actions = actions
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun HesabyarDialogHeader(
+  title: String,
+  leadingIcon: ImageVector?,
+  showCloseButton: Boolean,
+  onDismissRequest: () -> Unit
+) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      if (leadingIcon != null) {
+        Icon(
+          imageVector = leadingIcon,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary
+        )
+      }
+      Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+      )
+    }
+    if (showCloseButton) {
+      IconButton(onClick = onDismissRequest) {
+        Icon(
+          imageVector = Icons.Filled.Close,
+          contentDescription = stringResource(R.string.action_close),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun HesabyarDialogActions(
+  confirmButton: (@Composable () -> Unit)?,
+  dismissButton: (@Composable () -> Unit)?,
+  actions: (@Composable RowScope.() -> Unit)?
+) {
+  if (confirmButton != null || dismissButton != null) {
+    Spacer(modifier = Modifier.size(SpacingTokens.sm))
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.End,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      if (dismissButton != null) {
+        dismissButton()
+        if (confirmButton != null) {
+          Spacer(modifier = Modifier.width(SpacingTokens.sm))
         }
       }
+      if (confirmButton != null) {
+        confirmButton()
+      }
+    }
+  } else if (actions != null) {
+    Spacer(modifier = Modifier.size(SpacingTokens.sm))
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+    ) {
+      actions()
     }
   }
 }

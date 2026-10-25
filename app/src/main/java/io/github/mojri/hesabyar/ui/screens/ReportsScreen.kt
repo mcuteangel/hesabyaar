@@ -479,8 +479,8 @@ fun ReportsScreen(
                   HesabyarButton(
                     onClick = { aiAssistantViewModel.clearAdvisorState() },
                     modifier = Modifier.weight(1f),
-                    text = "بستن",
-                    variant = ButtonVariant.Outlined
+                    text = stringResource(R.string.action_close),
+                    variant = ButtonVariant.Text
                   )
                 }
               }

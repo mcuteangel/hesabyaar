@@ -18,12 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.core.filterDigits
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
@@ -36,6 +37,7 @@ import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.IconCircle
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
@@ -197,102 +199,137 @@ fun InstallmentScreen(
 
   // Add Installment Dialog
   if (showAddDialog) {
-    var title by remember { mutableStateOf("") }
-    var amountText by remember { mutableStateOf("") }
-    var dateInMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    var reminderEnabled by remember { mutableStateOf(true) }
-    var notes by remember { mutableStateOf("") }
-
-    AlertDialog(
-      onDismissRequest = { showAddDialog = false },
-      title = {
-        Text(
-          "ثبت قسط جدید",
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.fillMaxWidth(),
-          textAlign = TextAlign.Right
-        )
+    AddInstallmentDialog(
+      onDismiss = { showAddDialog = false },
+      onConfirm = { title, amountRial, dateInMillis, reminderEnabled, notes ->
+        installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
+        installmentViewModel.setBankLoanFilter(null)
+        showAddDialog = false
       },
-      text = {
-        Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          HesabyarInputField(
-            value = title,
-            onValueChange = { title = it },
-            label = "عنوان قسط (مثلا قسط ماشین)"
-          )
+      onValidationError = { settingsViewModel.showMessage(it) }
+    )
+  }
+}
 
-          HesabyarInputField(
-            value = amountText,
-            onValueChange = { amountText = it.filterDigits() },
-            label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
-          )
+@Composable
+private fun AddInstallmentDialog(
+  onDismiss: () -> Unit,
+  onConfirm: (title: String, amountRial: Long, dateInMillis: Long, reminderEnabled: Boolean, notes: String) -> Unit,
+  onValidationError: (String) -> Unit
+) {
+  var title by remember { mutableStateOf("") }
+  var amountText by remember { mutableStateOf("") }
+  var dateInMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+  var reminderEnabled by remember { mutableStateOf(true) }
+  var notes by remember { mutableStateOf("") }
 
-          JalaliDateTimePicker(
-            initialTimestamp = dateInMillis,
-            onTimestampChanged = { dateInMillis = it }
-          )
-
-          Row(
-            // The whole row toggles the switch. TalkBack reads the label and the state.
-            modifier =
-              Modifier.fillMaxWidth().toggleable(
-                value = reminderEnabled,
-                onValueChange = { reminderEnabled = it },
-                role = Role.Switch
-              ),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              "اعلام و هشدار سررسید",
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurface
-            )
-            Switch(
-              checked = reminderEnabled,
-              onCheckedChange = null,
-              enabled = true
-            )
-          }
-
-          HesabyarInputField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = "شرح و یادداشت اضافی",
-            singleLine = false
-          )
-        }
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
-            when {
-              title.isBlank() || amountDisplay <= 0L ->
-                settingsViewModel.showMessage("لطفا فیلدهای اولیه قسط را کامل کنید")
-              overflowsTomanConversion(amountDisplay) ->
-                settingsViewModel.showMessage("مبلغ وارد شده بیش از حد مجاز است")
-              else -> {
-                val amountRial = CurrencyFormatter.toRial(amountDisplay)
-                installmentViewModel.addInstallment(title, amountRial, dateInMillis, reminderEnabled, notes)
-                installmentViewModel.setBankLoanFilter(null)
-                showAddDialog = false
-              }
+  HesabyarDialog(
+    onDismissRequest = onDismiss,
+    title = "ثبت قسط جدید",
+    confirmButton = {
+      HesabyarButton(
+        onClick = {
+          val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
+          when {
+            title.isBlank() || amountDisplay <= 0L ->
+              onValidationError("لطفا فیلدهای اولیه قسط را کامل کنید")
+            overflowsTomanConversion(amountDisplay) ->
+              onValidationError("مبلغ وارد شده بیش از حد مجاز است")
+            else -> {
+              val amountRial = CurrencyFormatter.toRial(amountDisplay)
+              onConfirm(title, amountRial, dateInMillis, reminderEnabled, notes)
             }
-          },
-          text = "ذخیره قسط"
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = { showAddDialog = false },
-          text = "انصراف",
-          variant = ButtonVariant.Text
-        )
-      }
+          }
+        },
+        text = "ذخیره قسط",
+        variant = ButtonVariant.Filled
+      )
+    },
+    dismissButton = {
+      HesabyarButton(
+        onClick = onDismiss,
+        text = stringResource(R.string.action_cancel),
+        variant = ButtonVariant.Text
+      )
+    }
+  ) {
+    AddInstallmentDialogForm(
+      title = title,
+      onTitleChange = { title = it },
+      amountText = amountText,
+      onAmountChange = { amountText = it },
+      dateInMillis = dateInMillis,
+      onDateChange = { dateInMillis = it },
+      reminderEnabled = reminderEnabled,
+      onReminderToggle = { reminderEnabled = it },
+      notes = notes,
+      onNotesChange = { notes = it }
+    )
+  }
+}
+
+@Composable
+private fun AddInstallmentDialogForm(
+  title: String,
+  onTitleChange: (String) -> Unit,
+  amountText: String,
+  onAmountChange: (String) -> Unit,
+  dateInMillis: Long,
+  onDateChange: (Long) -> Unit,
+  reminderEnabled: Boolean,
+  onReminderToggle: (Boolean) -> Unit,
+  notes: String,
+  onNotesChange: (String) -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+  ) {
+    HesabyarInputField(
+      value = title,
+      onValueChange = onTitleChange,
+      label = "عنوان قسط (مثلا قسط ماشین)"
+    )
+
+    HesabyarInputField(
+      value = amountText,
+      onValueChange = { onAmountChange(it.filterDigits()) },
+      label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
+    )
+
+    JalaliDateTimePicker(
+      initialTimestamp = dateInMillis,
+      onTimestampChanged = onDateChange
+    )
+
+    Row(
+      modifier =
+        Modifier.fillMaxWidth().toggleable(
+          value = reminderEnabled,
+          onValueChange = onReminderToggle,
+          role = Role.Switch
+        ),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        "اعلام و هشدار سررسید",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface
+      )
+      Switch(
+        checked = reminderEnabled,
+        onCheckedChange = null,
+        enabled = true
+      )
+    }
+
+    HesabyarInputField(
+      value = notes,
+      onValueChange = onNotesChange,
+      label = "شرح و یادداشت اضافی",
+      singleLine = false
     )
   }
 }
