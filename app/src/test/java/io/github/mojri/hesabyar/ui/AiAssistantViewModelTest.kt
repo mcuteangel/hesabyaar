@@ -146,7 +146,7 @@ class AiAssistantViewModelTest {
 
     val state = failingViewModel.advisorState.value
     assertTrue("Expected Error state but was $state", state is UiResult.Error)
-    assertEquals("خطا در بارگذاری اطلاعات", (state as UiResult.Error).message)
+    assertEquals("خطا در بارگذاری اطلاعات اولیه داشبورد", (state as UiResult.Error).message)
   }
 
   @Test
@@ -173,7 +173,7 @@ class AiAssistantViewModelTest {
 
     val state = failingViewModel.forecastState.value
     assertTrue("Expected Error state but was $state", state is UiResult.Error)
-    assertEquals("خطا در بارگذاری اطلاعات", (state as UiResult.Error).message)
+    assertEquals("خطا در بارگذاری اطلاعات اولیه داشبورد", (state as UiResult.Error).message)
   }
 
   @Test

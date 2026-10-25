@@ -330,7 +330,7 @@ open class AiAssistantViewModel
     )
 
     private suspend fun loadDashboardSnapshot(): DashboardSnapshot {
-      val onlineMode = runCatching { manageAiConfigUseCase.isOnlineMode() }.getOrDefault(false)
+      val onlineMode = this.isOnlineMode.value
       return combine(
         getDashboardDataUseCase.transactions,
         getDashboardDataUseCase.loans,
@@ -365,8 +365,12 @@ open class AiAssistantViewModel
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
-          AppLogger.e("AiAssistantViewModel", "Failed to load dashboard data for budget advice", e)
-          _advisorState.value = UiResult.Error("خطا در بارگذاری اطلاعات")
+          AppLogger.e(
+            "AiAssistantViewModel",
+            "Failed to load dashboard data for budget advice [${e.javaClass.name}]",
+            e
+          )
+          _advisorState.value = UiResult.Error("خطا در بارگذاری اطلاعات اولیه داشبورد")
         }
       }
     }
@@ -457,8 +461,12 @@ open class AiAssistantViewModel
         } catch (e: CancellationException) {
           throw e
         } catch (e: Exception) {
-          AppLogger.e("AiAssistantViewModel", "Failed to load dashboard data for budget forecast", e)
-          _forecastState.value = UiResult.Error("خطا در بارگذاری اطلاعات")
+          AppLogger.e(
+            "AiAssistantViewModel",
+            "Failed to load dashboard data for budget forecast [${e.javaClass.name}]",
+            e
+          )
+          _forecastState.value = UiResult.Error("خطا در بارگذاری اطلاعات اولیه داشبورد")
         }
       }
     }
