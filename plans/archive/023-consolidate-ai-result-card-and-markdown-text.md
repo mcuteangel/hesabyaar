@@ -45,11 +45,11 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 
 - [x] **Criterion 1 (`MarkdownText` in Components):** `MarkdownText` and `parseBoldMarkdown` are extracted to `ui/components/MarkdownText.kt` with support for `#`/`##`/`###` headers, bullet lists (`-`, `*`), numbered lists, bold markdown, and theme styling. Callers in `SmartAssistantScreen.kt`, `ReportsScreen.kt`, and `ForecastDetailDialog.kt` import it from `ui/components/`.
 - [x] **Criterion 2 (Reusable `AiResultCard` and `AiResultContent`):** A shared `AiResultCard<T>` (and inner `AiResultContent<T>`) composable is created in `ui/components/AiResultCard.kt` handling `UiResult.Idle`, `UiResult.Loading`, `UiResult.Success<T>`, and `UiResult.Error` with standard tokens, retry support, and slot customization.
-- [x] **Criterion 3 (Adoption of Shared AI Component Across 4 Sites):**
+- [x] **Criterion 3 (Adoption of Shared AI Component Across AI Presentation Sites):**
   - `ReportsScreen.kt` uses `AiResultCard` for the budget advice card.
-  - `ForecastDetailDialog.kt` uses `AiResultContent` / `AiResultCard` for forecast results.
-  - `SmartForecastCard.kt` adopts standardized loading, error, and preview states.
-  - `SmartAssistantScreen.kt` uses the shared component / standardized state rendering.
+  - `ForecastDetailDialog.kt` uses `AiResultContent` for full forecast results rendering.
+  - `SmartForecastCard.kt` maintains its compact teaser banner layout linked to `ForecastDetailDialog` with reactive `UiResult` state handling.
+  - `SmartAssistantScreen.kt` uses standardized state rendering and referral card.
 - [x] **Criterion 4 (Single-Screen Advice Rendering):** Full interactive budget advice is rendered solely in `ReportsScreen.kt`. `SmartAssistantScreen.kt` Tab 1 provides an informative referral card with navigation to Reports (`onNavigateToReports()`), avoiding dual-screen state synchronization issues.
 - [x] **Criterion 5 (Reactive ViewModels & Zero `.value` in Screens):**
   - `AiAssistantViewModel` injects `GetDashboardDataUseCase` to obtain financial data reactively inside its own `viewModelScope.launch` without requiring the UI to pass 6 parameters.

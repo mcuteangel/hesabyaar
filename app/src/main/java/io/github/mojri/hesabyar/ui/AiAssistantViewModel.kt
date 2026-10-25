@@ -319,24 +319,52 @@ open class AiAssistantViewModel
       )
     val advisorState = _advisorState.asStateFlow()
 
-    fun fetchBudgetAdvice(forceRefresh: Boolean = false) {
-      viewModelScope.launch {
-        val txs = getDashboardDataUseCase.transactions.first()
-        val loansList = getDashboardDataUseCase.loans.first()
-        val insts = getDashboardDataUseCase.installments.first()
-        val cats = getDashboardDataUseCase.categories.first()
-        val bankLoansList = getDashboardDataUseCase.bankLoans.first()
-        val online = manageAiConfigUseCase.isOnlineMode()
+    private data class DashboardSnapshot(
+      val transactions: List<Transaction>,
+      val loans: List<Loan>,
+      val installments: List<Installment>,
+      val categories: List<Category>,
+      val bankLoans: List<BankLoan>,
+      val isOnlineMode: Boolean
+    )
 
-        fetchBudgetAdvice(
+    private suspend fun loadDashboardSnapshot(): DashboardSnapshot =
+      combine(
+        getDashboardDataUseCase.transactions,
+        getDashboardDataUseCase.loans,
+        getDashboardDataUseCase.installments,
+        getDashboardDataUseCase.categories,
+        getDashboardDataUseCase.bankLoans
+      ) { txs, loans, insts, cats, bankLoans ->
+        DashboardSnapshot(
           transactions = txs,
-          loans = loansList,
+          loans = loans,
           installments = insts,
           categories = cats,
-          isOnlineMode = online,
-          bankLoans = bankLoansList,
-          forceRefresh = forceRefresh
+          bankLoans = bankLoans,
+          isOnlineMode = manageAiConfigUseCase.isOnlineMode()
         )
+      }.first()
+
+    fun fetchBudgetAdvice(forceRefresh: Boolean = false) {
+      viewModelScope.launch {
+        try {
+          val snapshot = loadDashboardSnapshot()
+          fetchBudgetAdvice(
+            transactions = snapshot.transactions,
+            loans = snapshot.loans,
+            installments = snapshot.installments,
+            categories = snapshot.categories,
+            isOnlineMode = snapshot.isOnlineMode,
+            bankLoans = snapshot.bankLoans,
+            forceRefresh = forceRefresh
+          )
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.e("AiAssistantViewModel", "Failed to load dashboard data for budget advice", e)
+          _advisorState.value = UiResult.Error("خطا در بارگذاری اطلاعات")
+        }
       }
     }
 
@@ -412,22 +440,23 @@ open class AiAssistantViewModel
 
     fun fetchBudgetForecast(forceRefresh: Boolean = false) {
       viewModelScope.launch {
-        val txs = getDashboardDataUseCase.transactions.first()
-        val loansList = getDashboardDataUseCase.loans.first()
-        val insts = getDashboardDataUseCase.installments.first()
-        val cats = getDashboardDataUseCase.categories.first()
-        val bankLoansList = getDashboardDataUseCase.bankLoans.first()
-        val online = manageAiConfigUseCase.isOnlineMode()
-
-        fetchBudgetForecast(
-          transactions = txs,
-          loans = loansList,
-          installments = insts,
-          categories = cats,
-          isOnlineMode = online,
-          bankLoans = bankLoansList,
-          forceRefresh = forceRefresh
-        )
+        try {
+          val snapshot = loadDashboardSnapshot()
+          fetchBudgetForecast(
+            transactions = snapshot.transactions,
+            loans = snapshot.loans,
+            installments = snapshot.installments,
+            categories = snapshot.categories,
+            isOnlineMode = snapshot.isOnlineMode,
+            bankLoans = snapshot.bankLoans,
+            forceRefresh = forceRefresh
+          )
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.e("AiAssistantViewModel", "Failed to load dashboard data for budget forecast", e)
+          _forecastState.value = UiResult.Error("خطا در بارگذاری اطلاعات")
+        }
       }
     }
 

@@ -27,6 +27,12 @@ import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 
 private val NUMBERED_LIST_REGEX = Regex("""^(\d+)[.)]\s+(.*)""")
+private const val H1_LEVEL = 1
+private const val H2_LEVEL = 2
+private const val H3_LEVEL = 3
+private const val BULLET_PREFIX_LENGTH = 2
+private val H3_BOTTOM_PADDING = 2.dp
+private val PARAGRAPH_LINE_HEIGHT = 22.sp
 
 /**
  * Lightweight in-house Markdown text renderer for AI advice and analytical summaries.
@@ -69,33 +75,36 @@ private fun MarkdownLine(
 
   val resolvedColor = if (textColor != Color.Unspecified) textColor else MaterialTheme.colorScheme.onSurface
 
+  val hashCount = trimmed.takeWhile { it == '#' }.length
+  val hasHeaderSpace = trimmed.getOrNull(hashCount)?.isWhitespace() == true
+
   when {
-    trimmed.startsWith("###") -> {
+    hashCount == H3_LEVEL && hasHeaderSpace -> {
       HeaderLine(
-        text = trimmed.removePrefix("###").trim(),
+        text = trimmed.drop(H3_LEVEL).trim(),
         style = MaterialTheme.typography.titleMedium,
         topPadding = SpacingTokens.sm,
-        bottomPadding = 2.dp
+        bottomPadding = H3_BOTTOM_PADDING
       )
     }
-    trimmed.startsWith("##") -> {
+    hashCount == H2_LEVEL && hasHeaderSpace -> {
       HeaderLine(
-        text = trimmed.removePrefix("##").trim(),
+        text = trimmed.drop(H2_LEVEL).trim(),
         style = MaterialTheme.typography.titleLarge,
         topPadding = SpacingTokens.md,
         bottomPadding = SpacingTokens.xs
       )
     }
-    trimmed.startsWith("#") -> {
+    hashCount == H1_LEVEL && hasHeaderSpace -> {
       HeaderLine(
-        text = trimmed.removePrefix("#").trim(),
+        text = trimmed.drop(H1_LEVEL).trim(),
         style = MaterialTheme.typography.headlineSmall,
         topPadding = SpacingTokens.md,
         bottomPadding = SpacingTokens.sm
       )
     }
-    trimmed.startsWith("-") || trimmed.startsWith("*") -> {
-      val itemText = trimmed.removePrefix("-").removePrefix("*").trim()
+    trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+      val itemText = trimmed.drop(BULLET_PREFIX_LENGTH).trim()
       ListItemRow(
         prefix = "•",
         itemText = itemText,
@@ -135,7 +144,7 @@ private fun RenderNumberedOrRegularText(
       style = textStyle,
       color = textColor,
       textAlign = TextAlign.Start,
-      lineHeight = 22.sp
+      lineHeight = PARAGRAPH_LINE_HEIGHT
     )
   }
 }
@@ -186,7 +195,7 @@ private fun ListItemRow(
       style = textStyle,
       color = textColor,
       textAlign = TextAlign.Start,
-      lineHeight = 22.sp
+      lineHeight = PARAGRAPH_LINE_HEIGHT
     )
   }
 }

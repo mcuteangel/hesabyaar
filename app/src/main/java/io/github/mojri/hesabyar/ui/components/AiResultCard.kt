@@ -314,26 +314,39 @@ private fun AiResultSuccessActions(
   onRefresh: (() -> Unit)?,
   onClose: (() -> Unit)?
 ) {
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-  ) {
-    if (onRefresh != null) {
+  if (onRefresh != null && onClose != null) {
+    Column(
+      modifier = Modifier.fillMaxWidth(),
+      verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
       HesabyarButton(
         onClick = onRefresh,
-        modifier = Modifier.weight(1f).testTag("ai_result_refresh_button"),
+        modifier = Modifier.fillMaxWidth().testTag("ai_result_refresh_button"),
         text = "بروزرسانی تحلیل",
         icon = Icons.Filled.Refresh,
         variant = ButtonVariant.Outlined
       )
-    }
-    if (onClose != null) {
       HesabyarButton(
         onClick = onClose,
-        modifier = Modifier.weight(1f).testTag("ai_result_close_button"),
+        modifier = Modifier.fillMaxWidth().testTag("ai_result_close_button"),
         text = "بستن",
         variant = ButtonVariant.Outlined
       )
     }
+  } else if (onRefresh != null) {
+    HesabyarButton(
+      onClick = onRefresh,
+      modifier = Modifier.fillMaxWidth().testTag("ai_result_refresh_button"),
+      text = "بروزرسانی تحلیل",
+      icon = Icons.Filled.Refresh,
+      variant = ButtonVariant.Outlined
+    )
+  } else if (onClose != null) {
+    HesabyarButton(
+      onClick = onClose,
+      modifier = Modifier.fillMaxWidth().testTag("ai_result_close_button"),
+      text = "بستن",
+      variant = ButtonVariant.Outlined
+    )
   }
 }

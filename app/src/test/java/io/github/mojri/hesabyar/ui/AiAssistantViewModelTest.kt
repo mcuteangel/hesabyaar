@@ -20,6 +20,8 @@ import io.github.mojri.hesabyar.domain.usecase.ManageAiConfigUseCase
 import io.github.mojri.hesabyar.domain.usecase.ParseTransactionUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -118,6 +120,60 @@ class AiAssistantViewModelTest {
     assertTrue("Expected Success state but was $state", state is UiResult.Success)
     val forecast = (state as UiResult.Success).data
     assertEquals("پیش‌بینی آزمایشی بودجه", forecast)
+  }
+
+  @Test
+  fun fetchBudgetAdviceWhenSnapshotFailsEmitsErrorState() {
+    val failingRepo =
+      object : HesabyarRepositoryInterface by FakeRepository() {
+        override val allTransactions: Flow<List<Transaction>> =
+          flow {
+            throw java.io.IOException("Disk read error")
+          }
+      }
+    val failingViewModel =
+      AiAssistantViewModel(
+        parseTransactionUseCase = FakeParseTransactionUseCase(failingRepo),
+        getBudgetAdviceUseCase = FakeGetBudgetAdviceUseCase(),
+        getForecastUseCase = FakeGetForecastUseCase(),
+        manageAiConfigUseCase = FakeManageAiConfigUseCase(RuntimeEnvironment.getApplication()),
+        aiForecastAdviceCache = fakeCache,
+        getDashboardDataUseCase = GetDashboardDataUseCase(failingRepo)
+      )
+
+    failingViewModel.fetchBudgetAdvice(forceRefresh = true)
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    val state = failingViewModel.advisorState.value
+    assertTrue("Expected Error state but was $state", state is UiResult.Error)
+    assertEquals("خطا در بارگذاری اطلاعات", (state as UiResult.Error).message)
+  }
+
+  @Test
+  fun fetchBudgetForecastWhenSnapshotFailsEmitsErrorState() {
+    val failingRepo =
+      object : HesabyarRepositoryInterface by FakeRepository() {
+        override val allTransactions: Flow<List<Transaction>> =
+          flow {
+            throw java.io.IOException("Disk read error")
+          }
+      }
+    val failingViewModel =
+      AiAssistantViewModel(
+        parseTransactionUseCase = FakeParseTransactionUseCase(failingRepo),
+        getBudgetAdviceUseCase = FakeGetBudgetAdviceUseCase(),
+        getForecastUseCase = FakeGetForecastUseCase(),
+        manageAiConfigUseCase = FakeManageAiConfigUseCase(RuntimeEnvironment.getApplication()),
+        aiForecastAdviceCache = fakeCache,
+        getDashboardDataUseCase = GetDashboardDataUseCase(failingRepo)
+      )
+
+    failingViewModel.fetchBudgetForecast(forceRefresh = true)
+    testDispatcher.scheduler.advanceUntilIdle()
+
+    val state = failingViewModel.forecastState.value
+    assertTrue("Expected Error state but was $state", state is UiResult.Error)
+    assertEquals("خطا در بارگذاری اطلاعات", (state as UiResult.Error).message)
   }
 
   @Test

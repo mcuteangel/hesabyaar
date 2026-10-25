@@ -129,4 +129,39 @@ class MarkdownTextTest {
     composeRule.onNodeWithText("First paragraph.").assertIsDisplayed()
     composeRule.onNodeWithText("Second paragraph after empty line.").assertIsDisplayed()
   }
+
+  @Test
+  fun markdownTextDoesNotTreatBoldStartAsBulletList() {
+    val markdown = "**نکته مهم:** متن توضیحی"
+
+    composeRule.setContent {
+      MarkdownText(text = markdown)
+    }
+
+    composeRule.onNodeWithText("نکته مهم: متن توضیحی").assertIsDisplayed()
+    composeRule.onNodeWithText("•").assertDoesNotExist()
+  }
+
+  @Test
+  fun markdownTextRequiresWhitespaceAfterHeaderHashes() {
+    val markdown = "#hashtag and ###notAHeader"
+
+    composeRule.setContent {
+      MarkdownText(text = markdown)
+    }
+
+    composeRule.onNodeWithText("#hashtag and ###notAHeader").assertIsDisplayed()
+  }
+
+  @Test
+  fun markdownTextFourHashesRendersAsRegularText() {
+    val markdown = "#### Level four header"
+
+    composeRule.setContent {
+      MarkdownText(text = markdown)
+    }
+
+    composeRule.onNodeWithText("#### Level four header").assertIsDisplayed()
+    composeRule.onNodeWithText("# Level four header").assertDoesNotExist()
+  }
 }
