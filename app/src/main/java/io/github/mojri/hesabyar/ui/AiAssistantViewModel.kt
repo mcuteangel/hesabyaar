@@ -12,6 +12,7 @@ import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.*
 import io.github.mojri.hesabyar.domain.usecase.AiForecastAdviceCache
 import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
+import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageAiConfigUseCase
 import io.github.mojri.hesabyar.domain.usecase.ParseTransactionUseCase
@@ -34,6 +35,7 @@ open class AiAssistantViewModel
     private val getForecastUseCase: GetForecastUseCase,
     private val manageAiConfigUseCase: ManageAiConfigUseCase,
     private val aiForecastAdviceCache: AiForecastAdviceCache,
+    private val getDashboardDataUseCase: GetDashboardDataUseCase,
   ) : ViewModel() {
     var aiConfigs = mutableStateOf(manageAiConfigUseCase.loadConfigs())
       private set
@@ -245,7 +247,7 @@ open class AiAssistantViewModel
 
     fun parseSmartSentence(
       sentence: String,
-      isOnlineMode: Boolean
+      isOnlineMode: Boolean = this.isOnlineMode.value
     ) {
       if (sentence.isBlank()) return
       // Sequence guard: a parse whose response arrived just before cancellation
@@ -317,6 +319,27 @@ open class AiAssistantViewModel
       )
     val advisorState = _advisorState.asStateFlow()
 
+    fun fetchBudgetAdvice(forceRefresh: Boolean = false) {
+      viewModelScope.launch {
+        val txs = getDashboardDataUseCase.transactions.first()
+        val loansList = getDashboardDataUseCase.loans.first()
+        val insts = getDashboardDataUseCase.installments.first()
+        val cats = getDashboardDataUseCase.categories.first()
+        val bankLoansList = getDashboardDataUseCase.bankLoans.first()
+        val online = manageAiConfigUseCase.isOnlineMode()
+
+        fetchBudgetAdvice(
+          transactions = txs,
+          loans = loansList,
+          installments = insts,
+          categories = cats,
+          isOnlineMode = online,
+          bankLoans = bankLoansList,
+          forceRefresh = forceRefresh
+        )
+      }
+    }
+
     fun fetchBudgetAdvice(
       transactions: List<Transaction>,
       loans: List<Loan>,
@@ -386,6 +409,27 @@ open class AiAssistantViewModel
         if (!cachedForecast.isNullOrEmpty()) UiResult.Success(cachedForecast.orEmpty()) else UiResult.Idle
       )
     val forecastState = _forecastState.asStateFlow()
+
+    fun fetchBudgetForecast(forceRefresh: Boolean = false) {
+      viewModelScope.launch {
+        val txs = getDashboardDataUseCase.transactions.first()
+        val loansList = getDashboardDataUseCase.loans.first()
+        val insts = getDashboardDataUseCase.installments.first()
+        val cats = getDashboardDataUseCase.categories.first()
+        val bankLoansList = getDashboardDataUseCase.bankLoans.first()
+        val online = manageAiConfigUseCase.isOnlineMode()
+
+        fetchBudgetForecast(
+          transactions = txs,
+          loans = loansList,
+          installments = insts,
+          categories = cats,
+          isOnlineMode = online,
+          bankLoans = bankLoansList,
+          forceRefresh = forceRefresh
+        )
+      }
+    }
 
     @Suppress("CyclomaticComplexMethod")
     fun fetchBudgetForecast(

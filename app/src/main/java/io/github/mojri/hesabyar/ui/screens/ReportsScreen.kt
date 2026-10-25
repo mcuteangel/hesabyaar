@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
@@ -36,7 +35,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.DashboardViewModel
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
 import io.github.mojri.hesabyar.ui.TransactionViewModel
-import io.github.mojri.hesabyar.ui.UiResult
+import io.github.mojri.hesabyar.ui.components.AiResultCard
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.CategoryFilterChip
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
@@ -313,222 +312,36 @@ fun ReportsScreen(
     // AI Budget Advisor Card
     item {
       val budgetState by aiAssistantViewModel.advisorState.collectAsState()
+      val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
       val providerStatus = aiAssistantViewModel.getProviderStatusText()
 
-      HesabyarCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = ShapeTokens.XLarge,
-        cardColors =
-          CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = Dimens.CHIP_CONTAINER_ALPHA)
-          )
-      ) {
-        Column(
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          Row(
+      AiResultCard(
+        state = budgetState,
+        title = "توصیه‌های هوشمند بودجه",
+        subtitle = providerStatus,
+        icon = Icons.Filled.AutoAwesome,
+        idleDescription =
+          "با تحلیل عمیق تراکنش‌ها، قسط‌ها و امور مالی ثبت شده، توصیه‌های اختصاصی جهت " +
+            "بهبود وضعیت بودجه خود را از هوش مصنوعی دریافت کنید.",
+        idleActionText = "تحلیل هوشمند و دریافت توصیه",
+        loadingText = "درحال تحلیل تراکنش‌ها و دریافت راهکارها...",
+        onFetch = { aiAssistantViewModel.fetchBudgetAdvice() },
+        onRefresh = { aiAssistantViewModel.fetchBudgetAdvice(forceRefresh = true) },
+        onRetry = { aiAssistantViewModel.fetchBudgetAdvice(forceRefresh = true) },
+        onClose = { aiAssistantViewModel.clearAdvisorState() }
+      ) { adviceText ->
+        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
+          MarkdownText(
+            text = adviceText,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-            ) {
-              Box(
-                modifier =
-                  Modifier
-                    .size(Dimens.ContainerSmall)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.AutoAwesome,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.onPrimary,
-                  modifier = Modifier.size(Dimens.IconMenu)
-                )
-              }
-              Column {
-                Text(
-                  text = "توصیه‌های هوشمند بودجه",
-                  style = MaterialTheme.typography.titleSmall,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                  text = providerStatus,
-                  style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-              }
-            }
-
-            if (budgetState is UiResult.Success) {
-              IconButton(
-                onClick = { aiAssistantViewModel.clearAdvisorState() },
-                // Enforce the 48dp minimum touch area; the minimum must come before
-                // the fixed size, otherwise the fixed size wins and the target stays small.
-                modifier = Modifier.minimumInteractiveComponentSize().size(Dimens.ContainerXSmall)
-              ) {
-                Icon(
-                  imageVector = Icons.Filled.Close,
-                  contentDescription = "بستن",
-                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                  modifier = Modifier.size(Dimens.IconSmall)
-                )
-              }
-            }
-          }
-
-          when (val state = budgetState) {
-            is UiResult.Idle -> {
-              Column(
-                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
-                horizontalAlignment = Alignment.Start
-              ) {
-                Text(
-                  text =
-                    "با تحلیل عمیق تراکنش‌ها، قسط‌ها و امور مالی ثبت شده، توصیه‌های" +
-                      " اختصاصی جهت بهبود وضعیت بودجه خود را از هوش مصنوعی دریافت کنید.",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  lineHeight = 18.sp
-                )
-                HesabyarButton(
-                  onClick = {
-                    aiAssistantViewModel.fetchBudgetAdvice(
-                      dashboardViewModel.transactions.value,
-                      dashboardViewModel.loans.value,
-                      dashboardViewModel.installments.value,
-                      dashboardViewModel.categories.value,
-                      aiAssistantViewModel.isOnlineMode.value,
-                      dashboardViewModel.bankLoans.value,
-                      false
-                    )
-                  },
-                  modifier = Modifier.fillMaxWidth(),
-                  text = "تحلیل هوشمند و دریافت توصیه",
-                  icon = Icons.Filled.AutoAwesome,
-                  variant = ButtonVariant.Filled
-                )
-              }
-            }
-            is UiResult.Loading -> {
-              Column(
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = SpacingTokens.md),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-              ) {
-                CircularProgressIndicator(
-                  modifier = Modifier.size(24.dp),
-                  color = MaterialTheme.colorScheme.primary,
-                  strokeWidth = 2.5.dp
-                )
-                Text(
-                  text = "درحال تحلیل تراکنش‌ها و دریافت راهکارها...",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.primary
-                )
-              }
-            }
-            is UiResult.Success -> {
-              val lastAdviceFetchTime by aiAssistantViewModel.lastAdviceFetchTime.collectAsState()
-              Column(
-                verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-              ) {
-                MarkdownText(
-                  text = state.data,
-                  modifier = Modifier.fillMaxWidth(),
-                  textStyle = MaterialTheme.typography.bodySmall,
-                  textColor = MaterialTheme.colorScheme.onSurface
-                )
-
-                Text(
-                  text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(
-                    lastAdviceFetchTime
-                  )}",
-                  style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-                ) {
-                  HesabyarButton(
-                    onClick = {
-                      aiAssistantViewModel.fetchBudgetAdvice(
-                        dashboardViewModel.transactions.value,
-                        dashboardViewModel.loans.value,
-                        dashboardViewModel.installments.value,
-                        dashboardViewModel.categories.value,
-                        aiAssistantViewModel.isOnlineMode.value,
-                        dashboardViewModel.bankLoans.value,
-                        true
-                      )
-                    },
-                    modifier = Modifier.weight(1f),
-                    text = "بروزرسانی تحلیل",
-                    icon = Icons.Filled.Refresh,
-                    variant = ButtonVariant.Outlined
-                  )
-
-                  HesabyarButton(
-                    onClick = { aiAssistantViewModel.clearAdvisorState() },
-                    modifier = Modifier.weight(1f),
-                    text = "بستن",
-                    variant = ButtonVariant.Outlined
-                  )
-                }
-              }
-            }
-            is UiResult.Error -> {
-              Column(
-                verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
-                horizontalAlignment = Alignment.CenterHorizontally
-              ) {
-                Row(
-                  verticalAlignment = Alignment.CenterVertically,
-                  horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-                ) {
-                  Icon(
-                    imageVector = Icons.Filled.ErrorOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(Dimens.IconMenu)
-                  )
-                  Text(
-                    text = state.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                  )
-                }
-                HesabyarButton(
-                  onClick = {
-                    aiAssistantViewModel.fetchBudgetAdvice(
-                      dashboardViewModel.transactions.value,
-                      dashboardViewModel.loans.value,
-                      dashboardViewModel.installments.value,
-                      dashboardViewModel.categories.value,
-                      aiAssistantViewModel.isOnlineMode.value,
-                      dashboardViewModel.bankLoans.value,
-                      true
-                    )
-                  },
-                  text = "تلاش مجدد",
-                  variant = ButtonVariant.Filled,
-                  colors =
-                    ButtonDefaults.buttonColors(
-                      containerColor = MaterialTheme.colorScheme.error
-                    )
-                )
-              }
-            }
-          }
+            textStyle = MaterialTheme.typography.bodySmall,
+            textColor = MaterialTheme.colorScheme.onSurface
+          )
+          Text(
+            text = "آخرین به‌روزرسانی: ${aiAssistantViewModel.formatLastFetchTime(lastAdviceFetchTime)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
         }
       }
     }
