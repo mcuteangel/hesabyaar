@@ -4,7 +4,7 @@
 - **PR:** —
 - **Created:** 2026-10-24
 - **Author:** Claude Code
-- **Status:** IN PROGRESS
+- **Status:** DONE
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -43,20 +43,20 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 
 ## 2. Goals & Acceptance Criteria
 
-- [ ] **Criterion 1 (`MarkdownText` in Components):** `MarkdownText` and `parseBoldMarkdown` are extracted to `ui/components/MarkdownText.kt` with support for `#`/`##`/`###` headers, bullet lists (`-`, `*`), numbered lists, bold markdown, and theme styling. Callers in `SmartAssistantScreen.kt`, `ReportsScreen.kt`, and `ForecastDetailDialog.kt` import it from `ui/components/`.
-- [ ] **Criterion 2 (Reusable `AiResultCard` and `AiResultContent`):** A shared `AiResultCard<T>` (and inner `AiResultContent<T>`) composable is created in `ui/components/AiResultCard.kt` handling `UiResult.Idle`, `UiResult.Loading`, `UiResult.Success<T>`, and `UiResult.Error` with standard tokens, retry support, and slot customization.
-- [ ] **Criterion 3 (Adoption of Shared AI Component Across 4 Sites):**
+- [x] **Criterion 1 (`MarkdownText` in Components):** `MarkdownText` and `parseBoldMarkdown` are extracted to `ui/components/MarkdownText.kt` with support for `#`/`##`/`###` headers, bullet lists (`-`, `*`), numbered lists, bold markdown, and theme styling. Callers in `SmartAssistantScreen.kt`, `ReportsScreen.kt`, and `ForecastDetailDialog.kt` import it from `ui/components/`.
+- [x] **Criterion 2 (Reusable `AiResultCard` and `AiResultContent`):** A shared `AiResultCard<T>` (and inner `AiResultContent<T>`) composable is created in `ui/components/AiResultCard.kt` handling `UiResult.Idle`, `UiResult.Loading`, `UiResult.Success<T>`, and `UiResult.Error` with standard tokens, retry support, and slot customization.
+- [x] **Criterion 3 (Adoption of Shared AI Component Across 4 Sites):**
   - `ReportsScreen.kt` uses `AiResultCard` for the budget advice card.
   - `ForecastDetailDialog.kt` uses `AiResultContent` / `AiResultCard` for forecast results.
   - `SmartForecastCard.kt` adopts standardized loading, error, and preview states.
   - `SmartAssistantScreen.kt` uses the shared component / standardized state rendering.
-- [ ] **Criterion 4 (Single-Screen Advice Rendering):** Full interactive budget advice is rendered solely in `ReportsScreen.kt`. `SmartAssistantScreen.kt` Tab 1 provides an informative referral card with navigation to Reports (`onNavigateToReports()`), avoiding dual-screen state synchronization issues.
-- [ ] **Criterion 5 (Reactive ViewModels & Zero `.value` in Screens):**
+- [x] **Criterion 4 (Single-Screen Advice Rendering):** Full interactive budget advice is rendered solely in `ReportsScreen.kt`. `SmartAssistantScreen.kt` Tab 1 provides an informative referral card with navigation to Reports (`onNavigateToReports()`), avoiding dual-screen state synchronization issues.
+- [x] **Criterion 5 (Reactive ViewModels & Zero `.value` in Screens):**
   - `AiAssistantViewModel` injects `GetDashboardDataUseCase` to obtain financial data reactively inside its own `viewModelScope.launch` without requiring the UI to pass 6 parameters.
   - `fetchBudgetAdvice(forceRefresh: Boolean = false)` and `fetchBudgetForecast(forceRefresh: Boolean = false)` require no parameter passing from UI composables.
   - `parseSmartSentence(sentence: String)` defaults `isOnlineMode` internally to its own configured state.
   - Verification check `git grep -E 'ViewModel\.[a-zA-Z]+\.value' app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` returns exactly 0 matches.
-- [ ] **Criterion 6 (Unit Tests & Quality Gates):**
+- [x] **Criterion 6 (Unit Tests & Quality Gates):**
   - Unit tests for `MarkdownTextTest.kt` verifying markdown syntax parsing and formatting.
   - Unit tests for `AiResultCardTest.kt` verifying Idle, Loading, Error (retry callback), and Success states.
   - Unit tests for `AiAssistantViewModel` reactive data fetching in `AiAssistantParseRaceTest.kt` or new `AiAssistantViewModelTest.kt`.
@@ -78,11 +78,11 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 - Modify: `app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ForecastDetailDialog.kt`
 
 **Steps:**
-- [ ] Move `MarkdownText` and `parseBoldMarkdown` from `SmartAssistantScreen.kt:720-805` into `ui/components/MarkdownText.kt`.
-- [ ] Enhance list parsing to support numbered lists (`1. `, `2. `) alongside bullet lists (`-`, `*`) per plan 013 step 7.3 recommendations.
-- [ ] Ensure correct RTL alignment (`TextAlign.Start`), typography styles, and theme colors.
-- [ ] Update imports in `SmartAssistantScreen.kt`, `ReportsScreen.kt`, and `ForecastDetailDialog.kt`.
-- [ ] Write unit tests in `MarkdownTextTest.kt` covering header hierarchy, bullets, numbered lists, and bold parsing.
+- [x] Move `MarkdownText` and `parseBoldMarkdown` from `SmartAssistantScreen.kt:720-805` into `ui/components/MarkdownText.kt`.
+- [x] Enhance list parsing to support numbered lists (`1. `, `2. `) alongside bullet lists (`-`, `*`) per plan 013 step 7.3 recommendations.
+- [x] Ensure correct RTL alignment (`TextAlign.Start`), typography styles, and theme colors.
+- [x] Update imports in `SmartAssistantScreen.kt`, `ReportsScreen.kt`, and `ForecastDetailDialog.kt`.
+- [x] Write unit tests in `MarkdownTextTest.kt` covering header hierarchy, bullets, numbered lists, and bold parsing.
 
 **Done Criteria:**
 - `MarkdownText` lives in `ui/components/`.
@@ -98,7 +98,7 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 - Create: `app/src/test/java/io/github/mojri/hesabyar/ui/components/AiResultCardTest.kt`
 
 **Steps:**
-- [ ] Define `AiResultCard<T>`:
+- [x] Define `AiResultCard<T>`:
   ```kotlin
   @Composable
   fun <T> AiResultCard(
@@ -121,9 +121,9 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
     content: @Composable (data: T) -> Unit
   )
   ```
-- [ ] Define inner/embedded `AiResultContent<T>` composable for use when the caller provides its own container or dialog wrapper (such as `ForecastDetailDialog`).
-- [ ] Ensure M3 tokens (`ShapeTokens.XLarge`, `SpacingTokens`, `Dimens`, `MaterialTheme.colorScheme`) are used consistently.
-- [ ] Write Robolectric unit tests in `AiResultCardTest.kt` asserting:
+- [x] Define inner/embedded `AiResultContent<T>` composable for use when the caller provides its own container or dialog wrapper (such as `ForecastDetailDialog`).
+- [x] Ensure M3 tokens (`ShapeTokens.XLarge`, `SpacingTokens`, `Dimens`, `MaterialTheme.colorScheme`) are used consistently.
+- [x] Write Robolectric unit tests in `AiResultCardTest.kt` asserting:
   - `UiResult.Idle` displays idle description and triggers `onFetch`.
   - `UiResult.Loading` displays indicator and loading message.
   - `UiResult.Error` displays error message and invokes `onRetry`.
@@ -145,20 +145,20 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 - Modify: `app/src/test/java/io/github/mojri/hesabyar/ui/AiAssistantParseRaceTest.kt`
 
 **Steps:**
-- [ ] Inject `GetDashboardDataUseCase` into `AiAssistantViewModel` constructor (provided in `UseCaseModule.kt`).
-- [ ] Refactor `fetchBudgetAdvice(forceRefresh: Boolean = false)`:
+- [x] Inject `GetDashboardDataUseCase` into `AiAssistantViewModel` constructor (provided in `UseCaseModule.kt`).
+- [x] Refactor `fetchBudgetAdvice(forceRefresh: Boolean = false)`:
   - In `viewModelScope.launch`, collect current lists reactively from `getDashboardDataUseCase.transactions.first()`, `loans.first()`, `installments.first()`, `categories.first()`, and `bankLoans.first()`.
   - Read `isOnlineMode` directly from `manageAiConfigUseCase.isOnlineMode()`.
   - Retain the parameterized overload marked `@VisibleForTesting` or for specific custom invocations if needed.
-- [ ] Refactor `fetchBudgetForecast(forceRefresh: Boolean = false)` similarly using `GetDashboardDataUseCase`.
-- [ ] Default `isOnlineMode` in `parseSmartSentence(sentence: String, isOnlineMode: Boolean = this.isOnlineMode.value)`.
-- [ ] In `ReportsScreen.kt`:
+- [x] Refactor `fetchBudgetForecast(forceRefresh: Boolean = false)` similarly using `GetDashboardDataUseCase`.
+- [x] Default `isOnlineMode` in `parseSmartSentence(sentence: String, isOnlineMode: Boolean = this.isOnlineMode.value)`.
+- [x] In `ReportsScreen.kt`:
   - Replace calls passing 6 `dashboardViewModel.*.value` parameters with parameterless `aiAssistantViewModel.fetchBudgetAdvice()`.
-- [ ] In `SmartAssistantScreen.kt`:
+- [x] In `SmartAssistantScreen.kt`:
   - Replace `aiAssistantViewModel.isOnlineMode.value` reads with `aiAssistantViewModel.parseSmartSentence(text)`.
-- [ ] In `DashboardScreen.kt`:
+- [x] In `DashboardScreen.kt`:
   - Replace `dashboardViewModel.*.value` parameter passing with `aiAssistantViewModel.fetchBudgetForecast(forceRefresh = true)`.
-- [ ] Update `AiAssistantParseRaceTest.kt` to supply `GetDashboardDataUseCase` mock/fake.
+- [x] Update `AiAssistantParseRaceTest.kt` to supply `GetDashboardDataUseCase` mock/fake.
 
 **Done Criteria:**
 - `git grep -E 'ViewModel\.[a-zA-Z]+\.value' app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` returns 0 matches.
@@ -176,19 +176,19 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 - Modify: `app/src/main/java/io/github/mojri/hesabyar/MainActivity.kt`
 
 **Steps:**
-- [ ] In `ReportsScreen.kt`:
+- [x] In `ReportsScreen.kt`:
   - Replace custom advice card implementation (lines 317-500) with `AiResultCard`.
   - Pass `budgetState`, `onRefresh = { aiAssistantViewModel.fetchBudgetAdvice(forceRefresh = true) }`, `onClose = { aiAssistantViewModel.clearAdvisorState() }`, `onFetch = { aiAssistantViewModel.fetchBudgetAdvice() }`.
   - In `content`, render `MarkdownText(text = data)`.
-- [ ] In `SmartAssistantScreen.kt`:
+- [x] In `SmartAssistantScreen.kt`:
   - Remove duplicate full advice UI and state machine (lines 486-660).
   - Add `onNavigateToReports: () -> Unit` callback parameter to `SmartAssistantScreen`.
   - In Tab 1 ("مشاور بودجه"), render a referral card explaining that budget advice is integrated into Reports, featuring a "مشاهده گزارش و تحلیل بودجه" button calling `onNavigateToReports()`.
-- [ ] In `MainActivity.kt`:
+- [x] In `MainActivity.kt`:
   - Wire `onNavigateToReports = { currentTab = TAB_REPORTS }` in `SmartAssistantScreen`.
-- [ ] In `ForecastDetailDialog.kt`:
+- [x] In `ForecastDetailDialog.kt`:
   - Adopt `AiResultContent` for Loading, Error (with retry), and Success states with `MarkdownText`.
-- [ ] In `SmartForecastCard.kt`:
+- [x] In `SmartForecastCard.kt`:
   - Ensure forecast preview aligns with `UiResult` and clean reactive calls.
 
 **Done Criteria:**
@@ -205,11 +205,11 @@ Issue #356 and the UI/UX audit (`hesabyar-ux-audit.md` items A10, H5, and C3) id
 - Modify: `progress.md`
 
 **Steps:**
-- [ ] Run `./gradlew ktlintCheck detekt --no-daemon` and fix any formatting/lint issues.
-- [ ] Run `./gradlew testDebugUnitTest --no-daemon` to ensure all tests pass.
-- [ ] Run `python3 scripts/check_docs.py` to confirm zero broken doc references.
-- [ ] Run `git grep -E 'ViewModel\.[a-zA-Z]+\.value' app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` to ensure 0 matches.
-- [ ] Update `progress.md` with results.
+- [x] Run `./gradlew ktlintCheck detekt --no-daemon` and fix any formatting/lint issues.
+- [x] Run `./gradlew testDebugUnitTest --no-daemon` to ensure all tests pass.
+- [x] Run `python3 scripts/check_docs.py` to confirm zero broken doc references.
+- [x] Run `git grep -E 'ViewModel\.[a-zA-Z]+\.value' app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt app/src/main/java/io/github/mojri/hesabyar/ui/screens/SmartAssistantScreen.kt` to ensure 0 matches.
+- [x] Update `progress.md` with results.
 
 **Done Criteria:**
 - All checks pass cleanly without regressions.

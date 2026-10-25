@@ -41,7 +41,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 020  | Replace 16 raw OutlinedTextField uses with HesabyarInputField (`plans/020-replace-raw-outlinedtextfield-with-hesabyarinputfield.md`, issue #457, PR #517) | P3 | M | — | IN PROGRESS (PR #517 open; verification green) |
 | 021  | [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (`plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md`, issue #458) | P2 | L | 015 (shared component family pattern) | DONE |
 | 022  | [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (`plans/archive/022-topbar-heading-semantics-and-emoji-cleanup.md`, issue #361) | P2 | S | — | DONE (branch `feat/issue-361-topbar-heading-semantics`, PR #540) |
-| 023  | [Tech-debt] Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (`plans/023-consolidate-ai-result-card-and-markdown-text.md`, issue #356) | P2 | M | 005 | IN PROGRESS (branch `feat/issue-356-ai-result-card-consolidation`) |
+| 023  | [Tech-debt] Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (`plans/archive/023-consolidate-ai-result-card-and-markdown-text.md`, issue #356) | P2 | M | 005 | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

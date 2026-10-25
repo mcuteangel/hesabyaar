@@ -6,21 +6,25 @@
 
 ## Active Task
 
-- **Task:** Plan 023 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Issue #356)
-- **Status:** In progress — Phase 1 (Extract `MarkdownText`).
-- **Branch:** `feat/issue-356-ai-result-card-consolidation`
-- **Verification:** Plan drift check and doc reference checks passing (`python3 scripts/check_docs.py` → 0 broken references).
+None (Plan 023 completed, ready for branch finishing / PR).
 
 ## Goal
 
-- [ ] Extract `MarkdownText` and `parseBoldMarkdown` from `SmartAssistantScreen.kt` to `ui/components/MarkdownText.kt`.
-- [ ] Create reusable `AiResultCard` and `AiResultContent` in `ui/components/AiResultCard.kt` for `UiResult<T>`.
-- [ ] Decouple `AiAssistantViewModel` data loading with `GetDashboardDataUseCase` and eliminate all direct `.value` reads in composables.
-- [ ] Consolidate full budget advice rendering in `ReportsScreen.kt` and replace duplicate UI in `SmartAssistantScreen.kt` with a navigation referral card.
-- [ ] Adopt `AiResultCard` / `AiResultContent` across target sites (`ReportsScreen`, `ForecastDetailDialog`, `SmartForecastCard`).
-- [ ] Add unit tests for `MarkdownTextTest` and `AiResultCardTest`, and verify `./gradlew ktlintCheck detekt testDebugUnitTest`.
+- [ ] Awaiting next task assignment or PR merge.
 
 ## Completed
+
+- **Task:** Issue #356 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Plan 023)
+- **Status:** Completed and verified (branch `feat/issue-356-ai-result-card-consolidation`)
+- **Completed Date:** 2026-10-25
+- **Deliverables:**
+    - [x] Extracted `MarkdownText` and `parseBoldMarkdown` to `ui/components/MarkdownText.kt` with support for `#`/`##`/`###` headers, bullet lists, numbered lists, bold text, and RTL semantics. Added 7 unit tests in `MarkdownTextTest.kt`.
+    - [x] Created reusable `AiResultCard` and `AiResultContent` in `ui/components/AiResultCard.kt` covering `UiResult.Idle`, `Loading`, `Success`, and `Error` with retry/refresh/close actions and M3 tokens. Added 6 unit tests in `AiResultCardTest.kt`.
+    - [x] Injected `GetDashboardDataUseCase` into `AiAssistantViewModel`, decoupling ViewModel data loading from Compose `.value` reads. Added unit tests in `AiAssistantViewModelTest.kt` and updated `AiAssistantParseRaceTest.kt`.
+    - [x] Verified zero `.value` reads from ViewModels across `ReportsScreen.kt` and `SmartAssistantScreen.kt`.
+    - [x] Consolidated full budget advice in `ReportsScreen.kt` using `AiResultCard`. Replaced duplicate advice UI in `SmartAssistantScreen.kt` with a navigation referral card to Reports.
+    - [x] Adopted `AiResultContent` in `ForecastDetailDialog.kt`.
+    - [x] Verified full test suite (`testDebugUnitTest`), static analysis (`ktlintCheck`, `detekt`), and documentation links (`check_docs.py`) passing with zero errors.
 
 - **Task:** Issue #361 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Plan 022)
 - **Status:** Completed and verified (branch `feat/issue-361-topbar-heading-semantics`, PR #540)
