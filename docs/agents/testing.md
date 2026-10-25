@@ -57,8 +57,10 @@ Cover every line you change. This rule applies to new files and to changed lines
 - A new file needs tests for its new code.
 - A changed file needs tests for its changed lines.
 - A behavior-preserving swap needs a test that renders the touched screen and asserts the swapped part exists.
-- `codecov/patch` measures this rule. It must stay green. Do not override it or ignore it for touched-line gaps.
+- `codecov/patch` reports patch coverage. Reviewers check it on every PR. It is a review policy, not a required merge gate.
+- A passing check still allows uncovered lines within the configured threshold, so review the uncovered-lines list for your touched lines.
 - Exemptions: documentation-only changes, generated code, and pure formatting or rename changes with zero behavior change. State the exemption in the PR body.
+- Test sources need no coverage proof. Codecov excludes test sources, so cover them by running the suite.
 - If you cannot cover the touched lines, file a coverage issue under epic #559. Link the issue in the PR body. Do not ship the gap silently.
 
 ## Mandatory Post-Modification Verification Workflow
