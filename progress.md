@@ -11,7 +11,7 @@ Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewMode
 ## Goal
 
 - [x] Phase 0: Pre-execution Drift Audit completed.
-- [ ] Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions via `TransactionMiniItemSignPlacementTest`).
+- [x] Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions via `TransactionMiniItemSignPlacementTest`) completed.
 - [ ] Phase 2: Dead Test Deletion (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and old `TransactionItemSignPlacementTest`).
 - [ ] Phase 3: Dead Code Deletion in `app/src/main` (5 dead files + KDoc sync in `LoanEditCalculator.kt`).
 - [ ] Phase 4: Strings and Detekt Baseline Cleanup (3 string keys, 14 detekt baseline entries).

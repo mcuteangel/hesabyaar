@@ -94,8 +94,8 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
    Confirmed zero callers outside own definitions and `LoanEditCalculator.kt` KDoc.
 3. Record existing test counts on `./gradlew testDebugUnitTest`. (Verified `TransactionItemSignPlacementTest` 4/4 passing)
 
-### Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions)
-1. Adapt `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` to test `TransactionMiniItem` in `app/src/test/java/io/github/mojri/hesabyar/TransactionMiniItemSignPlacementTest.kt`. <!-- check-docs: ignore -->
+### Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions) (Completed)
+1. Adapt `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` to test `TransactionMiniItem` in `app/src/test/java/io/github/mojri/hesabyar/TransactionMiniItemSignPlacementTest.kt`.
 2. Ensure it exercises:
    - Negative amount (expense) RTL sign placement.
    - Positive amount (income) RTL sign placement.
@@ -105,6 +105,7 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
    ```bash
    ./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.TransactionMiniItemSignPlacementTest"
    ```
+   (Completed: all 4 tests passing)
 
 ### Phase 2: Dead Test Deletion
 1. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanManagementDialogTest.kt`.
