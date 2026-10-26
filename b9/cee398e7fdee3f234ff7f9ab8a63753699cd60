@@ -1,0 +1,25 @@
+plans/024-dead-code-removal-loan-and-transaction-components.md
+  s_98b3125f5a09fe::t_4a790940d1fa9c 53,61,66,74-76,78,80,83
+  s_98b3125f5a09fe::t_6a4f924db9199c 7
+  s_98b3125f5a09fe::t_763c4c24f4bd25 158,163,168,173
+progress.md
+  s_98b3125f5a09fe::t_bccbcf9ec96b71 9,13-27
+plans/README.md
+  s_98b3125f5a09fe::t_f87666db189901 45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b9cee398e7fdee3f234ff7f9ab8a63753699cd60",
+  "prompts": {},
+  "sessions": {
+    "s_98b3125f5a09fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dd04dca8-562b-428f-a30f-c76bb433debf",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
