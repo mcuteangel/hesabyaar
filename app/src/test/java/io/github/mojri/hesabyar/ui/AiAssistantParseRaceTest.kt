@@ -8,6 +8,7 @@ import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.AiForecastAdviceCache
 import io.github.mojri.hesabyar.domain.usecase.CacheEntry
 import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
+import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageAiConfigUseCase
 import io.github.mojri.hesabyar.domain.usecase.ParseTransactionUseCase
@@ -78,13 +79,15 @@ class AiAssistantParseRaceTest {
   fun setUp() {
     Dispatchers.setMain(testDispatcher)
     val appContext = RuntimeEnvironment.getApplication()
+    val fakeRepo = FakeRepository()
     viewModel =
       TestableAiAssistantViewModel(
-        parseTransactionUseCase = ParseTransactionUseCase(FakeRepository()),
+        parseTransactionUseCase = ParseTransactionUseCase(fakeRepo),
         getBudgetAdviceUseCase = GetBudgetAdviceUseCase(),
         getForecastUseCase = GetForecastUseCase(),
         manageAiConfigUseCase = FakeManageAiConfigUseCase(appContext),
-        aiForecastAdviceCache = fakeCache
+        aiForecastAdviceCache = fakeCache,
+        getDashboardDataUseCase = GetDashboardDataUseCase(fakeRepo)
       )
   }
 
@@ -153,13 +156,15 @@ class AiAssistantParseRaceTest {
     getBudgetAdviceUseCase: GetBudgetAdviceUseCase,
     getForecastUseCase: GetForecastUseCase,
     manageAiConfigUseCase: ManageAiConfigUseCase,
-    aiForecastAdviceCache: AiForecastAdviceCache
+    aiForecastAdviceCache: AiForecastAdviceCache,
+    getDashboardDataUseCase: GetDashboardDataUseCase
   ) : AiAssistantViewModel(
       parseTransactionUseCase,
       getBudgetAdviceUseCase,
       getForecastUseCase,
       manageAiConfigUseCase,
-      aiForecastAdviceCache
+      aiForecastAdviceCache,
+      getDashboardDataUseCase
     ) {
     val gate = CompletableDeferred<Unit>()
 

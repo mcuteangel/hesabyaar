@@ -13,7 +13,7 @@ open class ManageAiConfigUseCase(
 
   open fun getActiveConfigId(): String? = aiConfigManager.getActiveConfigId()
 
-  fun getActiveConfig(): AiProviderConfig? = aiConfigManager.getActiveConfig()
+  open fun getActiveConfig(): AiProviderConfig? = aiConfigManager.getActiveConfig()
 
   open fun isOnlineMode(): Boolean = aiConfigManager.isOnlineMode()
 
