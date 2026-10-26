@@ -181,9 +181,11 @@ class AiAssistantViewModelTest {
     viewModel.fetchBudgetAdvice(forceRefresh = true)
     testDispatcher.scheduler.advanceUntilIdle()
     assertTrue(viewModel.advisorState.value is UiResult.Success)
+    assertTrue(viewModel.lastAdviceFetchTime.value > 0L)
 
     viewModel.clearAdvisorState()
     assertEquals(UiResult.Idle, viewModel.advisorState.value)
+    assertEquals(0L, viewModel.lastAdviceFetchTime.value)
   }
 
   @Test

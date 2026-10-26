@@ -437,6 +437,7 @@ open class AiAssistantViewModel
 
     fun clearAdvisorState() {
       _advisorState.value = UiResult.Idle
+      _lastAdviceFetchTime.value = 0L
     }
 
     private val _forecastState =
@@ -534,5 +535,6 @@ open class AiAssistantViewModel
 
     fun clearForecastState() {
       _forecastState.value = UiResult.Idle
+      _lastForecastFetchTime.value = 0L
     }
   }
