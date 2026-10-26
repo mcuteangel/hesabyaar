@@ -1,0 +1,224 @@
+package io.github.mojri.hesabyar.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+
+private val NUMBERED_LIST_REGEX = Regex("""^(\d+)[.)]\s+(.*)""")
+private val BOLD_MARKDOWN_REGEX = Regex("""\*\*(.+?)\*\*""")
+private const val H1_LEVEL = 1
+private const val H2_LEVEL = 2
+private const val H3_LEVEL = 3
+private const val BULLET_PREFIX_LENGTH = 2
+private val H3_BOTTOM_PADDING = 2.dp
+private val PARAGRAPH_LINE_HEIGHT = 22.sp
+
+/**
+ * Lightweight in-house Markdown text renderer for AI advice and analytical summaries.
+ * Supports headers (`#`, `##`, `###`), bold formatting (`**`), bullet lists (`-`, `*`),
+ * and numbered lists (`1. `, `1) `).
+ */
+@Composable
+fun MarkdownText(
+  text: String,
+  modifier: Modifier = Modifier,
+  textStyle: TextStyle = LocalTextStyle.current,
+  textColor: Color = Color.Unspecified
+) {
+  val lines = text.split("\n")
+  Column(
+    modifier = modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+  ) {
+    lines.forEach { line ->
+      MarkdownLine(
+        line = line,
+        textStyle = textStyle,
+        textColor = textColor
+      )
+    }
+  }
+}
+
+@Composable
+private fun MarkdownLine(
+  line: String,
+  textStyle: TextStyle,
+  textColor: Color
+) {
+  val trimmed = line.trim()
+  if (trimmed.isEmpty()) {
+    Spacer(modifier = Modifier.height(SpacingTokens.xs))
+    return
+  }
+
+  val resolvedColor = if (textColor != Color.Unspecified) textColor else MaterialTheme.colorScheme.onSurface
+
+  val hashCount = trimmed.takeWhile { it == '#' }.length
+  val hasHeaderSpace = trimmed.getOrNull(hashCount)?.isWhitespace() == true
+
+  when {
+    hashCount == H3_LEVEL && hasHeaderSpace -> {
+      HeaderLine(
+        text = trimmed.drop(H3_LEVEL).trim(),
+        style = MaterialTheme.typography.titleMedium,
+        topPadding = SpacingTokens.sm,
+        bottomPadding = H3_BOTTOM_PADDING
+      )
+    }
+    hashCount == H2_LEVEL && hasHeaderSpace -> {
+      HeaderLine(
+        text = trimmed.drop(H2_LEVEL).trim(),
+        style = MaterialTheme.typography.titleLarge,
+        topPadding = SpacingTokens.md,
+        bottomPadding = SpacingTokens.xs
+      )
+    }
+    hashCount == H1_LEVEL && hasHeaderSpace -> {
+      HeaderLine(
+        text = trimmed.drop(H1_LEVEL).trim(),
+        style = MaterialTheme.typography.headlineSmall,
+        topPadding = SpacingTokens.md,
+        bottomPadding = SpacingTokens.sm
+      )
+    }
+    trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+      val itemText = trimmed.drop(BULLET_PREFIX_LENGTH).trim()
+      ListItemRow(
+        prefix = "•",
+        itemText = itemText,
+        textStyle = textStyle,
+        textColor = resolvedColor
+      )
+    }
+    else -> {
+      RenderNumberedOrRegularText(
+        trimmed = trimmed,
+        textStyle = textStyle,
+        textColor = resolvedColor
+      )
+    }
+  }
+}
+
+@Composable
+private fun RenderNumberedOrRegularText(
+  trimmed: String,
+  textStyle: TextStyle,
+  textColor: Color
+) {
+  val numberedMatch = NUMBERED_LIST_REGEX.find(trimmed)
+  if (numberedMatch != null) {
+    val number = numberedMatch.groupValues[1]
+    val itemText = numberedMatch.groupValues[2]
+    ListItemRow(
+      prefix = "$number.",
+      itemText = itemText,
+      textStyle = textStyle,
+      textColor = textColor
+    )
+  } else {
+    Text(
+      text = parseBoldMarkdown(trimmed),
+      style = textStyle,
+      color = textColor,
+      textAlign = TextAlign.Start,
+      lineHeight = PARAGRAPH_LINE_HEIGHT
+    )
+  }
+}
+
+@Composable
+private fun HeaderLine(
+  text: String,
+  style: TextStyle,
+  topPadding: Dp,
+  bottomPadding: Dp
+) {
+  Text(
+    text = text,
+    style = style,
+    fontWeight = FontWeight.Bold,
+    color = MaterialTheme.colorScheme.primary,
+    textAlign = TextAlign.Start,
+    modifier =
+      Modifier
+        .semantics { heading() }
+        .padding(top = topPadding, bottom = bottomPadding)
+  )
+}
+
+@Composable
+private fun ListItemRow(
+  prefix: String,
+  itemText: String,
+  textStyle: TextStyle,
+  textColor: Color
+) {
+  Row(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .padding(horizontal = SpacingTokens.xs),
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
+    verticalAlignment = Alignment.Top
+  ) {
+    Text(
+      text = prefix,
+      style = MaterialTheme.typography.bodyMedium,
+      fontWeight = FontWeight.Bold,
+      color = MaterialTheme.colorScheme.primary
+    )
+    Text(
+      text = parseBoldMarkdown(itemText),
+      style = textStyle,
+      color = textColor,
+      textAlign = TextAlign.Start,
+      lineHeight = PARAGRAPH_LINE_HEIGHT
+    )
+  }
+}
+
+/**
+ * Parses `**bold text**` segments into an [AnnotatedString] with [FontWeight.Bold].
+ * Unpaired or dangling `**` markers are treated as literal text.
+ */
+fun parseBoldMarkdown(text: String): AnnotatedString {
+  val builder = AnnotatedString.Builder()
+  var lastIndex = 0
+  for (match in BOLD_MARKDOWN_REGEX.findAll(text)) {
+    if (match.range.first > lastIndex) {
+      builder.append(text.substring(lastIndex, match.range.first))
+    }
+    builder.pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+    builder.append(match.groupValues[1])
+    builder.pop()
+    lastIndex = match.range.last + 1
+  }
+  if (lastIndex < text.length) {
+    builder.append(text.substring(lastIndex))
+  }
+  return builder.toAnnotatedString()
+}

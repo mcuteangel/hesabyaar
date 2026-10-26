@@ -12,6 +12,7 @@ import io.github.mojri.hesabyar.core.AppLogger
 import io.github.mojri.hesabyar.data.*
 import io.github.mojri.hesabyar.domain.usecase.AiForecastAdviceCache
 import io.github.mojri.hesabyar.domain.usecase.GetBudgetAdviceUseCase
+import io.github.mojri.hesabyar.domain.usecase.GetDashboardDataUseCase
 import io.github.mojri.hesabyar.domain.usecase.GetForecastUseCase
 import io.github.mojri.hesabyar.domain.usecase.ManageAiConfigUseCase
 import io.github.mojri.hesabyar.domain.usecase.ParseTransactionUseCase
@@ -34,6 +35,7 @@ open class AiAssistantViewModel
     private val getForecastUseCase: GetForecastUseCase,
     private val manageAiConfigUseCase: ManageAiConfigUseCase,
     private val aiForecastAdviceCache: AiForecastAdviceCache,
+    private val getDashboardDataUseCase: GetDashboardDataUseCase,
   ) : ViewModel() {
     var aiConfigs = mutableStateOf(manageAiConfigUseCase.loadConfigs())
       private set
@@ -245,9 +247,10 @@ open class AiAssistantViewModel
 
     fun parseSmartSentence(
       sentence: String,
-      isOnlineMode: Boolean
+      isOnlineMode: Boolean? = null
     ) {
       if (sentence.isBlank()) return
+      val effectiveOnlineMode = isOnlineMode ?: this.isOnlineMode.value
       // Sequence guard: a parse whose response arrived just before cancellation
       // (past the last suspension point) must not overwrite a newer parse's state.
       val sequence = ++parseSequence
@@ -256,10 +259,10 @@ open class AiAssistantViewModel
         viewModelScope.launch {
           _parserState.value = ParserUIState.Loading
           try {
-            val config = if (isOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
+            val config = if (effectiveOnlineMode) manageAiConfigUseCase.getActiveConfig() else null
             AppLogger.d(
               "AiAssistantViewModel",
-              "parseSmartSentence: isOnlineMode=$isOnlineMode, config=${config?.let {
+              "parseSmartSentence: isOnlineMode=$effectiveOnlineMode, config=${config?.let {
                 "found(${it.providerType}, model=${it.model})"
               } ?: "null"}"
             )
@@ -316,6 +319,61 @@ open class AiAssistantViewModel
         if (!cachedAdvice.isNullOrEmpty()) UiResult.Success(cachedAdvice.orEmpty()) else UiResult.Idle
       )
     val advisorState = _advisorState.asStateFlow()
+
+    private data class DashboardSnapshot(
+      val transactions: List<Transaction>,
+      val loans: List<Loan>,
+      val installments: List<Installment>,
+      val categories: List<Category>,
+      val bankLoans: List<BankLoan>,
+      val isOnlineMode: Boolean
+    )
+
+    private suspend fun loadDashboardSnapshot(): DashboardSnapshot {
+      val onlineMode = this.isOnlineMode.value
+      return combine(
+        getDashboardDataUseCase.transactions,
+        getDashboardDataUseCase.loans,
+        getDashboardDataUseCase.installments,
+        getDashboardDataUseCase.categories,
+        getDashboardDataUseCase.bankLoans
+      ) { txs, loans, insts, cats, bankLoans ->
+        DashboardSnapshot(
+          transactions = txs,
+          loans = loans,
+          installments = insts,
+          categories = cats,
+          bankLoans = bankLoans,
+          isOnlineMode = onlineMode
+        )
+      }.first()
+    }
+
+    fun fetchBudgetAdvice(forceRefresh: Boolean = false) {
+      viewModelScope.launch {
+        try {
+          val snapshot = loadDashboardSnapshot()
+          fetchBudgetAdvice(
+            transactions = snapshot.transactions,
+            loans = snapshot.loans,
+            installments = snapshot.installments,
+            categories = snapshot.categories,
+            isOnlineMode = snapshot.isOnlineMode,
+            bankLoans = snapshot.bankLoans,
+            forceRefresh = forceRefresh
+          )
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.e(
+            "AiAssistantViewModel",
+            "Failed to load dashboard data for budget advice [${e.javaClass.name}]",
+            e
+          )
+          _advisorState.value = UiResult.Error("خطا در بارگذاری اطلاعات اولیه داشبورد")
+        }
+      }
+    }
 
     fun fetchBudgetAdvice(
       transactions: List<Transaction>,
@@ -379,6 +437,7 @@ open class AiAssistantViewModel
 
     fun clearAdvisorState() {
       _advisorState.value = UiResult.Idle
+      _lastAdviceFetchTime.value = 0L
     }
 
     private val _forecastState =
@@ -386,6 +445,32 @@ open class AiAssistantViewModel
         if (!cachedForecast.isNullOrEmpty()) UiResult.Success(cachedForecast.orEmpty()) else UiResult.Idle
       )
     val forecastState = _forecastState.asStateFlow()
+
+    fun fetchBudgetForecast(forceRefresh: Boolean = false) {
+      viewModelScope.launch {
+        try {
+          val snapshot = loadDashboardSnapshot()
+          fetchBudgetForecast(
+            transactions = snapshot.transactions,
+            loans = snapshot.loans,
+            installments = snapshot.installments,
+            categories = snapshot.categories,
+            isOnlineMode = snapshot.isOnlineMode,
+            bankLoans = snapshot.bankLoans,
+            forceRefresh = forceRefresh
+          )
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.e(
+            "AiAssistantViewModel",
+            "Failed to load dashboard data for budget forecast [${e.javaClass.name}]",
+            e
+          )
+          _forecastState.value = UiResult.Error("خطا در بارگذاری اطلاعات اولیه داشبورد")
+        }
+      }
+    }
 
     @Suppress("CyclomaticComplexMethod")
     fun fetchBudgetForecast(
@@ -450,5 +535,6 @@ open class AiAssistantViewModel
 
     fun clearForecastState() {
       _forecastState.value = UiResult.Idle
+      _lastForecastFetchTime.value = 0L
     }
   }

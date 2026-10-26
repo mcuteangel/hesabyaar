@@ -240,8 +240,8 @@ class MainActivity : FragmentActivity() {
         SmartAssistantScreen(
           aiAssistantViewModel = aiAssistantViewModel,
           categoryViewModel = categoryViewModel,
-          dashboardViewModel = dashboardViewModel,
           settingsViewModel = settingsViewModel,
+          onNavigateToReports = { callbacks.onTabSelected(TAB_REPORTS) },
           modifier = modifier
         )
       }
