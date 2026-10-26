@@ -516,6 +516,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         }
     }
 
@@ -1060,6 +1061,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -1074,6 +1076,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 3,
@@ -1088,6 +1091,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 4,
@@ -1102,6 +1106,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 

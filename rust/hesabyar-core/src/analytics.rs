@@ -425,6 +425,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         }
     }
 
@@ -813,6 +814,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2),
+            loan_id: None,
         };
         let txs = vec![transfer, tx(6, TransactionType::Expense, 100_000, now, 1)];
         let result = compute_analytics(&txs, &[], &[], &[], &[], &accounts, None, false, &[]);
@@ -849,6 +851,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2),
+            loan_id: None,
         };
         // Plus a regular expense on account 1 that survives filtering
         let txs = vec![transfer, tx(6, TransactionType::Expense, 100_000, now, 1)];
