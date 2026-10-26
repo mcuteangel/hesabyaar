@@ -142,18 +142,18 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
    - `WildcardImport:TransactionItem.kt...`
 (Completed: 3 string keys removed, 16 detekt baseline entries removed; ktlintCheck & detekt green)
 
-### Phase 5: Documentation Synchronization
+### Phase 5: Documentation Synchronization (Completed)
 1. In `docs/MODULE_MAP.md`:
-   - Remove `LoanViewModel.kt` from line 21.
+   - Remove `LoanViewModel.kt` from line 21, add `PersonViewModel.kt`.
    - Remove `LoanManagementScreen.kt` from line 22.
-   - Remove `TransactionItem.kt` and `LoanItem.kt` from line 23.
+   - Replace deleted `TransactionItem.kt` and `LoanItem.kt` in line 23 with live components `HesabyarButton.kt`, `HesabyarTopBar.kt`.
    - Update line 74 to reflect `DebtHubScreen.kt → PersonViewModel.kt → ManageLoanUseCase.kt`.
-2. In `plans/013-ui-ux-overhaul.md`:
-   - Ensure occurrences of deleted filenames carry `<!-- check-docs: ignore -->` so `check_docs.py` does not flag them as missing live code.
+2. Verified `plans/013-ui-ux-overhaul.md` and other docs.
 3. Run verification:
    ```bash
    python scripts/check_docs.py
    ```
+   (Completed: "Docs: no broken path references.")
 
 ### Phase 6: Final Verification
 1. Run static checks and formatting:

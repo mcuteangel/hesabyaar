@@ -15,7 +15,7 @@ Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewMode
 - [x] Phase 2: Dead Test Deletion (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and old `TransactionItemSignPlacementTest`) completed.
 - [x] Phase 3: Dead Code Deletion in `app/src/main` (5 dead files + `LoanEditAmountPreservationTest` + KDoc sync in `LoanEditCalculator.kt`) completed.
 - [x] Phase 4: Strings and Detekt Baseline Cleanup (3 string keys, 16 detekt baseline entries) completed.
-- [ ] Phase 5: Documentation Synchronization (`MODULE_MAP.md`, `plans/013-ui-ux-overhaul.md`, `check_docs.py`).
+- [x] Phase 5: Documentation Synchronization (`MODULE_MAP.md`, `plans/013-ui-ux-overhaul.md`, `check_docs.py`) completed.
 - [ ] Phase 6: Final Verification (`ktlintCheck`, `detekt`, `testDebugUnitTest`, `check_docs.py`).
 
 ## Completed
