@@ -6,20 +6,25 @@
 
 ## Active Task
 
-- **Task:** Plan 022 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Issue #361)
-- **Status:** Completed and verified (PR #540 open against `main`).
-- **Branch:** `feat/issue-361-topbar-heading-semantics`
-- **Verification:** `./gradlew testDebugUnitTest` → 1212 tests, 0 failures; `./gradlew ktlintCheck detekt` → 0 findings; `python3 scripts/check_docs.py` → 0 broken references; emoji scan of `ui/` → 0 matches.
+None (Plan 023 completed, ready for branch finishing / PR).
 
 ## Goal
 
-- [x] Create reusable `HesabyarTopBar` with heading semantics and RTL auto-mirrored back navigation.
-- [x] Add heading semantics to `SectionHeader` and primary headers on core screens.
-- [x] Integrate `HesabyarTopBar` in `PersonDetailSheet` and `PersonsScreen`.
-- [x] Remove all literal emoji characters from `ui/` package and enforce via `UiEmojiIntegrityTest`.
-- [x] Archive Plan 022 and verify CI on PR #540.
+- [ ] Awaiting next task assignment or PR merge.
 
 ## Completed
+
+- **Task:** Issue #356 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Plan 023)
+- **Status:** Completed and verified (branch `feat/issue-356-ai-result-card-consolidation`)
+- **Completed Date:** 2026-10-25
+- **Deliverables:**
+    - [x] Extracted `MarkdownText` and `parseBoldMarkdown` to `ui/components/MarkdownText.kt` with support for `#`/`##`/`###` headers, bullet lists, numbered lists, bold text, and RTL semantics. Added 7 unit tests in `MarkdownTextTest.kt`.
+    - [x] Created reusable `AiResultCard` and `AiResultContent` in `ui/components/AiResultCard.kt` covering `UiResult.Idle`, `Loading`, `Success`, and `Error` with retry/refresh/close actions and M3 tokens. Added 6 unit tests in `AiResultCardTest.kt`.
+    - [x] Injected `GetDashboardDataUseCase` into `AiAssistantViewModel`, decoupling ViewModel data loading from Compose `.value` reads. Added unit tests in `AiAssistantViewModelTest.kt` and updated `AiAssistantParseRaceTest.kt`.
+    - [x] Verified zero `.value` reads from ViewModels across `ReportsScreen.kt` and `SmartAssistantScreen.kt`.
+    - [x] Consolidated full budget advice in `ReportsScreen.kt` using `AiResultCard`. Replaced duplicate advice UI in `SmartAssistantScreen.kt` with a navigation referral card to Reports.
+    - [x] Adopted `AiResultContent` in `ForecastDetailDialog.kt`.
+    - [x] Verified full test suite (`testDebugUnitTest`), static analysis (`ktlintCheck`, `detekt`), and documentation links (`check_docs.py`) passing with zero errors.
 
 - **Task:** Issue #361 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Plan 022)
 - **Status:** Completed and verified (branch `feat/issue-361-topbar-heading-semantics`, PR #540)

@@ -10,10 +10,10 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 
-class ParseTransactionUseCase(
+open class ParseTransactionUseCase(
   private val repository: HesabyarRepositoryInterface
 ) {
-  suspend fun parse(
+  open suspend fun parse(
     sentence: String,
     config: AiProviderConfig?
   ): ParsedResult? = GeminiParser.parseSentence(sentence, config)
