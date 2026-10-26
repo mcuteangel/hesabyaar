@@ -1,0 +1,23 @@
+plans/024-dead-code-removal-loan-and-transaction-components.md
+  s_98b3125f5a09fe::t_e1bbf196285594 97-98,108
+app/src/test/java/io/github/mojri/hesabyar/TransactionMiniItemSignPlacementTest.kt
+  s_98b3125f5a09fe::t_414ed7bad45337 1-176
+progress.md
+  s_98b3125f5a09fe::t_983cc42c227a4c 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1b4e014bc54e021c9f41f7e9fd1c1d90f2c68441",
+  "prompts": {},
+  "sessions": {
+    "s_98b3125f5a09fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dd04dca8-562b-428f-a30f-c76bb433debf",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
