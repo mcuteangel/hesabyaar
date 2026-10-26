@@ -29,7 +29,7 @@ class HesabyarRepository(
     database
   ),
   AccountOps by AccountDelegate(accountDao, database),
-  TransactionOps by TransactionDelegate(transactionDao),
+  TransactionOps by TransactionDelegate(transactionDao, loanDao, database),
   CategoryOps by CategoryDelegate(categoryDao, database),
   LoanOps by LoanDelegate(
     loanDao,
