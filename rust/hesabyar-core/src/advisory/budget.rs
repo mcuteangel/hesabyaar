@@ -520,6 +520,31 @@ mod tests {
         }
     }
 
+    fn tx_full(
+        id: i64,
+        ttype: TransactionType,
+        category_id: i64,
+        amount: i64,
+        description: &str,
+        date: i64,
+    ) -> Transaction {
+        Transaction {
+            id,
+            tx_type: ttype,
+            category_id,
+            amount,
+            description: description.to_string(),
+            person_name: None,
+            person_id: None,
+            date,
+            due_date: None,
+            installment_id: None,
+            account_id: 1,
+            destination_account_id: None,
+            loan_id: None,
+        }
+    }
+
     #[test]
     fn test_monthly_income_baseline_scopes_recent_window() {
         let now: i64 = 1_700_000_000_000;
@@ -1048,66 +1073,10 @@ mod tests {
         let salary_cat_id = 20;
 
         let txs = vec![
-            Transaction {
-                id: 1,
-                tx_type: TransactionType::Income,
-                category_id: salary_cat_id,
-                amount: 10_000_000,
-                description: "Salary".to_string(),
-                person_name: None,
-                person_id: None,
-                date: now,
-                due_date: None,
-                installment_id: None,
-                account_id: 1,
-                destination_account_id: None,
-                loan_id: None,
-            },
-            Transaction {
-                id: 2,
-                tx_type: TransactionType::Income,
-                category_id: loan_cat_id,
-                amount: 5_000_000,
-                description: "Loan disbursement".to_string(),
-                person_name: None,
-                person_id: None,
-                date: now,
-                due_date: None,
-                installment_id: None,
-                account_id: 1,
-                destination_account_id: None,
-                loan_id: None,
-            },
-            Transaction {
-                id: 3,
-                tx_type: TransactionType::Expense,
-                category_id: food_cat_id,
-                amount: 2_000_000,
-                description: "Food".to_string(),
-                person_name: None,
-                person_id: None,
-                date: now,
-                due_date: None,
-                installment_id: None,
-                account_id: 1,
-                destination_account_id: None,
-                loan_id: None,
-            },
-            Transaction {
-                id: 4,
-                tx_type: TransactionType::Expense,
-                category_id: loan_cat_id,
-                amount: 10_000_000,
-                description: "Loan payment".to_string(),
-                person_name: None,
-                person_id: None,
-                date: now,
-                due_date: None,
-                installment_id: None,
-                account_id: 1,
-                destination_account_id: None,
-                loan_id: None,
-            },
+            tx_full(1, TransactionType::Income, salary_cat_id, 10_000_000, "Salary", now),
+            tx_full(2, TransactionType::Income, loan_cat_id, 5_000_000, "Loan disbursement", now),
+            tx_full(3, TransactionType::Expense, food_cat_id, 2_000_000, "Food", now),
+            tx_full(4, TransactionType::Expense, loan_cat_id, 10_000_000, "Loan payment", now),
         ];
 
         let cats = vec![
