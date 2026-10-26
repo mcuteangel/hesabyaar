@@ -33,6 +33,7 @@ class StaleLoanDisbursementEditTest {
   private companion object {
     const val ORIGINAL_DATE = 5_000L
     const val NEW_DATE = 9_000L
+    const val EDITED_DATE = 7_000L
     const val LOAN_AMOUNT = 5_000L
     const val ORPHAN_LOAN_ID = 999_999L
   }
@@ -226,6 +227,50 @@ class StaleLoanDisbursementEditTest {
       val updated = transactionById(snapshot.id)
       assertEquals(loanId, updated.loanId)
       assertEquals(NEW_DATE, updated.date)
+      assertEquals("edited", updated.description)
+    }
+
+  @Test
+  fun staleSnapshotCannotReattachUnlinkedRow() =
+    runTest {
+      val repo = createRepository()
+      seedLoansCategory()
+      val loanId =
+        repo.insertLoanWithInitial(
+          Loan(
+            personName = "Ali",
+            type = LoanType.DEBTOR,
+            originalAmount = LOAN_AMOUNT,
+            remainingAmount = LOAN_AMOUNT,
+            description = "test",
+            date = NEW_DATE,
+            tracked = true,
+            accountId = 1L
+          ),
+          recordInitial = true
+        )
+      // The editor loads the stamped disbursement row.
+      val snapshot =
+        database.transactionDao().getAllTransactionsBlocking().single { it.loanId == loanId }
+      assertEquals(NEW_DATE, snapshot.date)
+
+      // A restore replaces the row with an unlinked copy: same id,
+      // no loan link, and the pre-sync date.
+      database.transactionDao().updateTransaction(
+        snapshot.copy(loanId = null, date = ORIGINAL_DATE)
+      )
+      val restored = transactionById(snapshot.id)
+      assertEquals(null, restored.loanId)
+      assertEquals(ORIGINAL_DATE, restored.date)
+
+      // The stale editor saves its linked snapshot with a new date.
+      // The persisted null link must win: the row stays unlinked
+      // and keeps the editor's date instead of the loan date.
+      repo.updateTransaction(snapshot.copy(description = "edited", date = EDITED_DATE))
+
+      val updated = transactionById(snapshot.id)
+      assertEquals(null, updated.loanId)
+      assertEquals(EDITED_DATE, updated.date)
       assertEquals("edited", updated.description)
     }
 }
