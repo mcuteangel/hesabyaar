@@ -8,8 +8,8 @@ import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
 import io.github.mojri.hesabyar.data.Transaction
 
-class GetBudgetAdviceUseCase {
-  suspend fun getAdvice(
+open class GetBudgetAdviceUseCase {
+  open suspend fun getAdvice(
     transactions: List<Transaction>,
     loans: List<Loan>,
     installments: List<Installment>,
