@@ -6,6 +6,8 @@
 
 ## Active Task
 
+## Active Task
+
 - None currently active.
 
 ## Goal
@@ -14,9 +16,9 @@
 
 ## Completed
 
-- **Task:** Issue #350 — [UX][Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 023)
+- **Task:** Issue #350 — [UX][Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 024)
 - **Status:** Completed and verified (branch `feat/issue-350-dialog-policy`)
-- **Completed Date:** 2026-10-25
+- **Completed Date:** 2026-10-26
 - **Deliverables:**
     - [x] Standardized `HesabyarDialog` in `ui/components/HesabyarDialog.kt` with structured `confirmButton` and `dismissButton` slots (trailing RTL layout) and `showCloseButton: Boolean = false` default.
     - [x] Standardized `ConfirmDialog` in `ui/components/ConfirmDialog.kt`: suppresses empty dismiss buttons when `dismissText` is blank and uses standard `action_confirm` / `action_cancel` string resources.
@@ -25,8 +27,20 @@
     - [x] Fixed cramped action buttons in `ConfirmationDialog` (`SmartAssistantScreen.kt`) by removing `Modifier.fillMaxWidth()` and adopting `ButtonVariant.Text` for dismiss.
     - [x] Migrated all raw `AlertDialog` calls across feature screens (`AddPersonLoanDialog`, `InstallmentScreen`, `BankLoanScreen`, `CategoryManagementScreen`, `TransactionDetailDialog`, `SettingsScreen`) to `HesabyarDialog` with 0 `@Suppress` additions.
     - [x] Standardized all dismiss buttons across pickers and dialogs to `ButtonVariant.Text` (`CustomTimePickerDialog`, `JalaliDatePickerDialog`, `ManualTransactionDialog`, `ReportsScreen`).
-    - [x] Added unit tests in `HesabyarDialogTest.kt` (5 tests) and `ConfirmDialogTest.kt` (3 tests).
-    - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python3 scripts/check_docs.py` reporting 0 broken references.
+    - [x] Added unit tests in `HesabyarDialogTest.kt` (8 tests) and `ConfirmDialogTest.kt` (4 tests).
+    - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python scripts/check_docs.py` reporting 0 broken references.
+
+- **Task:** Issue #356 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Plan 023)
+- **Status:** Completed and verified (branch `feat/issue-356-ai-result-card-consolidation`)
+- **Completed Date:** 2026-10-25
+- **Deliverables:**
+    - [x] Extracted `MarkdownText` and `parseBoldMarkdown` to `ui/components/MarkdownText.kt` with support for `#`/`##`/`###` headers, bullet lists, numbered lists, bold text, and RTL semantics. Added 7 unit tests in `MarkdownTextTest.kt`.
+    - [x] Created reusable `AiResultCard` and `AiResultContent` in `ui/components/AiResultCard.kt` covering `UiResult.Idle`, `Loading`, `Success`, and `Error` with retry/refresh/close actions and M3 tokens. Added 6 unit tests in `AiResultCardTest.kt`.
+    - [x] Injected `GetDashboardDataUseCase` into `AiAssistantViewModel`, decoupling ViewModel data loading from Compose `.value` reads. Added unit tests in `AiAssistantViewModelTest.kt` and updated `AiAssistantParseRaceTest.kt`.
+    - [x] Verified zero `.value` reads from ViewModels across `ReportsScreen.kt` and `SmartAssistantScreen.kt`.
+    - [x] Consolidated full budget advice in `ReportsScreen.kt` using `AiResultCard`. Replaced duplicate advice UI in `SmartAssistantScreen.kt` with a navigation referral card to Reports.
+    - [x] Adopted `AiResultContent` in `ForecastDetailDialog.kt`.
+    - [x] Verified full test suite (`testDebugUnitTest`), static analysis (`ktlintCheck`, `detekt`), and documentation links (`check_docs.py`) passing with zero errors.
 
 - **Task:** Issue #361 — [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (Plan 022)
 - **Status:** Completed and verified (branch `feat/issue-361-topbar-heading-semantics`, PR #540)

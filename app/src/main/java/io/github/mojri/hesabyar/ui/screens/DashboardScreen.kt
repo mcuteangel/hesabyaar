@@ -172,15 +172,7 @@ fun DashboardScreen(
             aiAssistantViewModel = aiAssistantViewModel,
             onShowForecast = { showFullForecast = true },
             onFetchForecast = {
-              aiAssistantViewModel.fetchBudgetForecast(
-                dashboardViewModel.transactions.value,
-                dashboardViewModel.loans.value,
-                dashboardViewModel.installments.value,
-                dashboardViewModel.categories.value,
-                aiAssistantViewModel.isOnlineMode.value,
-                bankLoans = dashboardViewModel.bankLoans.value,
-                forceRefresh = true
-              )
+              aiAssistantViewModel.fetchBudgetForecast(forceRefresh = true)
             }
           )
         }
@@ -343,15 +335,7 @@ fun DashboardScreen(
       forecastState = forecastState,
       onDismiss = { showFullForecast = false },
       onRefresh = {
-        aiAssistantViewModel.fetchBudgetForecast(
-          dashboardViewModel.transactions.value,
-          dashboardViewModel.loans.value,
-          dashboardViewModel.installments.value,
-          dashboardViewModel.categories.value,
-          aiAssistantViewModel.isOnlineMode.value,
-          bankLoans = dashboardViewModel.bankLoans.value,
-          forceRefresh = true
-        )
+        aiAssistantViewModel.fetchBudgetForecast(forceRefresh = true)
       }
     )
   }
