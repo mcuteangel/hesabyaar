@@ -1074,9 +1074,23 @@ mod tests {
 
         let txs = vec![
             tx_full(1, TransactionType::Income, salary_cat_id, 10_000_000, "Salary", now),
-            tx_full(2, TransactionType::Income, loan_cat_id, 5_000_000, "Loan disbursement", now),
+            tx_full(
+                2,
+                TransactionType::Income,
+                loan_cat_id,
+                5_000_000,
+                "Loan disbursement",
+                now,
+            ),
             tx_full(3, TransactionType::Expense, food_cat_id, 2_000_000, "Food", now),
-            tx_full(4, TransactionType::Expense, loan_cat_id, 10_000_000, "Loan payment", now),
+            tx_full(
+                4,
+                TransactionType::Expense,
+                loan_cat_id,
+                10_000_000,
+                "Loan payment",
+                now,
+            ),
         ];
 
         let cats = vec![
