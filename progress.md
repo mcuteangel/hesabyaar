@@ -6,17 +6,25 @@
 
 ## Active Task
 
-Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (Executing Plan 024 on branch `refactor/issue-340-dead-code-removal`).
+None (Plan 024 completed, ready for PR).
 
 ## Goal
 
-- [x] Phase 0: Pre-execution Drift Audit completed.
-- [x] Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions via `TransactionMiniItemSignPlacementTest`) completed.
-- [x] Phase 2: Dead Test Deletion (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and old `TransactionItemSignPlacementTest`) completed.
-- [x] Phase 3: Dead Code Deletion in `app/src/main` (5 dead files + `LoanEditAmountPreservationTest` + KDoc sync in `LoanEditCalculator.kt`) completed.
-- [x] Phase 4: Strings and Detekt Baseline Cleanup (3 string keys, 16 detekt baseline entries) completed.
-- [x] Phase 5: Documentation Synchronization (`MODULE_MAP.md`, `plans/013-ui-ux-overhaul.md`, `check_docs.py`) completed.
-- [ ] Phase 6: Final Verification (`ktlintCheck`, `detekt`, `testDebugUnitTest`, `check_docs.py`).
+- [ ] Awaiting next task assignment or PR creation.
+
+## Completed
+
+- **Task:** Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (Plan 024)
+- **Status:** Completed and verified (branch `refactor/issue-340-dead-code-removal`)
+- **Completed Date:** 2026-10-26
+- **Deliverables:**
+    - [x] Phase 0: Completed drift audit confirming zero production callers for the 5 dead files.
+    - [x] Phase 1: Migrated signed-amount RTL placement tests to `TransactionMiniItemSignPlacementTest.kt` (4/4 tests passing).
+    - [x] Phase 2: Deleted dead test files (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and legacy `TransactionItemSignPlacementTest`).
+    - [x] Phase 3: Deleted 5 dead production files in `app/src/main` (~1,260 lines) + `LoanEditAmountPreservationTest.kt` in `app/src/test` and decoupled KDoc in `LoanEditCalculator.kt`.
+    - [x] Phase 4: Removed 3 unused string keys (`loan_type_debtor`, `loan_type_creditor`, `loan_amount_too_large`) and pruned 16 stale detekt baseline entries.
+    - [x] Phase 5: Synchronized `docs/MODULE_MAP.md` architecture table and feature paths.
+    - [x] Phase 6: Verified full test suite (`testDebugUnitTest` — 1,244 tests passing, 0 failures), static analysis (`ktlintCheck`, `detekt` — 0 findings), and documentation links (`check_docs.py` — clean).
 
 ## Completed
 
