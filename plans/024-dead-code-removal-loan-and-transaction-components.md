@@ -125,12 +125,12 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
 7. Update comment in `app/src/main/java/io/github/mojri/hesabyar/domain/utils/LoanEditCalculator.kt:10` to avoid broken path reference.
 (Completed: 5 dead production files removed, 1 dead test file removed, KDoc updated)
 
-### Phase 4: Strings and Detekt Baseline Cleanup
+### Phase 4: Strings and Detekt Baseline Cleanup (Completed)
 1. In `app/src/main/res/values/strings.xml`, remove:
    - `loan_type_debtor`
    - `loan_type_creditor`
    - `loan_amount_too_large`
-2. In `config/detekt/detekt-baseline.xml`, remove the 14 IDs referencing the deleted files:
+2. In `config/detekt/detekt-baseline.xml`, remove the stale entries referencing the deleted files:
    - `FunctionNaming:InstallmentItem.kt...`
    - `FunctionNaming:LoanItem.kt...`
    - `FunctionNaming:LoanManagementScreen.kt...` (3 entries)
@@ -140,6 +140,7 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
    - `WildcardImport:LoanManagementScreen.kt...` (5 entries)
    - `WildcardImport:LoanViewModel.kt...`
    - `WildcardImport:TransactionItem.kt...`
+(Completed: 3 string keys removed, 16 detekt baseline entries removed; ktlintCheck & detekt green)
 
 ### Phase 5: Documentation Synchronization
 1. In `docs/MODULE_MAP.md`:
