@@ -6,11 +6,17 @@
 
 ## Active Task
 
-None (Plan 023 completed, ready for branch finishing / PR).
+Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (Executing Plan 024 on branch `refactor/issue-340-dead-code-removal`).
 
 ## Goal
 
-- [ ] Awaiting next task assignment or PR merge.
+- [x] Phase 0: Pre-execution Drift Audit completed.
+- [ ] Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions via `TransactionMiniItemSignPlacementTest`).
+- [ ] Phase 2: Dead Test Deletion (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and old `TransactionItemSignPlacementTest`).
+- [ ] Phase 3: Dead Code Deletion in `app/src/main` (5 dead files + KDoc sync in `LoanEditCalculator.kt`).
+- [ ] Phase 4: Strings and Detekt Baseline Cleanup (3 string keys, 14 detekt baseline entries).
+- [ ] Phase 5: Documentation Synchronization (`MODULE_MAP.md`, `plans/013-ui-ux-overhaul.md`, `check_docs.py`).
+- [ ] Phase 6: Final Verification (`ktlintCheck`, `detekt`, `testDebugUnitTest`, `check_docs.py`).
 
 ## Completed
 
