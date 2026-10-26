@@ -12,7 +12,7 @@ Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewMode
 
 - [x] Phase 0: Pre-execution Drift Audit completed.
 - [x] Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions via `TransactionMiniItemSignPlacementTest`) completed.
-- [ ] Phase 2: Dead Test Deletion (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and old `TransactionItemSignPlacementTest`).
+- [x] Phase 2: Dead Test Deletion (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and old `TransactionItemSignPlacementTest`) completed.
 - [ ] Phase 3: Dead Code Deletion in `app/src/main` (5 dead files + KDoc sync in `LoanEditCalculator.kt`).
 - [ ] Phase 4: Strings and Detekt Baseline Cleanup (3 string keys, 14 detekt baseline entries).
 - [ ] Phase 5: Documentation Synchronization (`MODULE_MAP.md`, `plans/013-ui-ux-overhaul.md`, `check_docs.py`).

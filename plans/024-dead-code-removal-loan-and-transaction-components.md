@@ -95,7 +95,7 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
 3. Record existing test counts on `./gradlew testDebugUnitTest`. (Verified `TransactionItemSignPlacementTest` 4/4 passing)
 
 ### Phase 1: Test Migration (Preserving RTL Signed-Amount Assertions) (Completed)
-1. Adapt `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` to test `TransactionMiniItem` in `app/src/test/java/io/github/mojri/hesabyar/TransactionMiniItemSignPlacementTest.kt`.
+1. Adapt `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` <!-- check-docs: ignore --> to test `TransactionMiniItem` in `app/src/test/java/io/github/mojri/hesabyar/TransactionMiniItemSignPlacementTest.kt`.
 2. Ensure it exercises:
    - Negative amount (expense) RTL sign placement.
    - Positive amount (income) RTL sign placement.
@@ -107,11 +107,12 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
    ```
    (Completed: all 4 tests passing)
 
-### Phase 2: Dead Test Deletion
-1. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanManagementDialogTest.kt`.
-2. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanEditRejectionScreenTest.kt`.
-3. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/LoanViewModelTest.kt`.
-4. Delete original `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` (superseded by Phase 1).
+### Phase 2: Dead Test Deletion (Completed)
+1. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanManagementDialogTest.kt`. <!-- check-docs: ignore -->
+2. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanEditRejectionScreenTest.kt`. <!-- check-docs: ignore -->
+3. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/LoanViewModelTest.kt`. <!-- check-docs: ignore -->
+4. Delete original `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` <!-- check-docs: ignore --> (superseded by Phase 1).
+(Completed: all 4 files deleted)
 
 ### Phase 3: Dead Code Deletion in `app/src/main`
 1. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt`.
