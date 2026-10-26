@@ -156,8 +156,8 @@ Issue #350, Phase 2 of `plans/013-ui-ux-overhaul.md`, and the UI/UX audit (`hesa
 ### Phase 3 — Migrate Feature Screen Dialogs to `HesabyarDialog` and Standardize Styles
 
 - [x] **Step 3.1: Migrate `AddPersonLoanDialog.kt`**
-  - Replace raw `AlertDialog` with `HesabyarDialog(title = "ثبت $typeLabel $personName", onDismissRequest = { if (!isSubmitting) onDismiss() }, confirmButton = { ... }, dismissButton = { ... })`.
-  - Confirm: `HesabyarButton(text = "ثبت", variant = ButtonVariant.Filled)`.
+  - Replace raw `AlertDialog` with `HesabyarDialog(title = stringResource(if (type == LoanType.DEBTOR) R.string.add_person_loan_debtor_title else R.string.add_person_loan_creditor_title, personName), onDismissRequest = { if (!isSubmitting) onDismiss() }, confirmButton = { ... }, dismissButton = { ... })`.
+  - Confirm: `HesabyarButton(text = stringResource(R.string.person_loan_submit), variant = ButtonVariant.Filled)`.
   - Dismiss: `HesabyarButton(text = stringResource(R.string.action_cancel), variant = ButtonVariant.Text)`.
 
 - [x] **Step 3.2: Migrate `InstallmentScreen.kt` add installment dialog**

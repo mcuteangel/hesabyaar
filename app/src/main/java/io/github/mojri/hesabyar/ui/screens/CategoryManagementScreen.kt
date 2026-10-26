@@ -20,6 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -570,16 +574,20 @@ private fun CategoryColorPicker(
       verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
     ) {
       items(CATEGORY_COLORS) { color ->
+        val isSelected = selectedColor == color
         Box(
           modifier =
             Modifier
               .size(Dimens.ContainerXSmall)
               .clip(CircleShape)
               .background(Color(color))
-              .clickable { onColorSelected(color) },
+              .semantics {
+                role = Role.RadioButton
+                selected = isSelected
+              }.clickable { onColorSelected(color) },
           contentAlignment = Alignment.Center
         ) {
-          if (selectedColor == color) {
+          if (isSelected) {
             Icon(
               imageVector = Icons.Filled.Check,
               contentDescription = null,

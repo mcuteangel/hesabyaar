@@ -190,7 +190,8 @@ internal fun ManualTransactionDialog(
           },
         variant = ButtonVariant.Filled,
         colors = ButtonDefaults.buttonColors(containerColor = typeColor),
-        enabled = !isSubmitting
+        enabled = !isSubmitting,
+        loading = isSubmitting
       )
     }
   ) {

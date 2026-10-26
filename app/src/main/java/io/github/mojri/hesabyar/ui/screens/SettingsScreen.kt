@@ -677,46 +677,56 @@ private fun RestoreDialogContent(
     )
     Spacer(modifier = Modifier.height(SpacingTokens.xs))
 
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-    ) {
-      RadioButton(
-        selected = restoreMode == RestoreMode.REPLACE,
-        onClick = { onModeSelect(RestoreMode.REPLACE) }
-      )
-      Column {
-        Text(
-          "جایگزینی کامل",
-          style = MaterialTheme.typography.bodyMedium,
-          fontWeight = FontWeight.Bold
-        )
-        Text(
-          "تمام داده‌های فعلی حذف و جایگزین می‌شود",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-      }
-    }
+    RestoreModeOption(
+      selected = restoreMode == RestoreMode.REPLACE,
+      onClick = { onModeSelect(RestoreMode.REPLACE) },
+      title = "جایگزینی کامل",
+      description = "تمام داده‌های فعلی حذف و جایگزین می‌شود"
+    )
 
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-    ) {
-      RadioButton(
-        selected = restoreMode == RestoreMode.MERGE,
-        onClick = { onModeSelect(RestoreMode.MERGE) }
+    RestoreModeOption(
+      selected = restoreMode == RestoreMode.MERGE,
+      onClick = { onModeSelect(RestoreMode.MERGE) },
+      title = "ادغام",
+      description = "داده‌های جدید به اطلاعات فعلی اضافه می‌شود"
+    )
+  }
+}
+
+@Composable
+private fun RestoreModeOption(
+  selected: Boolean,
+  onClick: () -> Unit,
+  title: String,
+  description: String
+) {
+  Row(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .selectable(
+          selected = selected,
+          onClick = onClick,
+          role = Role.RadioButton
+        ),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+  ) {
+    RadioButton(
+      selected = selected,
+      onClick = null
+    )
+    Column {
+      Text(
+        text = title,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold
       )
-      Column {
-        Text("ادغام", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-        Text(
-          "داده‌های جدید به اطلاعات فعلی اضافه می‌شود",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-      }
+      Text(
+        text = description,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
     }
   }
 }
@@ -802,38 +812,31 @@ private object SecurityDialogs {
     HesabyarDialog(
       onDismissRequest = onDismiss,
       title = "تنظیم رمز عبور",
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            when {
-              newPin.length != PIN_LENGTH || !newPin.all { it.isDigit() } -> {
-                pinError = "رمز عبور باید دقیقاً ۶ رقم باشد"
-              }
-              newPin != confirmPin -> {
-                pinError = "رمز عبور مطابقت ندارد"
-              }
-              else -> {
-                onPinSet(newPin)
-              }
-            }
-          },
-          text = stringResource(R.string.action_save),
-          variant = ButtonVariant.Filled,
-          enabled = newPin.length == PIN_LENGTH && confirmPin.length == PIN_LENGTH
-        )
+      confirmText = stringResource(R.string.action_save),
+      confirmEnabled = newPin.length == PIN_LENGTH && confirmPin.length == PIN_LENGTH,
+      onConfirm = {
+        when {
+          newPin.length != PIN_LENGTH || !newPin.all { it.isDigit() } -> {
+            pinError = "رمز عبور باید دقیقاً ۶ رقم باشد"
+          }
+          newPin != confirmPin -> {
+            pinError = "رمز عبور مطابقت ندارد"
+          }
+          else -> {
+            onPinSet(newPin)
+          }
+        }
       },
-      dismissButton = {
-        HesabyarButton(
-          onClick = onDismiss,
-          text = stringResource(R.string.action_cancel),
-          variant = ButtonVariant.Text
-        )
-      }
+      dismissText = stringResource(R.string.action_cancel),
+      onDismiss = onDismiss
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
         HesabyarInputField(
           value = newPin,
-          onValueChange = { newPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH) },
+          onValueChange = {
+            newPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH)
+            pinError = null
+          },
           label = "رمز عبور جدید",
           placeholder = "۶ رقم",
           isError = pinError != null,
@@ -843,7 +846,10 @@ private object SecurityDialogs {
         )
         HesabyarInputField(
           value = confirmPin,
-          onValueChange = { confirmPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH) },
+          onValueChange = {
+            confirmPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH)
+            pinError = null
+          },
           label = "تکرار رمز عبور",
           placeholder = "۶ رقم",
           visualTransformation = PasswordVisualTransformation(),

@@ -51,10 +51,15 @@ internal fun AddPersonLoanDialog(
     }
   val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
   val isValidAmount = parsedAmount in 1L..maxAllowedDisplay
-  val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
+  val title =
+    if (type == LoanType.DEBTOR) {
+      stringResource(R.string.add_person_loan_debtor_title, personName)
+    } else {
+      stringResource(R.string.add_person_loan_creditor_title, personName)
+    }
 
   HesabyarDialog(
-    title = "ثبت $typeLabel $personName",
+    title = title,
     onDismissRequest = { if (!isSubmitting) onDismiss() },
     confirmButton = {
       HesabyarButton(
@@ -64,7 +69,7 @@ internal fun AddPersonLoanDialog(
           }
         },
         enabled = isValidAmount && !isSubmitting,
-        text = stringResource(R.string.action_save),
+        text = stringResource(R.string.person_loan_submit),
         variant = ButtonVariant.Filled
       )
     },

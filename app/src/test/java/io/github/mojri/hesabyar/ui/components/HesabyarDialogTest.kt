@@ -2,11 +2,15 @@ package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -163,6 +167,37 @@ class HesabyarDialogTest {
 
     composeRule.onNodeWithText(ACTION_TEXT).assertIsDisplayed().performClick()
     assertTrue(actionClicked)
+  }
+
+  @Test
+  fun dialogPositionsConfirmButtonAtTrailingEdgeInRtl() {
+    composeRule.setContent {
+      CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        HesabyarDialog(
+          title = DIALOG_TITLE,
+          onDismissRequest = {},
+          confirmButton = {
+            TextButton(onClick = {}) {
+              Text(CONFIRM_TEXT)
+            }
+          },
+          dismissButton = {
+            TextButton(onClick = {}) {
+              Text(DISMISS_TEXT)
+            }
+          }
+        ) {
+          Text(DIALOG_CONTENT)
+        }
+      }
+    }
+
+    val confirmBounds = composeRule.onNodeWithText(CONFIRM_TEXT).getBoundsInRoot()
+    val dismissBounds = composeRule.onNodeWithText(DISMISS_TEXT).getBoundsInRoot()
+    assertTrue(
+      "In RTL layout, confirm button must be at trailing edge (left of dismiss button)",
+      confirmBounds.left < dismissBounds.left
+    )
   }
 
   private companion object {

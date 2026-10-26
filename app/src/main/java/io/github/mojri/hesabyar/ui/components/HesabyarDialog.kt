@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -91,6 +93,12 @@ fun HesabyarDialog(
         modifier
           .fillMaxWidth(widthFraction)
           .then(
+            if (!isFullScreen) {
+              Modifier.widthIn(max = Dimens.DialogMaxWidth)
+            } else {
+              Modifier
+            }
+          ).then(
             if (heightFraction != null) {
               Modifier.fillMaxHeight(heightFraction)
             } else {
@@ -116,17 +124,7 @@ fun HesabyarDialog(
           color = MaterialTheme.colorScheme.surfaceContainer
         )
 
-        Column(
-          modifier =
-            Modifier
-              .weight(1f, fill = false)
-              .fillMaxWidth()
-              .verticalScroll(rememberScrollState())
-              .padding(vertical = SpacingTokens.lg),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
-        ) {
-          content()
-        }
+        HesabyarDialogBody(content = content)
 
         HesabyarDialogActions(
           confirmText = confirmText,
@@ -146,6 +144,21 @@ fun HesabyarDialog(
 }
 
 @Composable
+private fun ColumnScope.HesabyarDialogBody(content: @Composable ColumnScope.() -> Unit) {
+  Column(
+    modifier =
+      Modifier
+        .weight(1f, fill = false)
+        .fillMaxWidth()
+        .verticalScroll(rememberScrollState())
+        .padding(vertical = SpacingTokens.lg),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+  ) {
+    content()
+  }
+}
+
+@Composable
 private fun HesabyarDialogHeader(
   title: String,
   leadingIcon: ImageVector?,
@@ -159,6 +172,7 @@ private fun HesabyarDialogHeader(
     verticalAlignment = Alignment.CenterVertically
   ) {
     Row(
+      modifier = Modifier.weight(1f, fill = false),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
     ) {

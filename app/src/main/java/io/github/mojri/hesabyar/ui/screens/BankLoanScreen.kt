@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AssistChip
@@ -199,14 +197,14 @@ private class AddBankLoanFormState(
   val countVal: Int
     get() = count.toIntOrNull() ?: 0
 
-  val receivedVal: Long
+  val receivedRial: Long
     get() = DisplayAmountInput.toRialOrNull(received) ?: 0L
 
-  val monthlyVal: Long
+  val monthlyRial: Long
     get() = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
 
   val canConfirm: Boolean
-    get() = bankName.isNotBlank() && receivedVal > 0 && monthlyVal > 0 && countVal > 0
+    get() = bankName.isNotBlank() && receivedRial > 0 && monthlyRial > 0 && countVal > 0
 }
 
 @Composable
@@ -243,8 +241,8 @@ private fun AddBankLoanDialog(
           onConfirm(
             state.bankName.trim(),
             state.loanName.trim(),
-            state.receivedVal,
-            state.monthlyVal,
+            state.receivedRial,
+            state.monthlyRial,
             state.countVal,
             state.startDate,
             state.description.trim()
@@ -301,7 +299,6 @@ internal fun BankLoanForm(
   onPickDate: () -> Unit
 ) {
   Column(
-    modifier = Modifier.verticalScroll(rememberScrollState()),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
     HesabyarInputField(value = bankName, onValueChange = onBankName, label = "نام بانک")

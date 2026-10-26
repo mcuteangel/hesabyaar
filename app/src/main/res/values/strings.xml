@@ -192,10 +192,14 @@
     <!-- Specific feature dialog actions -->
     <string name="transaction_submit">ثبت تراکنش</string>
     <string name="transaction_save_changes">ذخیره تغییرات</string>
+    <string name="transaction_details_title">جزئیات تراکنش</string>
     <string name="installment_save">ذخیره قسط</string>
     <string name="loan_submit">ثبت و ذخیره</string>
     <string name="loan_save_changes">ذخیره تغییرات</string>
     <string name="loan_repayment_paid">پرداخت شد</string>
+    <string name="person_loan_submit">ثبت</string>
+    <string name="add_person_loan_debtor_title">ثبت طلب از %1$s</string>
+    <string name="add_person_loan_creditor_title">ثبت بدهی به %1$s</string>
 
     <!-- Shared top-bar back navigation icon -->
     <string name="action_back">بازگشت</string>

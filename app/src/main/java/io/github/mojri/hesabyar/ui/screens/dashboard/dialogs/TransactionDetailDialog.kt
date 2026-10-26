@@ -4,11 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +49,7 @@ internal fun TransactionDetailDialog(
 
   HesabyarDialog(
     onDismissRequest = onDismiss,
-    title = "جزئیات تراکنش",
+    title = stringResource(R.string.transaction_details_title),
     confirmButton = {
       Row(
         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm),
@@ -63,13 +58,11 @@ internal fun TransactionDetailDialog(
         HesabyarButton(
           onClick = onEdit,
           text = stringResource(R.string.action_edit),
-          icon = Icons.Filled.Edit,
           variant = ButtonVariant.Filled
         )
         HesabyarButton(
           onClick = onDelete,
           text = stringResource(R.string.action_delete),
-          icon = Icons.Filled.Delete,
           variant = ButtonVariant.Filled,
           colors =
             ButtonDefaults.buttonColors(
@@ -105,7 +98,7 @@ private fun TransactionDetailContent(
   modifier: Modifier = Modifier
 ) {
   Column(
-    modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+    modifier = modifier.fillMaxWidth(),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
   ) {
     TransactionTypeRow(type = transaction.type)

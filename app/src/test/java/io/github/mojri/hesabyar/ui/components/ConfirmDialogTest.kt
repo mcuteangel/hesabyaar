@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.components
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -71,6 +72,25 @@ class ConfirmDialogTest {
     }
 
     composeRule.onNodeWithText("").assertDoesNotExist()
+  }
+
+  @Test
+  fun confirmDialogRendersDestructiveConfirmAction() {
+    var confirmed = false
+    composeRule.setContent {
+      ConfirmDialog(
+        title = DIALOG_TITLE,
+        message = DIALOG_MESSAGE,
+        confirmText = CUSTOM_CONFIRM,
+        confirmColor = Color.Red,
+        confirmContentColor = Color.White,
+        onConfirm = { confirmed = true },
+        onDismiss = {}
+      )
+    }
+
+    composeRule.onNodeWithText(CUSTOM_CONFIRM).assertIsDisplayed().performClick()
+    assertTrue(confirmed)
   }
 
   private companion object {
