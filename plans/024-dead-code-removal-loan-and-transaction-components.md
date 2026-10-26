@@ -34,6 +34,7 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
 |---|---|---|---|
 | `ui/screens/LoanManagementDialogTest.kt` | 85 | Remove | Tests `AddLoanDialog` and `EditLoanDialog` in dead `LoanManagementScreen.kt`. |
 | `ui/screens/LoanEditRejectionScreenTest.kt` | 162 | Remove | Tests `LoanManagementScreen` rejection flow; `ManageLoanUseCase` chronology rules are already tested in unit tests. |
+| `ui/screens/LoanEditAmountPreservationTest.kt` | 180 | Remove | Tested internal `submitLoanEdit` in dead `LoanManagementScreen.kt`; `LoanEditCalculatorTest` covers core math. |
 | `ui/LoanViewModelTest.kt` | 88 | Remove | Tests dead `LoanViewModel`. Live loan logic is handled by `PersonViewModel` and `ManageLoanUseCaseTest`. |
 | `ui/TransactionItemSignPlacementTest.kt` | 187 | Migrate | Retain vital RTL signed-amount bidi placement assertions by migrating to `TransactionMiniItem` (or live RTL signed-amount composable). |
 
@@ -50,11 +51,11 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
 ## 2. Goals & Acceptance Criteria
 
 - [ ] **Criterion 1 (Complete Deletion of Dead Production Files):**
-  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt`
-  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt`
-  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/LoanItem.kt`
-  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/InstallmentItem.kt`
-  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/TransactionItem.kt`
+  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt` <!-- check-docs: ignore -->
+  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt` <!-- check-docs: ignore -->
+  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/LoanItem.kt` <!-- check-docs: ignore -->
+  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/InstallmentItem.kt` <!-- check-docs: ignore -->
+  - Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/TransactionItem.kt` <!-- check-docs: ignore -->
   - `rg 'LoanManagementScreen|LoanViewModel|LoanItem\b|InstallmentItem\b|TransactionItem\b' app/src/main` returns **zero** matches (excluding legitimate kdoc reference in `LoanEditCalculator.kt`).
 
 - [ ] **Criterion 2 (Preservation of Domain & Business Logic Context):**
@@ -114,13 +115,15 @@ Issue #340 explicitly requires deciding between deletion and deprecation. Per re
 4. Delete original `app/src/test/java/io/github/mojri/hesabyar/ui/TransactionItemSignPlacementTest.kt` <!-- check-docs: ignore --> (superseded by Phase 1).
 (Completed: all 4 files deleted)
 
-### Phase 3: Dead Code Deletion in `app/src/main`
-1. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt`.
-2. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt`.
-3. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/LoanItem.kt`.
-4. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/InstallmentItem.kt`.
-5. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/TransactionItem.kt`.
-6. Update comment in `app/src/main/java/io/github/mojri/hesabyar/domain/utils/LoanEditCalculator.kt:10` to avoid broken path reference.
+### Phase 3: Dead Code Deletion in `app/src/main` (Completed)
+1. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/screens/LoanManagementScreen.kt`. <!-- check-docs: ignore -->
+2. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/LoanViewModel.kt`. <!-- check-docs: ignore -->
+3. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/LoanItem.kt`. <!-- check-docs: ignore -->
+4. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/InstallmentItem.kt`. <!-- check-docs: ignore -->
+5. Delete `app/src/main/java/io/github/mojri/hesabyar/ui/components/TransactionItem.kt`. <!-- check-docs: ignore -->
+6. Delete `app/src/test/java/io/github/mojri/hesabyar/ui/screens/LoanEditAmountPreservationTest.kt`. <!-- check-docs: ignore -->
+7. Update comment in `app/src/main/java/io/github/mojri/hesabyar/domain/utils/LoanEditCalculator.kt:10` to avoid broken path reference.
+(Completed: 5 dead production files removed, 1 dead test file removed, KDoc updated)
 
 ### Phase 4: Strings and Detekt Baseline Cleanup
 1. In `app/src/main/res/values/strings.xml`, remove:
