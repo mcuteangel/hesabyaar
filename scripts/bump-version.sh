@@ -84,6 +84,30 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
     echo "ERROR: $CARGO_MANIFEST has no [workspace.package] version (got '$current_core')" >&2
     exit 1
   fi
+  if [ -f "$CARGO_LOCK" ]; then
+    # Fail fast on lock-refresh prerequisites: checking them here, before
+    # any file is written, keeps a failure from leaving VERSION,
+    # CHANGELOG.md, and the manifest half-bumped.
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "ERROR: python3 is required to refresh $CARGO_LOCK" >&2
+      exit 1
+    fi
+    LOCK_FILE="$CARGO_LOCK" CORE_PACKAGE="$CORE_PACKAGE" OLD_CORE="$current_core" python3 -c '
+import os, re, sys
+lock_path = os.environ["LOCK_FILE"]
+pkg = os.environ["CORE_PACKAGE"]
+old = os.environ["OLD_CORE"]
+with open(lock_path, "r") as f:
+    text = f.read()
+for block in text.split("[[package]]")[1:]:
+    if re.search(r"(?m)^\s*name = \"%s\"$" % re.escape(pkg), block):
+        for line in block.split("\n"):
+            if line.strip() == "version = \"%s\"" % old:
+                sys.exit(0)
+        break
+sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
+'
+  fi
 fi
 
 echo "$new_version" > "$VERSION_FILE"
@@ -160,8 +184,8 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   # Refresh the lock entry for the core package so it matches the manifest.
   # The release job's cargo test step validates the result.
   if [ -f "$CARGO_LOCK" ]; then
-    if command -v python3 >/dev/null 2>&1; then
-      LOCK_FILE="$CARGO_LOCK" CORE_PACKAGE="$CORE_PACKAGE" OLD_CORE="$current_core" NEW_CORE="$new_core" python3 -c '
+    # python3 and the lock entry were verified in the pre-write block above.
+    LOCK_FILE="$CARGO_LOCK" CORE_PACKAGE="$CORE_PACKAGE" OLD_CORE="$current_core" NEW_CORE="$new_core" python3 -c '
 import os, re, sys
 lock_path = os.environ["LOCK_FILE"]
 pkg = os.environ["CORE_PACKAGE"]
@@ -173,11 +197,12 @@ blocks = text.split("[[package]]")
 out = [blocks[0]]
 found = False
 for block in blocks[1:]:
-    if not found and re.search(r"(?m)^name = \"%s\"$" % re.escape(pkg), block):
+    if not found and re.search(r"(?m)^\s*name = \"%s\"$" % re.escape(pkg), block):
         lines = block.split("\n")
         for i, line in enumerate(lines):
-            if line == "version = \"%s\"" % old:
-                lines[i] = "version = \"%s\"" % new
+            if line.strip() == "version = \"%s\"" % old:
+                indent = line[:len(line) - len(line.lstrip())]
+                lines[i] = indent + "version = \"%s\"" % new
                 found = True
                 break
         block = "\n".join(lines)
@@ -187,11 +212,7 @@ if not found:
 with open(lock_path, "w") as f:
     f.write("[[package]]".join(out))
 '
-      echo "Cargo.lock updated for $CORE_PACKAGE ($current_core -> $new_core)" >&2
-    else
-      echo "ERROR: python3 is required to refresh $CARGO_LOCK" >&2
-      exit 1
-    fi
+    echo "Cargo.lock updated for $CORE_PACKAGE ($current_core -> $new_core)" >&2
   else
     echo "WARNING: $CARGO_LOCK not found; skipping lock refresh (cargo will regenerate it)" >&2
   fi
