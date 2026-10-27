@@ -294,7 +294,14 @@ git commit -qm "feat(core): fresh core with manifest"
 check_core "newly added manifest yields core null" "null"
 
 # --- Test 15: merge commit with a custom subject is skipped ---
+# The base manifest must exist on main: without it the parser's
+# missing-manifest guard forces core null, and the assertion passes even
+# if the Rust loop stops skipping merge commits.
 new_repo
+mkdir -p rust/hesabyar-core/src
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.7.0"\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/Cargo.toml
+git commit -qm "base manifest"
 echo "base" > shared.txt
 git add shared.txt
 git commit -qm "base shared file"
@@ -308,7 +315,6 @@ git add shared.txt
 git commit -qm "main change"
 git checkout -q -b merger main
 git merge side -m "feat: integrate side work" 2>/dev/null || true
-mkdir -p rust/hesabyar-core/src
 echo "pub fn merged() {}" > rust/hesabyar-core/src/merged.rs
 git add shared.txt rust/hesabyar-core/src/merged.rs
 git commit -qm "feat: integrate side work"
@@ -344,7 +350,27 @@ for t in git bash python3 tr sed grep awk mktemp rm cat mkdir dirname wc head; d
 done
 OLD_PATH="$PATH"
 PATH="$SHIM"
-check_core "python fallback without jq yields core null" "null"
+# Assert on parse_json_field directly: check_core maps both "" and "None"
+# to null, so it passes with the old TypeError bug too (the substitution
+# yields empty output either way). The discriminator is stderr: the fixed
+# fallback writes empty output with no traceback.
+run_parse
+if [ "$exit_status" -ne 0 ]; then
+  echo "FAIL python fallback: parse-commits exited with status $exit_status"
+  fail=$((fail + 1))
+elif command -v jq >/dev/null 2>&1; then
+  echo "FAIL python fallback: jq still on PATH"
+  fail=$((fail + 1))
+else
+  got=$(parse_json_field "$output" "core_bump_type" 2>"$TMP/pyerr.txt")
+  if [ -z "$got" ] && [ ! -s "$TMP/pyerr.txt" ]; then
+    echo "PASS python fallback without jq yields empty core for null"
+    pass=$((pass + 1))
+  else
+    echo "FAIL python fallback: got '$got', stderr: $(cat "$TMP/pyerr.txt")"
+    fail=$((fail + 1))
+  fi
+fi
 PATH="$OLD_PATH"
 
 echo ""
