@@ -106,6 +106,8 @@ private val CategoryType.displayName: String
       CategoryType.UNKNOWN -> stringResource(R.string.category_type_unknown)
     }
 
+private const val NO_EDITING_CATEGORY_ID = -1L
+
 @Composable
 fun CategoryManagementScreen(
   categoryViewModel: CategoryViewModel,
@@ -115,11 +117,26 @@ fun CategoryManagementScreen(
   val categories by categoryViewModel.categories.collectAsState()
   var showAddDialog by rememberSaveable { mutableStateOf(false) }
   // The edit target is stored as an id, not as a Category object.
-  // Ids are saveable, objects are not.
+  // Ids are saveable, objects are not. Minus one means no edit target.
   // The dialog re-opens from the id after a configuration change.
   // Its fields restore from their own saveable state.
-  var editingCategoryId by rememberSaveable { mutableStateOf<Long?>(null) }
-  val editingCategory = editingCategoryId?.let { id -> categories.find { it.id == id } }
+  var editingCategoryId by rememberSaveable { mutableStateOf(NO_EDITING_CATEGORY_ID) }
+  val editingCategory =
+    if (editingCategoryId == NO_EDITING_CATEGORY_ID) {
+      null
+    } else {
+      categories.find { it.id == editingCategoryId }
+    }
+
+  // A restored id with no matching category clears itself once the list loads.
+  LaunchedEffect(editingCategoryId, categories) {
+    if (editingCategoryId != NO_EDITING_CATEGORY_ID &&
+      categories.isNotEmpty() &&
+      categories.none { it.id == editingCategoryId }
+    ) {
+      editingCategoryId = NO_EDITING_CATEGORY_ID
+    }
+  }
   var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
 
   HesabyarScaffold(
@@ -147,7 +164,7 @@ fun CategoryManagementScreen(
     showDeleteConfirmation = showDeleteConfirmation,
     categoryViewModel = categoryViewModel,
     onDismissAdd = { showAddDialog = false },
-    onDismissEdit = { editingCategoryId = null },
+    onDismissEdit = { editingCategoryId = NO_EDITING_CATEGORY_ID },
     onDismissDelete = { showDeleteConfirmation = null }
   )
 }

@@ -376,7 +376,10 @@ fun ReportsScreen(
       }
     } else {
       // Display visual progress bars for each expense category
-      items(categoryTotals.toList().sortedByDescending { it.second }, key = { "category-${it.first}" }) { (categoryId, total) ->
+      items(
+        categoryTotals.toList().sortedByDescending { it.second },
+        key = { "category-${it.first}" },
+      ) { (categoryId, total) ->
         val ratio = if (totalExpense > 0) (total.toDouble() / totalExpense.toDouble()).toFloat() else 0f
         val percent = (ratio * 100).toInt()
         val isSelected = selectedCategoryFilter == categoryId

@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 
+import androidx.compose.runtime.saveable.SaverScope
 import io.github.mojri.hesabyar.data.LoanType
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -15,7 +16,8 @@ class LoanFormStateSaverTest {
     val state = LoanFormState(LoanType.CREDITOR, "Ali", 0L, "desc", 123L)
     state.amountText = "5,000"
 
-    val saved = checkNotNull(LoanFormStateSaver.save(state))
+    val scope = SaverScope { true }
+    val saved = checkNotNull(with(scope) { LoanFormStateSaver.save(state) })
     val restored = checkNotNull(LoanFormStateSaver.restore(saved))
 
     assertEquals("Ali", restored.personName)
