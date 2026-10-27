@@ -4,6 +4,8 @@
   <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Platform: Android">
   <img src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Language: Kotlin">
   <img src="https://img.shields.io/badge/Rust-E74C3C?logo=rust&logoColor=white" alt="Language: Rust">
+  <img src="https://img.shields.io/github/v/release/mcuteangel/hesabyaar?label=app" alt="App version">
+  <img src="https://img.shields.io/badge/dynamic/toml?url=https://raw.githubusercontent.com/mcuteangel/hesabyaar/main/rust/Cargo.toml&query=%24.workspace.package.version&label=core" alt="Core version">
   <img src="https://img.shields.io/badge/Calendar-Jalali-4CAF50" alt="Calendar: Jalali">
   <img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT">
 </p>
@@ -289,6 +291,12 @@ cd rust && cargo build --target aarch64-linux-android --release
 ./gradlew assembleDebug
 ./gradlew assembleRelease
 ```
+
+## 📥 دانلود
+
+- **دانلود مستقیم آخرین نسخه (universal APK):** [hesabyar-universal.apk](https://github.com/mcuteangel/hesabyaar/releases/latest/download/hesabyar-universal.apk) — برای همهٔ گوشی‌ها، همیشه آخرین نسخه
+- **صفحه آخرین نسخه:** [releases/latest](https://github.com/mcuteangel/hesabyaar/releases/latest) — نسخه‌های arm-v7a ،arm-v8a ،x86_64 و فایل AAB
+- **همه نسخه‌ها و تغییرات:** [releases](https://github.com/mcuteangel/hesabyaar/releases)
 
 ---
 
