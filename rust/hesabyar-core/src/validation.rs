@@ -748,26 +748,6 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
             }
         }
     }
-    // PaymentHistory cross-reference: a positive linked_transaction_id must
-    // point to a transaction in the same backup (mirrors the loan_id check
-    // above). Non-positive values are normalized to "no link" by the Kotlin
-    // restore path (optPositiveId), so they are tolerated here; the deeper
-    // link rules (plain ledger row, claimed once, amount match) stay with
-    // the restore sanitizer, which drops bad links with a warning instead
-    // of failing the whole backup.
-    if !payload.payment_histories.is_empty() {
-        let transaction_ids: std::collections::HashSet<_> = payload.transactions.iter().map(|t| t.id).collect();
-        for (i, ph) in payload.payment_histories.iter().enumerate() {
-            if let Some(linked_id) = ph.linked_transaction_id {
-                if linked_id > 0 && !transaction_ids.contains(&linked_id) {
-                    errors.push(format!(
-                        "PaymentHistory[{}] references non-existent transaction {}",
-                        i, linked_id
-                    ));
-                }
-            }
-        }
-    }
     ValidationResult {
         is_valid: errors.is_empty(),
         errors,

@@ -10,7 +10,7 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
 
 ```json
 {
-  "version": 1,
+  "version": 4,
   "timestamp": 1700000000000,
   "appVersion": "1.0",
   "categories": [...],
