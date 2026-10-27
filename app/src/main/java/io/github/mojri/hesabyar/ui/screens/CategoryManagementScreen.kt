@@ -114,7 +114,12 @@ fun CategoryManagementScreen(
 ) {
   val categories by categoryViewModel.categories.collectAsState()
   var showAddDialog by rememberSaveable { mutableStateOf(false) }
-  var editingCategory by remember { mutableStateOf<Category?>(null) }
+  // The edit target is stored as an id, not as a Category object.
+  // Ids are saveable, objects are not.
+  // The dialog re-opens from the id after a configuration change.
+  // Its fields restore from their own saveable state.
+  var editingCategoryId by rememberSaveable { mutableStateOf<Long?>(null) }
+  val editingCategory = editingCategoryId?.let { id -> categories.find { it.id == id } }
   var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
 
   HesabyarScaffold(
@@ -131,7 +136,7 @@ fun CategoryManagementScreen(
     CategoryManagementContent(
       categories = categories,
       contentPadding = contentPadding,
-      onEdit = { editingCategory = it },
+      onEdit = { editingCategoryId = it.id },
       onDelete = { showDeleteConfirmation = it }
     )
   }
@@ -142,7 +147,7 @@ fun CategoryManagementScreen(
     showDeleteConfirmation = showDeleteConfirmation,
     categoryViewModel = categoryViewModel,
     onDismissAdd = { showAddDialog = false },
-    onDismissEdit = { editingCategory = null },
+    onDismissEdit = { editingCategoryId = null },
     onDismissDelete = { showDeleteConfirmation = null }
   )
 }

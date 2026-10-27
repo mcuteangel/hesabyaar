@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,13 +41,13 @@ fun JalaliDatePickerDialog(
   val jalaliToday = remember(initialTimestamp) { JalaliCalendarHelper.gregorianToJalali(initialTimestamp) }
 
   // View state tracks what year/month is currently shown in the calendar grid
-  var viewYear by remember { mutableStateOf(jalaliToday.year) }
-  var viewMonth by remember { mutableStateOf(jalaliToday.month) }
+  var viewYear by rememberSaveable { mutableStateOf(jalaliToday.year) }
+  var viewMonth by rememberSaveable { mutableStateOf(jalaliToday.month) }
 
   // Selection state tracks the currently chosen date
-  var selectedYear by remember { mutableStateOf(jalaliToday.year) }
-  var selectedMonth by remember { mutableStateOf(jalaliToday.month) }
-  var selectedDay by remember { mutableStateOf(jalaliToday.day) }
+  var selectedYear by rememberSaveable { mutableStateOf(jalaliToday.year) }
+  var selectedMonth by rememberSaveable { mutableStateOf(jalaliToday.month) }
+  var selectedDay by rememberSaveable { mutableStateOf(jalaliToday.day) }
 
   // Toggle between standard Calendar Grid view and Month/Year Quick Selector
   var showQuickSelector by remember { mutableStateOf(false) }

@@ -232,7 +232,7 @@ fun DashboardScreen(
           )
         }
       } else {
-        items(dashboardData.upcomingInstallments.take(3), key = { it.id }) { installment ->
+        items(dashboardData.upcomingInstallments.take(3), key = { "installment-${it.id}" }) { installment ->
           InstallmentMiniItem(
             installment = installment,
             onTogglePaid = { installmentViewModel.toggleInstallmentPaid(installment) }
@@ -260,7 +260,7 @@ fun DashboardScreen(
           )
         }
       } else {
-        items(transactions.take(5), key = { it.id }) { transaction ->
+        items(transactions.take(5), key = { "transaction-${it.id}" }) { transaction ->
           TransactionMiniItem(
             transaction = transaction,
             categories = categories,

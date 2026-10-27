@@ -306,7 +306,8 @@ fun InstallmentListItem(
   var expanded by remember { mutableStateOf(false) }
   // Holds the tapped installment itself, not a boolean.
   // Items are keyed by installment id. The state stays with its row
-  // across a reorder or filter while the dialog is open.
+  // while the row remains in the list. Filtering the row out removes
+  // its composition, and with it any open delete dialog.
   var pendingDelete by remember { mutableStateOf<Installment?>(null) }
   val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
