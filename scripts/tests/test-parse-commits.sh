@@ -5,6 +5,7 @@
 # Usage: ./scripts/tests/test-parse-commits.sh
 set -eu
 
+# shellcheck disable=SC1007 # CDPATH= applies to this cd only; intentional (same idiom as other scripts/tests)
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PARSE="$HERE/../parse-commits.sh"
 TMP=$(mktemp -d)
@@ -53,15 +54,20 @@ parse_json_field() {
   printf '%s' "$res" | tr -d '\r'
 }
 
+# Runs the parser on main..HEAD; sets output and exit_status.
+run_parse() {
+  set +e
+  output=$(bash "$PARSE" main HEAD)
+  exit_status=$?
+  set -e
+}
+
 check() {
   name=$1
   want_bump=$2
   want_summary_sub=$3
 
-  set +e
-  output=$(bash "$PARSE" main HEAD)
-  exit_status=$?
-  set -e
+  run_parse
 
   if [ "$exit_status" -ne 0 ]; then
     echo "FAIL $name (parse-commits exited with status $exit_status)"
@@ -177,10 +183,7 @@ check_core() {
   name=$1
   want_core=$2
 
-  set +e
-  output=$(bash "$PARSE" main HEAD)
-  exit_status=$?
-  set -e
+  run_parse
 
   if [ "$exit_status" -ne 0 ]; then
     echo "FAIL $name (parse-commits exited with status $exit_status)"
@@ -270,6 +273,25 @@ echo "pub fn zed() {}" > rust/hesabyar-core/src/zed.rs
 git add rust/hesabyar-core/src/zed.rs
 git commit -qm "refactor(core): reorganize core models" -m "BREAKING CHANGE: drops legacy core type"
 check_core "rust breaking body yields core major" "major"
+
+# --- Test 13: rust change without any manifest leaves core untouched (null) ---
+new_repo
+git checkout -q -b core-nomanifest-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn solo() {}" > rust/hesabyar-core/src/solo.rs
+git add rust/hesabyar-core/src/solo.rs
+git commit -qm "feat(core): solo core without manifest"
+check_core "rust change without manifest yields core null" "null"
+
+# --- Test 14: newly added manifest ships as-is (null) ---
+new_repo
+git checkout -q -b core-newmanifest-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn fresh() {}" > rust/hesabyar-core/src/fresh.rs
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.7.0"\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/hesabyar-core/src/fresh.rs rust/Cargo.toml
+git commit -qm "feat(core): fresh core with manifest"
+check_core "newly added manifest yields core null" "null"
 
 echo ""
 echo "$pass passed, $fail failed"

@@ -2,6 +2,7 @@
 # POSIX sh compatible (also invoked as `bash scripts/detect-changes.sh` in CI).
 set -eu
 # dash/BSD sh lack `set -o pipefail`; enable it only where supported.
+# shellcheck disable=SC3040 # guarded: only enabled where supported
 (set -o pipefail) 2>/dev/null && set -o pipefail || true
 
 # detect-changes.sh - Determines whether application code changed.
@@ -109,7 +110,8 @@ while IFS= read -r file; do
       has_app_changes=true
       break
       ;;
-    build.gradle.kts|build.gradle|settings.gradle.kts|settings.gradle|gradle.properties|proguard-rules.pro)
+    # build.gradle.kts and settings.gradle.kts are already covered by *.kts above.
+    build.gradle|settings.gradle|gradle.properties|proguard-rules.pro)
       has_app_changes=true
       break
       ;;

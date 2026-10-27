@@ -68,6 +68,8 @@ if [ "$has_breaking" = true ]; then
   BUMP_TYPE="major"
 elif [ "$has_feat" = true ]; then
   BUMP_TYPE="minor"
+elif [ "$has_fix" = true ]; then
+  BUMP_TYPE="patch"
 else
   BUMP_TYPE="patch"
 fi
@@ -76,7 +78,9 @@ fi
 # same conventional-commit rules as the app bump. A range with no rust/
 # changes leaves the core version untouched (core_bump_type null).
 # If the range already bumps [workspace.package].version by hand (the old
-# manual step), ship that version as-is instead of bumping again.
+# manual step), ship that version as-is instead of bumping again. A
+# manifest missing at head, or newly added in the range, is the same case:
+# there is no established version to bump.
 rust_breaking=false
 rust_feat=false
 rust_fix=false
@@ -115,15 +119,16 @@ while IFS= read -r hash; do
 done <<< "$commit_hashes"
 
 # Print the [workspace.package].version from a manifest on stdin.
-# Dependency tables also use `version =` keys, so the section is tracked
-# explicitly (same approach as scripts/detect-changes.sh).
+# Only the exact [workspace.package] table counts: any other header resets
+# the flag, so version lines under dependency tables are never misread as
+# the workspace version.
 workspace_version() {
   awk -F'"' '
     /^[[:space:]]*\[/ {
       sec = $0
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
-      else if (index(sec, ".") == 0) in_pkg = 0
+      else in_pkg = 0
     }
     in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
   ' || true
@@ -134,7 +139,7 @@ if [ -f rust/Cargo.toml ]; then
   new_core=$(workspace_version < rust/Cargo.toml || true)
 fi
 
-if [ -n "$old_core" ] && [ -n "$new_core" ] && [ "$old_core" != "$new_core" ]; then
+if [ -z "$new_core" ] || [ "$old_core" != "$new_core" ]; then
   CORE_BUMP_TYPE=""
 elif [ "$rust_breaking" = true ]; then
   CORE_BUMP_TYPE="major"

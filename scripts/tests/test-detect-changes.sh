@@ -5,6 +5,7 @@
 # Usage: ./scripts/tests/test-detect-changes.sh
 set -eu
 
+# shellcheck disable=SC1007 # CDPATH= applies to this cd only; intentional (same idiom as other scripts/tests)
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DETECT="$HERE/../detect-changes.sh"
 TMP=$(mktemp -d)

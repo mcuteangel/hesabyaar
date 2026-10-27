@@ -54,6 +54,38 @@ case "$BUMP_TYPE" in
 esac
 
 new_version="${major}.${minor}.${patch}"
+
+# Validate the core bump before writing anything: a failure after the
+# VERSION/CHANGELOG writes would leave a half-bumped state, and a retry
+# with a valid argument would bump the app version a second time.
+current_core=""
+if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
+  case "$CORE_BUMP_TYPE" in
+    major|minor|patch) ;;
+    *)
+      echo "ERROR: Invalid core bump type: $CORE_BUMP_TYPE (must be major, minor, or patch)" >&2
+      exit 1
+      ;;
+  esac
+  if [ ! -f "$CARGO_MANIFEST" ]; then
+    echo "ERROR: $CARGO_MANIFEST not found (core bump requested)" >&2
+    exit 1
+  fi
+  current_core=$(awk -F'"' '
+    /^[[:space:]]*\[/ {
+      sec = $0
+      gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
+      if (sec == "workspace.package") in_pkg = 1
+      else in_pkg = 0
+    }
+    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
+  ' "$CARGO_MANIFEST")
+  if ! echo "$current_core" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "ERROR: $CARGO_MANIFEST has no [workspace.package] version (got '$current_core')" >&2
+    exit 1
+  fi
+fi
+
 echo "$new_version" > "$VERSION_FILE"
 echo "Version bumped: $current -> $new_version" >&2
 
@@ -93,34 +125,7 @@ echo "CHANGELOG.md updated" >&2
 
 # Optional Rust core bump. Stdout stays the app version: callers capture it.
 if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
-  case "$CORE_BUMP_TYPE" in
-    major|minor|patch) ;;
-    *)
-      echo "ERROR: Invalid core bump type: $CORE_BUMP_TYPE (must be major, minor, or patch)" >&2
-      exit 1
-      ;;
-  esac
-  if [ ! -f "$CARGO_MANIFEST" ]; then
-    echo "ERROR: $CARGO_MANIFEST not found (core bump requested)" >&2
-    exit 1
-  fi
-
-  # Read the current [workspace.package].version (section-tracked: dependency
-  # tables also use `version =` keys).
-  current_core=$(awk -F'"' '
-    /^[[:space:]]*\[/ {
-      sec = $0
-      gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
-      if (sec == "workspace.package") in_pkg = 1
-      else if (index(sec, ".") == 0) in_pkg = 0
-    }
-    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
-  ' "$CARGO_MANIFEST")
-  if ! echo "$current_core" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-    echo "ERROR: $CARGO_MANIFEST has no [workspace.package] version (got '$current_core')" >&2
-    exit 1
-  fi
-
+  # current_core was read and validated before any file was written.
   IFS='.' read -r core_major core_minor core_patch <<< "$current_core"
   case "$CORE_BUMP_TYPE" in
     major)
@@ -145,7 +150,7 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
       sec = $0
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
-      else if (index(sec, ".") == 0) in_pkg = 0
+      else in_pkg = 0
     }
     !done && in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { $2 = new_ver; done = 1 }
     { print }
@@ -162,18 +167,25 @@ lock_path = os.environ["LOCK_FILE"]
 pkg = os.environ["CORE_PACKAGE"]
 old = os.environ["OLD_CORE"]
 new = os.environ["NEW_CORE"]
-text = open(lock_path).read()
+with open(lock_path, "r") as f:
+    text = f.read()
 blocks = text.split("[[package]]")
 out = [blocks[0]]
 found = False
 for block in blocks[1:]:
-    if (not found) and re.match(r"\s*name = \"%s\"\nversion = \"%s\"\n" % (re.escape(pkg), re.escape(old)), block):
-        block = block.replace("version = \"%s\"" % old, "version = \"%s\"" % new, 1)
-        found = True
+    if not found and re.search(r"(?m)^name = \"%s\"$" % re.escape(pkg), block):
+        lines = block.split("\n")
+        for i, line in enumerate(lines):
+            if line == "version = \"%s\"" % old:
+                lines[i] = "version = \"%s\"" % new
+                found = True
+                break
+        block = "\n".join(lines)
     out.append(block)
 if not found:
     sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
-open(lock_path, "w").write("[[package]]".join(out))
+with open(lock_path, "w") as f:
+    f.write("[[package]]".join(out))
 '
       echo "Cargo.lock updated for $CORE_PACKAGE ($current_core -> $new_core)" >&2
     else
