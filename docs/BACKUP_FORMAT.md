@@ -10,7 +10,7 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
 
 ```json
 {
-  "version": 1,
+  "version": 4,
   "timestamp": 1700000000000,
   "appVersion": "1.0",
   "categories": [...],
@@ -32,7 +32,7 @@ Hesabyar uses a JSON-based backup format. Backups contain all user data and can 
 
 | Field       | Type   | Description                    |
 |-------------|--------|--------------------------------|
-| version     | Int    | Backup format version (always 1) |
+| version     | Int    | Backup format version (current: 4; older versions restore; missing optional link fields default to null, and omitted collections default to empty arrays) |
 | timestamp   | Long   | Backup creation time (ms)      |
 | appVersion  | String | App version that created backup |
 | categories  | Array  | Category records               |
