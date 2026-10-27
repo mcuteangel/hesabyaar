@@ -379,13 +379,13 @@ private fun CategoryItem(
 
 /**
  * CategoryType is an enum. It is saved by name.
- * An unknown name restores EXPENSE.
+ * An unknown name restores UNKNOWN, matching the Room converter.
  */
 private val CategoryTypeSaver: Saver<CategoryType, String> =
   Saver(
     save = { it.name },
     restore = {
-      runCatching { CategoryType.valueOf(it) }.getOrDefault(CategoryType.EXPENSE)
+      runCatching { CategoryType.valueOf(it) }.getOrDefault(CategoryType.UNKNOWN)
     }
   )
 
