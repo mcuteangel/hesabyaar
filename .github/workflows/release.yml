@@ -405,6 +405,9 @@ jobs:
           if [ -f "release-artifacts/hesabyar-${VER}-universal.apk" ]; then
             cp "release-artifacts/hesabyar-${VER}-universal.apk" "release-artifacts/hesabyar-universal.apk"
             echo "Alias: release-artifacts/hesabyar-universal.apk"
+          else
+            echo "ERROR: universal APK release-artifacts/hesabyar-${VER}-universal.apk missing; README links to hesabyar-universal.apk" >&2
+            exit 1
           fi
           aab_dir="app/build/outputs/bundle/release"
           aab_files=("${aab_dir}"/*.aab)
