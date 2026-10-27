@@ -67,10 +67,10 @@ while IFS= read -r file; do
   # update would flood the releases page. App code touching these same
   # files alongside other sources still triggers a release below.
   #
-  # NOTE: this also means Rust source edits (*.rs) and manifest deletions do
-  # NOT gate a release by themselves. Releases are intentionally version-
-  # driven: bumping [workspace.package].version is what ships a core change,
-  # because an artifact with an unchanged versionCode cannot be published.
+  # NOTE: Rust source edits (*.rs) gate a release through the include
+  # patterns below; the release action bumps [workspace.package].version
+  # itself, so no manual manifest bump is needed to ship a core change.
+  # Manifest deletions still do not gate a release by themselves.
   case "$file" in
     gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock|*/gradle.lockfile|*/versions.lock)
       continue
@@ -105,7 +105,7 @@ while IFS= read -r file; do
 
   # Check if this file matches any include pattern
   case "$file" in
-    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml)
+    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml|rust/*.rs|rust/*/*.rs)
       has_app_changes=true
       break
       ;;

@@ -262,9 +262,11 @@ jobs:
         run: |
           result=$(bash scripts/parse-commits.sh "$BASE_REF" HEAD)
           bump_type=$(echo "$result" | jq -r '.bump_type')
+          core_bump_type=$(echo "$result" | jq -r '.core_bump_type // "null"')
           summary=$(echo "$result" | jq -r '.summary')
           {
             echo "bump_type=$bump_type"
+            echo "core_bump_type=$core_bump_type"
             echo "summary<<EOF"
             echo "$summary"
             echo "EOF"
@@ -276,8 +278,9 @@ jobs:
         id: bump
         env:
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
+          CORE_BUMP_TYPE: ${{ steps.parse.outputs.core_bump_type }}
         run: |
-          new_version=$(bash scripts/bump-version.sh "$BUMP_TYPE")
+          new_version=$(bash scripts/bump-version.sh "$BUMP_TYPE" "$CORE_BUMP_TYPE")
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
@@ -485,6 +488,7 @@ jobs:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
+          CORE_BUMP_TYPE: ${{ steps.parse.outputs.core_bump_type }}
           SUMMARY: ${{ steps.parse.outputs.summary }}
           RUN_ID: ${{ github.run_id }}
         run: |
@@ -505,7 +509,7 @@ jobs:
           # Commit the release state on the dedicated branch. The branch tip
           # is the exact main commit that triggered this run.
           git checkout -B "$BRANCH"
-          git add VERSION CHANGELOG.md
+          git add VERSION CHANGELOG.md rust/Cargo.toml rust/Cargo.lock
           git commit -m "chore: release v${NEW_VERSION} [skip release]"
 
           existing_pr=$(gh pr list --head "$BRANCH" --base main --state open \
@@ -547,10 +551,15 @@ jobs:
           |------|-------|
           | Version | ${NEW_VERSION} |
           | Bump type | ${BUMP_TYPE} |
+          BODY_EOF
+              if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
+                printf '| Core bump | %s |\n' "$CORE_BUMP_TYPE"
+              fi
+              cat <<CHANGES_EOF
 
           ### Changes included
 
-          BODY_EOF
+          CHANGES_EOF
               printf '%s\n' "$SUMMARY"
               cat <<'FOOTER_EOF'
 

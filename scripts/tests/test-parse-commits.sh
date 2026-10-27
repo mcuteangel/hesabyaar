@@ -173,6 +173,104 @@ else
   fail=$((fail + 1))
 fi
 
+check_core() {
+  name=$1
+  want_core=$2
+
+  set +e
+  output=$(bash "$PARSE" main HEAD)
+  exit_status=$?
+  set -e
+
+  if [ "$exit_status" -ne 0 ]; then
+    echo "FAIL $name (parse-commits exited with status $exit_status)"
+    fail=$((fail + 1))
+    return
+  fi
+
+  got_core=$(parse_json_field "$output" "core_bump_type")
+  case "$got_core" in
+    ""|"None") got_core="null" ;;
+  esac
+
+  if [ "$got_core" != "$want_core" ]; then
+    echo "FAIL $name: expected core_bump_type='$want_core', got '$got_core'"
+    fail=$((fail + 1))
+    return
+  fi
+
+  echo "PASS $name (core_bump_type=$got_core)"
+  pass=$((pass + 1))
+}
+
+# Base main with a core manifest at 0.7.0 (the guard compares base vs head)
+setup_core_base() {
+  mkdir -p rust
+  printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.7.0"\nedition = "2021"\n' > rust/Cargo.toml
+  git add rust/Cargo.toml
+  git commit -qm "chore: add core manifest"
+}
+
+# --- Test 7: rust feat commit yields core minor bump ---
+new_repo
+setup_core_base
+git checkout -q -b core-feat-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn foo() {}" > rust/hesabyar-core/src/foo.rs
+git add rust/hesabyar-core/src/foo.rs
+git commit -qm "feat(core): add foo helper"
+check_core "rust feat yields core minor" "minor"
+
+# --- Test 8: mixed rust + kotlin fix yields core patch ---
+new_repo
+setup_core_base
+git checkout -q -b core-fix-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn bar() {}" > rust/hesabyar-core/src/bar.rs
+echo "fix" > fix.kt
+git add rust/hesabyar-core/src/bar.rs fix.kt
+git commit -qm "fix(core): correct bar calculation"
+check_core "mixed rust fix yields core patch" "patch"
+
+# --- Test 9: rust breaking title yields core major ---
+new_repo
+setup_core_base
+git checkout -q -b core-break-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn baz() {}" > rust/hesabyar-core/src/baz.rs
+git add rust/hesabyar-core/src/baz.rs
+git commit -qm "feat(core)!: redesign core API"
+check_core "rust breaking title yields core major" "major"
+
+# --- Test 10: non-rust feat leaves core untouched (null) ---
+new_repo
+git checkout -q -b app-feat-branch main
+echo "feature" > feature.kt
+git add feature.kt
+git commit -qm "feat: add app screen"
+check_core "non-rust feat yields core null" "null"
+
+# --- Test 11: hand-bumped core version in range is shipped as-is (null) ---
+new_repo
+setup_core_base
+git checkout -q -b core-manual-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn qux() {}" > rust/hesabyar-core/src/qux.rs
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.8.0"\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/hesabyar-core/src/qux.rs rust/Cargo.toml
+git commit -qm "fix(core): qux fix with manual bump"
+check_core "hand-bumped core yields core null" "null"
+
+# --- Test 12: rust breaking body yields core major ---
+new_repo
+setup_core_base
+git checkout -q -b core-break-body-branch main
+mkdir -p rust/hesabyar-core/src
+echo "pub fn zed() {}" > rust/hesabyar-core/src/zed.rs
+git add rust/hesabyar-core/src/zed.rs
+git commit -qm "refactor(core): reorganize core models" -m "BREAKING CHANGE: drops legacy core type"
+check_core "rust breaking body yields core major" "major"
+
 echo ""
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

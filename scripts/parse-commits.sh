@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # parse-commits.sh - Parses conventional commits to determine release type.
-# Outputs JSON with: bump_type (major/minor/patch), summary
+# Outputs JSON with: bump_type (major/minor/patch),
+#   core_bump_type (major/minor/patch, or null when no Rust core change),
+#   summary
 #
 # Usage: ./scripts/parse-commits.sh <base_ref> <head_ref>
 # Example: ./scripts/parse-commits.sh origin/main HEAD
@@ -15,7 +17,7 @@ commits=$(git log --pretty=format:"%s|||%h" "$BASE_REF".."$HEAD_REF" 2>/dev/null
           git log --pretty=format:"%s|||%h" "$BASE_REF"..."$HEAD_REF" 2>/dev/null || echo "")
 
 if [ -z "$commits" ]; then
-  echo '{"bump_type":"patch","summary":"Release changes"}'
+  echo '{"bump_type":"patch","core_bump_type":null,"summary":"Release changes"}'
   exit 0
 fi
 
@@ -70,6 +72,80 @@ else
   BUMP_TYPE="patch"
 fi
 
+# Rust core bump: classify only the commits that touch rust/ files, with the
+# same conventional-commit rules as the app bump. A range with no rust/
+# changes leaves the core version untouched (core_bump_type null).
+# If the range already bumps [workspace.package].version by hand (the old
+# manual step), ship that version as-is instead of bumping again.
+rust_breaking=false
+rust_feat=false
+rust_fix=false
+commit_hashes=$(git log --pretty=format:"%H" "$BASE_REF".."$HEAD_REF" 2>/dev/null || \
+                git log --pretty=format:"%H" "$BASE_REF"..."$HEAD_REF" 2>/dev/null || echo "")
+while IFS= read -r hash; do
+  [ -z "$hash" ] && continue
+  rust_subject=$(git show -s --pretty=format:"%s" "$hash" 2>/dev/null || echo "")
+  case "$rust_subject" in
+    "Merge "*) continue ;;
+  esac
+  rust_files=$(git show --name-only --pretty=format: "$hash" 2>/dev/null || echo "")
+  rust_touched=false
+  while IFS= read -r rust_file; do
+    case "$rust_file" in
+      rust/*) rust_touched=true; break ;;
+    esac
+  done <<< "$rust_files"
+  [ "$rust_touched" = true ] || continue
+  rust_body=$(git show -s --pretty=format:"%b" "$hash" 2>/dev/null || echo "")
+  case "$rust_subject" in
+    *'!:'*) rust_breaking=true ;;
+  esac
+  case "$rust_body" in
+    *"BREAKING CHANGE"*) rust_breaking=true ;;
+  esac
+  case "$rust_subject" in
+    'feat('*|'feat:'*) rust_feat=true ;;
+  esac
+  case "$rust_subject" in
+    'fix('*|'fix:'*) rust_fix=true ;;
+    'perf('*|'perf:'*) rust_fix=true ;;
+    'security('*|'security:'*) rust_fix=true ;;
+    'refactor('*|'refactor:'*) rust_fix=true ;;
+  esac
+done <<< "$commit_hashes"
+
+# Print the [workspace.package].version from a manifest on stdin.
+# Dependency tables also use `version =` keys, so the section is tracked
+# explicitly (same approach as scripts/detect-changes.sh).
+workspace_version() {
+  awk -F'"' '
+    /^[[:space:]]*\[/ {
+      sec = $0
+      gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
+      if (sec == "workspace.package") in_pkg = 1
+      else if (index(sec, ".") == 0) in_pkg = 0
+    }
+    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
+  ' || true
+}
+old_core=$(git show "$BASE_REF:rust/Cargo.toml" 2>/dev/null | workspace_version || true)
+new_core=""
+if [ -f rust/Cargo.toml ]; then
+  new_core=$(workspace_version < rust/Cargo.toml || true)
+fi
+
+if [ -n "$old_core" ] && [ -n "$new_core" ] && [ "$old_core" != "$new_core" ]; then
+  CORE_BUMP_TYPE=""
+elif [ "$rust_breaking" = true ]; then
+  CORE_BUMP_TYPE="major"
+elif [ "$rust_feat" = true ]; then
+  CORE_BUMP_TYPE="minor"
+elif [ "$rust_fix" = true ]; then
+  CORE_BUMP_TYPE="patch"
+else
+  CORE_BUMP_TYPE=""
+fi
+
 # Trim summary to 20 lines, format as bulleted list
 summary_lines=$(printf '%s\n' "$summary_lines" | sed '/^$/d' | head -20 || true)
 summary_bullets=""
@@ -94,13 +170,18 @@ fi
 
 # Output JSON using jq, python, or minimal shell fallback
 if command -v jq >/dev/null 2>&1; then
-  jq -n --arg bump_type "$BUMP_TYPE" --arg summary "$summary_bullets" \
-    '{bump_type: $bump_type, summary: $summary}'
+  jq -n --arg bump_type "$BUMP_TYPE" --arg core_bump_type "$CORE_BUMP_TYPE" --arg summary "$summary_bullets" \
+    '{bump_type: $bump_type, core_bump_type: (if $core_bump_type == "" then null else $core_bump_type end), summary: $summary}'
 elif [ -n "$PYTHON_CMD" ]; then
-  BUMP_TYPE="$BUMP_TYPE" SUMMARY_BULLETS="$summary_bullets" $PYTHON_CMD -c \
-    'import json, os; print(json.dumps({"bump_type": os.environ["BUMP_TYPE"], "summary": os.environ["SUMMARY_BULLETS"]}))'
+  BUMP_TYPE="$BUMP_TYPE" CORE_BUMP_TYPE="$CORE_BUMP_TYPE" SUMMARY_BULLETS="$summary_bullets" $PYTHON_CMD -c \
+    'import json, os; print(json.dumps({"bump_type": os.environ["BUMP_TYPE"], "core_bump_type": os.environ["CORE_BUMP_TYPE"] or None, "summary": os.environ["SUMMARY_BULLETS"]}))'
 else
   # Shell fallback escaping backslashes, double quotes, and newlines
   escaped_summary=$(printf '%s' "$summary_bullets" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{if (NR>1) printf "\\n"; printf "%s", $0}')
-  printf '{"bump_type":"%s","summary":"%s"}\n' "$BUMP_TYPE" "$escaped_summary"
+  if [ -n "$CORE_BUMP_TYPE" ]; then
+    core_json="\"$CORE_BUMP_TYPE\""
+  else
+    core_json="null"
+  fi
+  printf '{"bump_type":"%s","core_bump_type":%s,"summary":"%s"}\n' "$BUMP_TYPE" "$core_json" "$escaped_summary"
 fi
