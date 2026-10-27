@@ -106,7 +106,7 @@ while IFS= read -r file; do
 
   # Check if this file matches any include pattern
   case "$file" in
-    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml|rust/*.rs|rust/*/*.rs)
+    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml|rust/*.rs)
       has_app_changes=true
       break
       ;;
