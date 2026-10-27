@@ -183,8 +183,9 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   # Verify only inside [workspace.package]: a file-wide grep would also
   # match a version line in another table and pass a malformed workspace
   # line (e.g. a doubled closing quote plus an unrelated table already
-  # at the new version).
-  if ! sed -n '/^[[:space:]]*\[workspace\.package\]/,/^[[:space:]]*\[/p' "$manifest_tmp" | grep -qE "^[[:space:]]*version[[:space:]]*=[[:space:]]*\"${new_core//./\\.}\"[[:space:]]*(#.*)?$"; then
+  # at the new version). The range tolerates whitespace inside the
+  # header, like the reader and the rewrite do.
+  if ! sed -n '/^[[:space:]]*\[[[:space:]]*workspace\.package[[:space:]]*\]/,/^[[:space:]]*\[/p' "$manifest_tmp" | grep -qE "^[[:space:]]*version[[:space:]]*=[[:space:]]*\"${new_core//./\\.}\"[[:space:]]*(#.*)?$"; then
     echo "ERROR: failed to rewrite $CARGO_MANIFEST to $new_core" >&2
     exit 1
   fi

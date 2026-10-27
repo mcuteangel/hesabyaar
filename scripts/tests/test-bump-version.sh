@@ -349,6 +349,21 @@ assert_status 0 "$status" "leading-zero core bump exits 0"
 assert_contains "$D/rust/Cargo.toml" 'version = "0.9.0"' "leading-zero core bump normalizes manifest"
 assert_contains "$D/rust/Cargo.lock" 'version = "0.9.0"' "leading-zero core bump normalizes lock"
 
+# --- Test 22: spaced [ workspace.package ] header is accepted ---
+# TOML permits whitespace inside brackets; the reader and rewrite already
+# accept it, but the verification sed range did not start on it and
+# falsely rejected a valid manifest.
+setup_files
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[ workspace.package ]\nversion = "0.7.0"\nedition = "2021"\n\n[dependencies.foo]\nversion = "0.8.0"\n' > "$D/rust/Cargo.toml"
+set +e
+run_bump "$D" patch minor
+status=$?
+set -e
+assert_status 0 "$status" "spaced workspace header bump exits 0"
+assert_contains "$D/VERSION" "0.18.1" "spaced workspace header bump publishes app version"
+assert_contains "$D/rust/Cargo.toml" '[ workspace.package ]' "spaced workspace header preserved"
+assert_contains "$D/rust/Cargo.lock" 'version = "0.8.0"' "spaced workspace header bump refreshes lock"
+
 echo ""
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
