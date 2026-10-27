@@ -27,7 +27,8 @@ class RustMappersTest {
           dueDate = null,
           installmentId = null,
           accountId = 1L,
-          destinationAccountId = null
+          destinationAccountId = null,
+          loanId = null
         )
       ).type
 
@@ -62,6 +63,130 @@ class RustMappersTest {
     assertEquals(
       TransactionType.EXPENSE,
       map(io.github.mojri.hesabyar.rust.TransactionType.INSTALLMENT)
+    )
+  }
+
+  // --- Transaction loanId / PaymentHistory linkedTransactionId (issue #419) ---
+
+  @Test
+  fun fromRustTransactionPreservesLoanId() {
+    val result =
+      RustMappers.fromRustTransaction(
+        io.github.mojri.hesabyar.rust.Transaction(
+          id = 1L,
+          txType = io.github.mojri.hesabyar.rust.TransactionType.EXPENSE,
+          categoryId = 0L,
+          amount = 0L,
+          description = "",
+          personName = null,
+          personId = null,
+          date = 0L,
+          dueDate = null,
+          installmentId = null,
+          accountId = 1L,
+          destinationAccountId = null,
+          loanId = 42L
+        )
+      )
+
+    assertEquals("loanId survives Rust→Kotlin mapping", 42L, result.loanId)
+  }
+
+  @Test
+  fun fromRustTransactionPreservesNullLoanId() {
+    val result =
+      RustMappers.fromRustTransaction(
+        io.github.mojri.hesabyar.rust.Transaction(
+          id = 1L,
+          txType = io.github.mojri.hesabyar.rust.TransactionType.EXPENSE,
+          categoryId = 0L,
+          amount = 0L,
+          description = "",
+          personName = null,
+          personId = null,
+          date = 0L,
+          dueDate = null,
+          installmentId = null,
+          accountId = 1L,
+          destinationAccountId = null,
+          loanId = null
+        )
+      )
+
+    assertEquals("null loanId stays null", null, result.loanId)
+  }
+
+  @Test
+  fun mapTransactionPreservesLoanIdRoundTrip() {
+    val kotlin =
+      io.github.mojri.hesabyar.data.Transaction(
+        id = 1L,
+        type = TransactionType.EXPENSE,
+        categoryId = 0L,
+        amount = 1000L,
+        description = "",
+        date = 0L,
+        accountId = 1L,
+        loanId = 42L
+      )
+
+    val roundTripped = RustMappers.fromRustTransaction(RustMappers.mapTransaction(kotlin))
+
+    assertEquals("loanId survives Kotlin→Rust→Kotlin round-trip", 42L, roundTripped.loanId)
+  }
+
+  @Test
+  fun fromRustPaymentHistoryPreservesLinkedTransactionId() {
+    val result =
+      RustMappers.fromRustPaymentHistory(
+        io.github.mojri.hesabyar.rust.PaymentHistory(
+          id = 1L,
+          loanId = 10L,
+          amount = 200000L,
+          date = 0L,
+          notes = "",
+          linkedTransactionId = 9L
+        )
+      )
+
+    assertEquals("linkedTransactionId survives Rust→Kotlin mapping", 9L, result.linkedTransactionId)
+  }
+
+  @Test
+  fun fromRustPaymentHistoryPreservesNullLinkedTransactionId() {
+    val result =
+      RustMappers.fromRustPaymentHistory(
+        io.github.mojri.hesabyar.rust.PaymentHistory(
+          id = 1L,
+          loanId = 10L,
+          amount = 200000L,
+          date = 0L,
+          notes = "",
+          linkedTransactionId = null
+        )
+      )
+
+    assertEquals("null linkedTransactionId stays null", null, result.linkedTransactionId)
+  }
+
+  @Test
+  fun mapPaymentHistoryPreservesLinkedTransactionIdRoundTrip() {
+    val kotlin =
+      io.github.mojri.hesabyar.data.PaymentHistory(
+        id = 1L,
+        loanId = 10L,
+        amount = 200000L,
+        date = 0L,
+        notes = "",
+        linkedTransactionId = 9L
+      )
+
+    val roundTripped = RustMappers.fromRustPaymentHistory(RustMappers.mapPaymentHistory(kotlin))
+
+    assertEquals(
+      "linkedTransactionId survives Kotlin→Rust→Kotlin round-trip",
+      9L,
+      roundTripped.linkedTransactionId
     )
   }
 
