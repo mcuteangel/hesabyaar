@@ -35,17 +35,19 @@ fi
 IFS='.' read -r major minor patch <<< "$current"
 
 case "$BUMP_TYPE" in
+  # Force decimal: a component may carry a leading zero (e.g. 08),
+  # which $(( )) would read as octal and reject.
   major)
-    major=$((major + 1))
+    major=$((10#$major + 1))
     minor=0
     patch=0
     ;;
   minor)
-    minor=$((minor + 1))
+    minor=$((10#$minor + 1))
     patch=0
     ;;
   patch)
-    patch=$((patch + 1))
+    patch=$((10#$patch + 1))
     ;;
   *)
     echo "ERROR: Invalid bump type: $BUMP_TYPE (must be major, minor, or patch)"
@@ -142,17 +144,18 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   # current_core was read and validated before any file was written.
   IFS='.' read -r core_major core_minor core_patch <<< "$current_core"
   case "$CORE_BUMP_TYPE" in
+    # Force decimal here too (see the app bump above).
     major)
-      core_major=$((core_major + 1))
+      core_major=$((10#$core_major + 1))
       core_minor=0
       core_patch=0
       ;;
     minor)
-      core_minor=$((core_minor + 1))
+      core_minor=$((10#$core_minor + 1))
       core_patch=0
       ;;
     patch)
-      core_patch=$((core_patch + 1))
+      core_patch=$((10#$core_patch + 1))
       ;;
   esac
   new_core="${core_major}.${core_minor}.${core_patch}"
@@ -177,7 +180,11 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
     }
     { print }
   ' "$CARGO_MANIFEST" > "$manifest_tmp"
-  if ! grep -qE "^[[:space:]]*version[[:space:]]*=[[:space:]]*\"${new_core//./\\.}\"[[:space:]]*(#.*)?$" "$manifest_tmp"; then
+  # Verify only inside [workspace.package]: a file-wide grep would also
+  # match a version line in another table and pass a malformed workspace
+  # line (e.g. a doubled closing quote plus an unrelated table already
+  # at the new version).
+  if ! sed -n '/^[[:space:]]*\[workspace\.package\]/,/^[[:space:]]*\[/p' "$manifest_tmp" | grep -qE "^[[:space:]]*version[[:space:]]*=[[:space:]]*\"${new_core//./\\.}\"[[:space:]]*(#.*)?$"; then
     echo "ERROR: failed to rewrite $CARGO_MANIFEST to $new_core" >&2
     exit 1
   fi
@@ -266,8 +273,12 @@ fi
 
 # Publish all staged files. Re-validate the lock first: if it
 # vanished after the pre-check, fail now, before anything is moved.
-# The lock moves first, so a failure here leaves the manifest (the
-# version source of truth) untouched.
+# The lock moves first, so a lock-move failure leaves everything
+# untouched. A manifest-move failure after a successful lock move leaves
+# lock-new/manifest-old: cargo rejects that mismatch loudly, and a
+# re-run fails loudly at the pre-check instead of mis-bumping. The two
+# moves cannot be atomic in shell, so the failure stays loud rather
+# than silent.
 if [ -n "$new_core" ]; then
   if [ -n "$lock_tmp" ] && [ ! -f "$CARGO_LOCK" ]; then
     echo "ERROR: $CARGO_LOCK disappeared after the pre-write check; refusing to publish a partial bump" >&2
