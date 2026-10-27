@@ -265,15 +265,17 @@ fi
 
 # Publish all staged files. Re-validate the lock first: if it
 # vanished after the pre-check, fail now, before anything is moved.
+# The lock moves first, so a failure here leaves the manifest (the
+# version source of truth) untouched.
 if [ -n "$new_core" ]; then
   if [ -n "$lock_tmp" ] && [ ! -f "$CARGO_LOCK" ]; then
     echo "ERROR: $CARGO_LOCK disappeared after the pre-write check; refusing to publish a partial bump" >&2
     exit 1
   fi
-  mv "$manifest_tmp" "$CARGO_MANIFEST"
   if [ -n "$lock_tmp" ]; then
-    mv "$lock_tmp" "$CARGO_LOCK"
+    mv "$lock_tmp" "$CARGO_LOCK" || { echo "ERROR: failed to publish $CARGO_LOCK" >&2; exit 1; }
   fi
+  mv "$manifest_tmp" "$CARGO_MANIFEST" || { echo "ERROR: failed to publish $CARGO_MANIFEST" >&2; exit 1; }
   echo "Core version bumped: $current_core -> $new_core" >&2
 fi
 mv "$version_tmp" "$VERSION_FILE"

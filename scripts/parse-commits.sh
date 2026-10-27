@@ -17,6 +17,11 @@ commits=$(git log --pretty=format:"%s|||%h" "$BASE_REF".."$HEAD_REF" 2>/dev/null
           git log --pretty=format:"%s|||%h" "$BASE_REF"..."$HEAD_REF" 2>/dev/null || echo "")
 
 if [ -z "$commits" ]; then
+  # An empty range is normal (no commits); an unresolvable base ref is a
+  # misconfiguration that silently suppresses the core bump, so warn.
+  if ! git rev-parse --verify "$BASE_REF^{commit}" >/dev/null 2>&1; then
+    echo "WARNING: cannot resolve base ref '$BASE_REF'; falling back to patch/null (core bump suppressed)" >&2
+  fi
   echo '{"bump_type":"patch","core_bump_type":null,"summary":"Release changes"}'
   exit 0
 fi
@@ -34,7 +39,9 @@ while IFS= read -r line; do
   # custom message has no "Merge " prefix, and a normal commit can carry
   # one. A commit with two or more parents is a merge.
   merge_parents=$(git rev-list --parents -n 1 "${line##*|||}" 2>/dev/null | wc -w | tr -d ' ' || echo 0)
-  if [ "$merge_parents" -gt 2 ]; then
+  # A zero count means rev-list produced nothing (failure), never a real
+  # commit: skip it rather than risk including a merge.
+  if [ "$merge_parents" -gt 2 ] || [ "$merge_parents" -eq 0 ]; then
     continue
   fi
 
@@ -93,7 +100,9 @@ while IFS= read -r hash; do
   [ -z "$hash" ] && continue
   # Skip merge commits by parent count (see the app loop above).
   rust_parents=$(git rev-list --parents -n 1 "$hash" 2>/dev/null | wc -w | tr -d ' ' || echo 0)
-  if [ "$rust_parents" -gt 2 ]; then
+  # A zero count means rev-list produced nothing (failure), never a real
+  # commit: skip it rather than risk including a merge.
+  if [ "$rust_parents" -gt 2 ] || [ "$rust_parents" -eq 0 ]; then
     continue
   fi
   rust_subject=$(git show -s --pretty=format:"%s" "$hash" 2>/dev/null || echo "")

@@ -387,6 +387,55 @@ git add rust/hesabyar-core/src/ch.rs
 git commit -qm "feat(core): commented header manifest version"
 check_core "commented header yields core minor" "minor"
 
+# --- Test 19: version line without spaces still yields a core bump ---
+new_repo
+mkdir -p rust/hesabyar-core/src
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion="0.7.0"\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/Cargo.toml
+git commit -qm "base no-space manifest"
+git checkout -q -b core-nospace-branch main
+echo "pub fn ns() {}" > rust/hesabyar-core/src/ns.rs
+git add rust/hesabyar-core/src/ns.rs
+git commit -qm "feat(core): no-space manifest version"
+check_core "no-space version yields core minor" "minor"
+
+# --- Test 20: unresolvable base ref warns and suppresses the core bump ---
+# A missing manifest at a valid base is the documented null case (no
+# warning); a base ref that does not resolve at all is a misconfiguration
+# and must be visible in the log.
+new_repo
+mkdir -p rust/hesabyar-core/src
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.7.0"\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/Cargo.toml
+git commit -qm "base manifest"
+git checkout -q -b core-bogus-base main
+echo "pub fn bb() {}" > rust/hesabyar-core/src/bb.rs
+git add rust/hesabyar-core/src/bb.rs
+git commit -qm "feat(core): bogus base ref"
+set +e
+output=$(bash "$PARSE" bogus-base-ref HEAD 2>"$TMP/warnerr.txt")
+exit_status=$?
+set -e
+if [ "$exit_status" -ne 0 ]; then
+  echo "FAIL bogus base ref: parse-commits exited with status $exit_status"
+  fail=$((fail + 1))
+else
+  got_core=$(parse_json_field "$output" "core_bump_type")
+  case "$got_core" in
+    ""|"None") got_core="null" ;;
+  esac
+  if [ "$got_core" != "null" ]; then
+    echo "FAIL bogus base ref: expected core_bump_type='null', got '$got_core'"
+    fail=$((fail + 1))
+  elif ! grep -q "WARNING" "$TMP/warnerr.txt"; then
+    echo "FAIL bogus base ref: no WARNING on stderr"
+    fail=$((fail + 1))
+  else
+    echo "PASS bogus base ref warns and yields null core"
+    pass=$((pass + 1))
+  fi
+fi
+
 echo ""
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
