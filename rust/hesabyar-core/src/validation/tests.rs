@@ -14,6 +14,7 @@ fn make_tx(amount: i64, desc: &str, category_id: i64) -> Transaction {
         installment_id: None,
         account_id: 1,
         destination_account_id: None,
+        loan_id: None,
     }
 }
 
@@ -55,6 +56,7 @@ fn make_payment_history(amount: i64, loan_id: i64) -> PaymentHistory {
         amount,
         date: 1710000000000,
         notes: None,
+        linked_transaction_id: None,
     }
 }
 
@@ -139,6 +141,7 @@ fn test_transfer_same_source_and_destination_rejected() {
         tx_type: TransactionType::Transfer,
         account_id: 1,
         destination_account_id: Some(1),
+        loan_id: None,
         ..make_tx(50000, "transfer", 1)
     };
     let err = validate_transaction(&tx).unwrap_err();
@@ -151,6 +154,7 @@ fn test_transfer_valid_different_accounts() {
         tx_type: TransactionType::Transfer,
         account_id: 1,
         destination_account_id: Some(2),
+        loan_id: None,
         ..make_tx(50000, "transfer", 1)
     };
     assert!(validate_transaction(&tx).is_ok());
@@ -897,6 +901,7 @@ fn test_backup_rejects_transfer_without_destination_via_fail_fast_ffi() {
             installment_id: None,
             account_id: DEFAULT_ACCOUNT_ID,
             destination_account_id: None,
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -937,6 +942,7 @@ fn test_backup_rejects_transfer_with_same_source_and_destination_via_fail_fast_f
             installment_id: None,
             account_id: DEFAULT_ACCOUNT_ID,
             destination_account_id: Some(DEFAULT_ACCOUNT_ID),
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -978,6 +984,7 @@ fn test_backup_transfer_missing_destination_not_duplicated() {
         installment_id: None,
         account_id: 1,
         destination_account_id: None,
+        loan_id: None,
     };
     let payload = BackupPayload {
         version: 1,
@@ -1044,6 +1051,7 @@ fn test_backup_transfer_same_source_dest_not_duplicated() {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(1),
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1103,6 +1111,7 @@ fn test_backup_rejects_tx_with_nonexistent_source_account() {
             installment_id: None,
             account_id: 99, // no such account
             destination_account_id: None,
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1152,6 +1161,7 @@ fn test_backup_rejects_tx_with_nonexistent_destination_account() {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(99), // no such account
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1204,6 +1214,7 @@ fn test_backup_valid_with_all_accounts_referenced() {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2),
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1281,6 +1292,7 @@ fn test_backup_rejects_non_legacy_account_id_when_accounts_empty() {
             installment_id: None,
             account_id: 999, // non-legacy, no accounts list to reference
             destination_account_id: None,
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1316,6 +1328,7 @@ fn test_backup_accepts_legacy_account_id_when_accounts_empty() {
             installment_id: None,
             account_id: 1, // legacy default
             destination_account_id: None,
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1353,6 +1366,7 @@ fn test_backup_rejects_non_legacy_dest_account_when_accounts_empty() {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(99), // non-legacy
+            loan_id: None,
         }],
         loans: vec![],
         installments: vec![],
@@ -1406,6 +1420,7 @@ fn test_backup_rejects_non_existent_source_account_in_modern_backup() {
             installment_id: None,
             account_id: 999, // non-existent
             destination_account_id: None,
+            loan_id: None,
         }],
         ..Default::default()
     };
@@ -1457,6 +1472,7 @@ fn test_backup_rejects_non_existent_destination_account_in_modern_backup() {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(888), // non-existent
+            loan_id: None,
         }],
         ..Default::default()
     };
@@ -1511,6 +1527,7 @@ fn test_backup_orders_account_ref_errors_before_transfer_structure_errors() {
             installment_id: None,
             account_id: 777,              // non-existent
             destination_account_id: None, // missing dest
+            loan_id: None,
         }],
         ..Default::default()
     };
@@ -1861,6 +1878,7 @@ fn test_validate_backup_person_reference_accepts_declared_person_on_transaction(
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         }],
         ..Default::default()
     };
@@ -1933,6 +1951,7 @@ fn test_validate_backup_person_reference_rejects_orphan_transaction_person_id() 
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         }],
         ..Default::default()
     };
@@ -1983,6 +2002,7 @@ fn test_validate_backup_person_reference_tolerates_null_person_id() {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         }],
         ..Default::default()
     };

@@ -185,6 +185,7 @@ object RustMappers {
       installmentId = tx.installmentId,
       accountId = tx.accountId,
       destinationAccountId = tx.destinationAccountId,
+      loanId = tx.loanId,
     )
 
   fun mapLoan(loan: Loan): io.github.mojri.hesabyar.rust.Loan =
@@ -239,7 +240,8 @@ object RustMappers {
       loanId = ph.loanId,
       amount = ph.amount,
       date = ph.date,
-      notes = ph.notes
+      notes = ph.notes,
+      linkedTransactionId = ph.linkedTransactionId
     )
 
   fun mapCategory(cat: Category): io.github.mojri.hesabyar.rust.Category =
@@ -297,6 +299,7 @@ object RustMappers {
       installmentId = tx.installmentId,
       accountId = tx.accountId,
       destinationAccountId = tx.destinationAccountId,
+      loanId = tx.loanId,
     )
 
   fun fromRustLoan(loan: io.github.mojri.hesabyar.rust.Loan): Loan =
@@ -362,7 +365,8 @@ object RustMappers {
       loanId = ph.loanId,
       amount = ph.amount,
       date = ph.date,
-      notes = ph.notes ?: ""
+      notes = ph.notes ?: "",
+      linkedTransactionId = ph.linkedTransactionId
     )
 
   fun fromRustPaymentHistories(list: List<io.github.mojri.hesabyar.rust.PaymentHistory>): List<PaymentHistory> =

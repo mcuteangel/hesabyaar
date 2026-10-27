@@ -59,6 +59,7 @@ fn bench_budget_advice(c: &mut Criterion) {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         })
         .collect();
 
@@ -116,6 +117,7 @@ fn bench_search(c: &mut Criterion) {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         })
         .collect();
 
@@ -182,6 +184,7 @@ fn bench_validation(c: &mut Criterion) {
         installment_id: None,
         account_id: 1,
         destination_account_id: None,
+        loan_id: None,
     };
 
     c.bench_function("validate_transaction", |b| b.iter(|| validate_transaction(&tx)));
@@ -201,6 +204,7 @@ fn bench_validation(c: &mut Criterion) {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         })
         .collect();
 
@@ -279,6 +283,7 @@ fn make_tx(id: i64, tx_type: TransactionType, amount: i64, date_ms: i64, cat_id:
         installment_id: None,
         account_id: 1,
         destination_account_id: None,
+        loan_id: None,
     }
 }
 
