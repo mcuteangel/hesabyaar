@@ -30,10 +30,13 @@ while IFS= read -r line; do
   [ -z "$line" ] && continue
   subject="${line%%|||*}"
 
-  # Skip merge commits
-  case "$subject" in
-    "Merge "*) continue ;;
-  esac
+  # Skip merge commits by parent count, not by subject: a merge with a
+  # custom message has no "Merge " prefix, and a normal commit can carry
+  # one. A commit with two or more parents is a merge.
+  merge_parents=$(git rev-list --parents -n 1 "${line##*|||}" 2>/dev/null | wc -w | tr -d ' ' || echo 0)
+  if [ "$merge_parents" -gt 2 ]; then
+    continue
+  fi
 
   summary_lines="${summary_lines}${subject}"$'\n'
 
@@ -88,10 +91,12 @@ commit_hashes=$(git log --pretty=format:"%H" "$BASE_REF".."$HEAD_REF" 2>/dev/nul
                 git log --pretty=format:"%H" "$BASE_REF"..."$HEAD_REF" 2>/dev/null || echo "")
 while IFS= read -r hash; do
   [ -z "$hash" ] && continue
+  # Skip merge commits by parent count (see the app loop above).
+  rust_parents=$(git rev-list --parents -n 1 "$hash" 2>/dev/null | wc -w | tr -d ' ' || echo 0)
+  if [ "$rust_parents" -gt 2 ]; then
+    continue
+  fi
   rust_subject=$(git show -s --pretty=format:"%s" "$hash" 2>/dev/null || echo "")
-  case "$rust_subject" in
-    "Merge "*) continue ;;
-  esac
   rust_files=$(git show --name-only --pretty=format: "$hash" 2>/dev/null || echo "")
   rust_touched=false
   while IFS= read -r rust_file; do
@@ -121,16 +126,25 @@ done <<< "$commit_hashes"
 # Print the [workspace.package].version from a manifest on stdin.
 # Only the exact [workspace.package] table counts: any other header resets
 # the flag, so version lines under dependency tables are never misread as
-# the workspace version.
+# the workspace version. The value extraction is quote-agnostic: TOML
+# also allows single-quoted strings, and a version line may carry an
+# inline comment.
 workspace_version() {
-  awk -F'"' '
+  awk '
     /^[[:space:]]*\[/ {
       sec = $0
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
       else in_pkg = 0
     }
-    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
+    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=/ {
+      line = $0
+      sub(/^[[:space:]]*version[[:space:]]*=[[:space:]]*/, "", line)
+      sub(/[[:space:]]+#.*$/, "", line)
+      gsub(/['"'"'"]/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      print line; exit
+    }
   ' || true
 }
 old_core=$(git show "$BASE_REF:rust/Cargo.toml" 2>/dev/null | workspace_version || true)

@@ -46,7 +46,7 @@ parse_json_field() {
   if command -v jq >/dev/null 2>&1; then
     res=$(printf '%s' "$json_input" | jq -r --arg f "$field_name" '.[$f]')
   elif [ -n "$PYTHON_CMD" ]; then
-    res=$(printf '%s' "$json_input" | $PYTHON_CMD -c "import sys, json; sys.stdout.write(json.load(sys.stdin).get('$field_name', ''))")
+    res=$(printf '%s' "$json_input" | $PYTHON_CMD -c "import sys, json; v = json.load(sys.stdin).get('$field_name'); sys.stdout.write('' if v is None else str(v))")
   else
     raw=$(printf '%s' "$json_input" | sed -n 's/.*"'"$field_name"'":"\([^"]*\)".*/\1/p')
     res=$(printf '%b' "$raw")
@@ -292,6 +292,60 @@ printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion
 git add rust/hesabyar-core/src/fresh.rs rust/Cargo.toml
 git commit -qm "feat(core): fresh core with manifest"
 check_core "newly added manifest yields core null" "null"
+
+# --- Test 15: merge commit with a custom subject is skipped ---
+new_repo
+echo "base" > shared.txt
+git add shared.txt
+git commit -qm "base shared file"
+git checkout -q -b side main
+echo "side" > shared.txt
+git add shared.txt
+git commit -qm "side change"
+git checkout -q main
+echo "main" > shared.txt
+git add shared.txt
+git commit -qm "main change"
+git checkout -q -b merger main
+git merge side -m "feat: integrate side work" 2>/dev/null || true
+mkdir -p rust/hesabyar-core/src
+echo "pub fn merged() {}" > rust/hesabyar-core/src/merged.rs
+git add shared.txt rust/hesabyar-core/src/merged.rs
+git commit -qm "feat: integrate side work"
+check "merge with custom subject skipped for app" "patch" "side change"
+check_core "merge with custom subject skipped for core" "null"
+
+# --- Test 16: single-quoted manifest version still yields a core bump ---
+# The manifest must exist at base: a newly added manifest ships as-is
+# (see test 14), which would mask the parsing check.
+new_repo
+mkdir -p rust/hesabyar-core/src
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = '"'"'0.7.0'"'"'\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/Cargo.toml
+git commit -qm "base single-quoted manifest"
+git checkout -q -b core-singlequote-branch main
+echo "pub fn sq() {}" > rust/hesabyar-core/src/sq.rs
+git add rust/hesabyar-core/src/sq.rs
+git commit -qm "feat(core): single-quoted manifest version"
+check_core "single-quoted manifest yields core minor" "minor"
+
+# --- Test 17: python fallback (no jq) handles JSON null ---
+new_repo
+git checkout -q -b nojq-branch main
+echo "x" > plain.txt
+git add plain.txt
+git commit -qm "feat: no rust change"
+SHIM="$TMP/nojqbin"
+mkdir -p "$SHIM"
+for t in git bash python3 tr sed grep awk mktemp rm cat mkdir dirname wc head; do
+  for dir in /usr/bin /bin; do
+    if [ -x "$dir/$t" ]; then ln -s "$dir/$t" "$SHIM/$t"; break; fi
+  done
+done
+OLD_PATH="$PATH"
+PATH="$SHIM"
+check_core "python fallback without jq yields core null" "null"
+PATH="$OLD_PATH"
 
 echo ""
 echo "$pass passed, $fail failed"

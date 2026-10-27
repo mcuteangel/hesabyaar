@@ -71,14 +71,21 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
     echo "ERROR: $CARGO_MANIFEST not found (core bump requested)" >&2
     exit 1
   fi
-  current_core=$(awk -F'"' '
+  current_core=$(awk '
     /^[[:space:]]*\[/ {
       sec = $0
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
       else in_pkg = 0
     }
-    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { print $2; exit }
+    in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=/ {
+      line = $0
+      sub(/^[[:space:]]*version[[:space:]]*=[[:space:]]*/, "", line)
+      sub(/[[:space:]]+#.*$/, "", line)
+      gsub(/['"'"'"]/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      print line; exit
+    }
   ' "$CARGO_MANIFEST")
   if ! echo "$current_core" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     echo "ERROR: $CARGO_MANIFEST has no [workspace.package] version (got '$current_core')" >&2
@@ -107,6 +114,95 @@ for block in text.split("[[package]]")[1:]:
         break
 sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
 '
+  fi
+fi
+
+# Stage the core bump before writing anything: all fallible work (awk,
+# python) happens here, so a failure leaves every file untouched. Staged
+# files are moved into place only after VERSION and CHANGELOG are written.
+# The trap cleans them up on any failure.
+new_core=""
+manifest_tmp=""
+lock_tmp=""
+trap 'rm -f "$manifest_tmp" "$lock_tmp"' EXIT
+if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
+  # current_core was read and validated before any file was written.
+  IFS='.' read -r core_major core_minor core_patch <<< "$current_core"
+  case "$CORE_BUMP_TYPE" in
+    major)
+      core_major=$((core_major + 1))
+      core_minor=0
+      core_patch=0
+      ;;
+    minor)
+      core_minor=$((core_minor + 1))
+      core_patch=0
+      ;;
+    patch)
+      core_patch=$((core_patch + 1))
+      ;;
+  esac
+  new_core="${core_major}.${core_minor}.${core_patch}"
+
+  # Rewrite only the version line inside [workspace.package], into a temp
+  # file. The match is quote-agnostic (TOML also allows single quotes);
+  # the rewritten line is verified below so a missed rewrite fails here,
+  # not after files were already written.
+  manifest_tmp="$CARGO_MANIFEST.tmp"
+  awk -v new_ver="$new_core" '
+    /^[[:space:]]*\[/ {
+      sec = $0
+      gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
+      if (sec == "workspace.package") in_pkg = 1
+      else in_pkg = 0
+    }
+    !done && in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*['"'"'"]/ {
+      sub(/['"'"'"][^'"'"']*['"'"'"]/, "\"" new_ver "\"")
+      done = 1
+    }
+    { print }
+  ' "$CARGO_MANIFEST" > "$manifest_tmp"
+  if ! grep -qE "version[[:space:]]*=[[:space:]]*\"$new_core\"" "$manifest_tmp"; then
+    echo "ERROR: failed to rewrite $CARGO_MANIFEST to $new_core" >&2
+    exit 1
+  fi
+
+  # Refresh the lock entry for the core package so it matches the manifest.
+  # The release job's cargo test step validates the result.
+  if [ -f "$CARGO_LOCK" ]; then
+    # python3 and the lock entry were verified in the pre-write block above.
+    lock_tmp="$CARGO_LOCK.tmp"
+    LOCK_FILE="$CARGO_LOCK" LOCK_TMP="$lock_tmp" CORE_PACKAGE="$CORE_PACKAGE" OLD_CORE="$current_core" NEW_CORE="$new_core" python3 -c '
+import os, re, sys
+lock_path = os.environ["LOCK_FILE"]
+lock_tmp = os.environ["LOCK_TMP"]
+pkg = os.environ["CORE_PACKAGE"]
+old = os.environ["OLD_CORE"]
+new = os.environ["NEW_CORE"]
+with open(lock_path, "r") as f:
+    text = f.read()
+blocks = text.split("[[package]]")
+out = [blocks[0]]
+found = False
+for block in blocks[1:]:
+    if not found and re.search(r"(?m)^\s*name = \"%s\"$" % re.escape(pkg), block):
+        lines = block.split("\n")
+        for i, line in enumerate(lines):
+            if line.strip() == "version = \"%s\"" % old:
+                indent = line[:len(line) - len(line.lstrip())]
+                lines[i] = indent + "version = \"%s\"" % new
+                found = True
+                break
+        block = "\n".join(lines)
+    out.append(block)
+if not found:
+    sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
+with open(lock_tmp, "w") as f:
+    f.write("[[package]]".join(out))
+'
+    echo "Cargo.lock staged for $CORE_PACKAGE ($current_core -> $new_core)" >&2
+  else
+    echo "WARNING: $CARGO_LOCK not found; skipping lock refresh (cargo will regenerate it)" >&2
   fi
 fi
 
@@ -147,75 +243,18 @@ fi
 
 echo "CHANGELOG.md updated" >&2
 
-# Optional Rust core bump. Stdout stays the app version: callers capture it.
-if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
-  # current_core was read and validated before any file was written.
-  IFS='.' read -r core_major core_minor core_patch <<< "$current_core"
-  case "$CORE_BUMP_TYPE" in
-    major)
-      core_major=$((core_major + 1))
-      core_minor=0
-      core_patch=0
-      ;;
-    minor)
-      core_minor=$((core_minor + 1))
-      core_patch=0
-      ;;
-    patch)
-      core_patch=$((core_patch + 1))
-      ;;
-  esac
-  new_core="${core_major}.${core_minor}.${core_patch}"
-
-  # Rewrite only the version line inside [workspace.package].
-  awk -v new_ver="$new_core" -F'"' '
-    BEGIN { OFS = "\"" }
-    /^[[:space:]]*\[/ {
-      sec = $0
-      gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
-      if (sec == "workspace.package") in_pkg = 1
-      else in_pkg = 0
-    }
-    !done && in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*"/ { $2 = new_ver; done = 1 }
-    { print }
-  ' "$CARGO_MANIFEST" > "$CARGO_MANIFEST.tmp" && mv "$CARGO_MANIFEST.tmp" "$CARGO_MANIFEST"
-  echo "Core version bumped: $current_core -> $new_core" >&2
-
-  # Refresh the lock entry for the core package so it matches the manifest.
-  # The release job's cargo test step validates the result.
-  if [ -f "$CARGO_LOCK" ]; then
-    # python3 and the lock entry were verified in the pre-write block above.
-    LOCK_FILE="$CARGO_LOCK" CORE_PACKAGE="$CORE_PACKAGE" OLD_CORE="$current_core" NEW_CORE="$new_core" python3 -c '
-import os, re, sys
-lock_path = os.environ["LOCK_FILE"]
-pkg = os.environ["CORE_PACKAGE"]
-old = os.environ["OLD_CORE"]
-new = os.environ["NEW_CORE"]
-with open(lock_path, "r") as f:
-    text = f.read()
-blocks = text.split("[[package]]")
-out = [blocks[0]]
-found = False
-for block in blocks[1:]:
-    if not found and re.search(r"(?m)^\s*name = \"%s\"$" % re.escape(pkg), block):
-        lines = block.split("\n")
-        for i, line in enumerate(lines):
-            if line.strip() == "version = \"%s\"" % old:
-                indent = line[:len(line) - len(line.lstrip())]
-                lines[i] = indent + "version = \"%s\"" % new
-                found = True
-                break
-        block = "\n".join(lines)
-    out.append(block)
-if not found:
-    sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
-with open(lock_path, "w") as f:
-    f.write("[[package]]".join(out))
-'
-    echo "Cargo.lock updated for $CORE_PACKAGE ($current_core -> $new_core)" >&2
-  else
-    echo "WARNING: $CARGO_LOCK not found; skipping lock refresh (cargo will regenerate it)" >&2
+# Publish the staged core files. Re-validate the lock first: if it
+# vanished after the pre-check, fail now, before anything is moved.
+if [ -n "$new_core" ]; then
+  if [ -n "$lock_tmp" ] && [ ! -f "$CARGO_LOCK" ]; then
+    echo "ERROR: $CARGO_LOCK disappeared after the pre-write check; refusing to publish a partial bump" >&2
+    exit 1
   fi
+  mv "$manifest_tmp" "$CARGO_MANIFEST"
+  if [ -n "$lock_tmp" ]; then
+    mv "$lock_tmp" "$CARGO_LOCK"
+  fi
+  echo "Core version bumped: $current_core -> $new_core" >&2
 fi
 
 echo "$new_version"

@@ -200,10 +200,11 @@ for t in bash awk cat date grep mv tail tr; do
   done
 done
 set +e
-(cd "$D" && VERSION_FILE=VERSION CHANGELOG_FILE=CHANGELOG.md CARGO_MANIFEST=rust/Cargo.toml CARGO_LOCK=rust/Cargo.lock PATH="$BIN" bash "$BUMP" patch minor)
+(cd "$D" && VERSION_FILE=VERSION CHANGELOG_FILE=CHANGELOG.md CARGO_MANIFEST=rust/Cargo.toml CARGO_LOCK=rust/Cargo.lock PATH="$BIN" bash "$BUMP" patch minor) 2>"$D/stderr.txt"
 status=$?
 set -e
 assert_status 1 "$status" "missing python3 fails"
+assert_contains "$D/stderr.txt" "python3 is required" "missing python3 reports its cause"
 assert_contains "$D/VERSION" "0.18.0" "missing python3 leaves VERSION untouched"
 assert_contains "$D/rust/Cargo.toml" 'version = "0.7.0"' "missing python3 leaves manifest untouched"
 assert_not_contains "$D/CHANGELOG.md" "## [0.18.1]" "missing python3 leaves CHANGELOG untouched"
@@ -229,6 +230,32 @@ assert_status 1 "$status" "stale lock entry fails"
 assert_contains "$D/VERSION" "0.18.0" "stale lock entry leaves VERSION untouched"
 assert_contains "$D/rust/Cargo.toml" 'version = "0.7.0"' "stale lock entry leaves manifest untouched"
 assert_not_contains "$D/CHANGELOG.md" "## [0.18.1]" "stale lock entry leaves CHANGELOG untouched"
+
+# --- Test 13: staged write failure leaves everything untouched ---
+# The staged manifest path is a directory, so the staging redirect fails
+# (a read-only directory would not stop root, so permissions can't force
+# this failure here).
+setup_files
+mkdir -p "$D/rust/Cargo.toml.tmp"
+set +e
+run_bump "$D" patch minor
+status=$?
+set -e
+assert_status 1 "$status" "staged write failure fails"
+assert_contains "$D/VERSION" "0.18.0" "staged write failure leaves VERSION untouched"
+assert_not_contains "$D/CHANGELOG.md" "## [0.18.1]" "staged write failure leaves CHANGELOG untouched"
+assert_contains "$D/rust/Cargo.toml" 'version = "0.7.0"' "staged write failure leaves manifest untouched"
+
+# --- Test 14: single-quoted manifest version bumps ---
+setup_files
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = '"'"'0.7.0'"'"'\nedition = "2021"\n' > "$D/rust/Cargo.toml"
+set +e
+run_bump "$D" patch minor
+status=$?
+set -e
+assert_status 0 "$status" "single-quoted manifest exits 0"
+assert_contains "$D/rust/Cargo.toml" 'version = "0.8.0"' "single-quoted manifest bumps version"
+assert_contains "$D/rust/Cargo.lock" 'version = "0.8.0"' "single-quoted manifest refreshes lock"
 
 echo ""
 echo "$pass passed, $fail failed"
