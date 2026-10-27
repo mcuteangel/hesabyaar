@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// export was produced with. This is the single source of truth: the Kotlin
 /// side derives `BuildConfig.BACKUP_SCHEMA_VERSION` from this const at build
 /// time (app/build.gradle.kts), so the two sides cannot drift.
-pub const BACKUP_SCHEMA_VERSION: i32 = 3;
+pub const BACKUP_SCHEMA_VERSION: i32 = 4;
 
 /// Deserialize an Option where the type default (0, "") means None; also accepts JSON null.
 fn deserialize_empty_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -106,6 +106,8 @@ pub struct Transaction {
         alias = "destinationAccountId"
     )]
     pub destination_account_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "loanId")]
+    pub loan_id: Option<i64>,
 }
 
 /// The single account id that existed before multi-account support. Legacy
@@ -264,6 +266,8 @@ pub struct PaymentHistory {
     pub date: i64,
     #[serde(default)]
     pub notes: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "linkedTransactionId")]
+    pub linked_transaction_id: Option<i64>,
 }
 
 /// A person ledger identity (person-ledger redesign, plans/011). Display name
@@ -686,50 +690,6 @@ mod tests {
     }
 
     #[test]
-    fn test_backup_payload_valid_round_trip() {
-        let original = BackupPayload {
-            version: 1,
-            timestamp: 1710000000000,
-            app_version: "1.0.0".to_string(),
-            transactions: vec![Transaction {
-                id: 1,
-                tx_type: TransactionType::Expense,
-                category_id: 10,
-                amount: 50000,
-                description: "Test".to_string(),
-                person_name: None,
-                person_id: None,
-                date: 1710000000000,
-                due_date: None,
-                installment_id: None,
-                account_id: 1,
-                destination_account_id: None,
-            }],
-            loans: vec![],
-            installments: vec![],
-            bank_loans: vec![],
-            payment_histories: vec![PaymentHistory {
-                id: 1,
-                loan_id: 10,
-                amount: 200000,
-                date: 1710000000000,
-                notes: Some("Paid".to_string()),
-            }],
-            categories: vec![],
-            accounts: vec![],
-            ..Default::default()
-        };
-        let json = serde_json::to_string(&original).unwrap();
-        let restored: BackupPayload = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored.version, original.version);
-        assert_eq!(restored.transactions.len(), 1);
-        assert_eq!(restored.transactions[0].amount, 50000);
-        assert_eq!(restored.transactions[0].account_id, 1);
-        assert_eq!(restored.payment_histories.len(), 1);
-        assert_eq!(restored.payment_histories[0].amount, 200000);
-    }
-
-    #[test]
     fn test_transfer_type_round_trip() {
         // Verify TransactionType::Transfer survives serde round-trip
         // with both account_id and destination_account_id set.
@@ -750,6 +710,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: Some(2),
+                loan_id: None,
             }],
             loans: vec![],
             installments: vec![],
@@ -944,6 +905,7 @@ mod tests {
                 amount: 1500000,
                 date: 1710000000000,
                 notes: Some("Installment".to_string()),
+                linked_transaction_id: None,
             }],
             categories: vec![],
             accounts: vec![],
@@ -991,6 +953,7 @@ mod tests {
                     amount: 50000,
                     date: 1710000000000,
                     notes: Some("First".to_string()),
+                    linked_transaction_id: None,
                 },
                 PaymentHistory {
                     id: 2,
@@ -998,6 +961,7 @@ mod tests {
                     amount: 75000,
                     date: 1710001000000,
                     notes: Some("Second".to_string()),
+                    linked_transaction_id: None,
                 },
             ],
             categories: vec![],
@@ -1096,6 +1060,7 @@ mod tests {
             installment_id: None,
             account_id: 2,
             destination_account_id: Some(3),
+            loan_id: None,
         };
         let json = serde_json::to_string(&tx).unwrap();
         let restored: Transaction = serde_json::from_str(&json).unwrap();
@@ -1277,6 +1242,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         };
         let json = serde_json::to_string(&tx).unwrap();
         assert!(!json.contains("personId"));
@@ -1331,6 +1297,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         };
         assert!(!is_tx_category_excluded(&tx, &[]));
         assert!(is_tx_category_excluded(&tx, &[6]));

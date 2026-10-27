@@ -441,6 +441,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: None,
+            loan_id: None,
         }
     }
 
@@ -726,6 +727,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -740,6 +742,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2,
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -777,6 +780,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -791,6 +795,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 3,
@@ -805,6 +810,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2,
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -859,6 +865,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -873,6 +880,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 3,
@@ -887,6 +895,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: Some(2), // to archived
+                loan_id: None,
             },
         ];
 
@@ -927,6 +936,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -941,6 +951,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2, // archived account
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -971,6 +982,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -985,6 +997,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2, // archived account
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -1015,6 +1028,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -1029,6 +1043,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2, // archived account
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -1072,6 +1087,7 @@ mod tests {
             installment_id: None,
             account_id: 2, // archived account
             destination_account_id: None,
+            loan_id: None,
         }];
 
         // include_archived=false + archived selected: neither the archived
@@ -1130,6 +1146,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2), // archived
+            loan_id: None,
         }];
 
         // include_archived=false: transfer to archived account excluded
@@ -1166,6 +1183,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2),
+            loan_id: None,
         }];
 
         // Selecting the source account: the transfer must debit its balance
@@ -1221,6 +1239,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2),
+            loan_id: None,
         }];
 
         // Selecting source account: the transfer debits balance (−500k)
@@ -1256,6 +1275,7 @@ mod tests {
             installment_id: None,
             account_id: 1,
             destination_account_id: Some(2), // to archived
+            loan_id: None,
         }];
 
         // include_archived=false + selected active account: transfer to archived
@@ -1310,6 +1330,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             // Belongs to account 2 (archived) — excluded by include_archived=false
             Transaction {
@@ -1325,6 +1346,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2,
                 destination_account_id: None,
+                loan_id: None,
             },
             // Belongs to account 3 (different account) — excluded by account_id filter
             Transaction {
@@ -1340,6 +1362,7 @@ mod tests {
                 installment_id: None,
                 account_id: 3,
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -1529,6 +1552,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: Some(2),
+                loan_id: None,
             },
             // Previous month: account 1 income=200k
             tx(2, TransactionType::Income, 200_000, prev_ms, 1),
@@ -1571,6 +1595,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -1585,6 +1610,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2, // archived account
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -1617,6 +1643,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: None,
+                loan_id: None,
             },
             Transaction {
                 id: 2,
@@ -1631,6 +1658,7 @@ mod tests {
                 installment_id: None,
                 account_id: 2, // archived account
                 destination_account_id: None,
+                loan_id: None,
             },
         ];
 
@@ -1734,6 +1762,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: Some(2),
+                loan_id: None,
             },
             // Transfer 2 under regular category: 300,000 from Acc 1 to Acc 2
             Transaction {
@@ -1749,6 +1778,7 @@ mod tests {
                 installment_id: None,
                 account_id: 1,
                 destination_account_id: Some(2),
+                loan_id: None,
             },
         ];
 
