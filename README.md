@@ -294,13 +294,9 @@ cd rust && cargo build --target aarch64-linux-android --release
 
 ## 📥 دانلود
 
-| نسخه | فایل | صفحه ریلیز |
-|---|---|---|
-| **v0.18.0** (آخرین) | [universal APK](https://github.com/mcuteangel/hesabyaar/releases/download/v0.18.0/hesabyar-v0.18.0-universal.apk) | [مشاهده](https://github.com/mcuteangel/hesabyaar/releases/tag/v0.18.0) |
-| v0.17.3 | [universal APK](https://github.com/mcuteangel/hesabyaar/releases/download/v0.17.3/hesabyar-v0.17.3-universal.apk) | [مشاهده](https://github.com/mcuteangel/hesabyaar/releases/tag/v0.17.3) |
-| v0.17.2 | [universal APK](https://github.com/mcuteangel/hesabyaar/releases/download/v0.17.2/hesabyar-v0.17.2-universal.apk) | [مشاهده](https://github.com/mcuteangel/hesabyaar/releases/tag/v0.17.2) |
-
-نسخه‌های دیگر (مثل arm-v7a و x86_64) و فایل AAB در [همه نسخه‌ها](https://github.com/mcuteangel/hesabyaar/releases) موجود است.
+- **دانلود مستقیم آخرین نسخه (universal APK):** [hesabyar-universal.apk](https://github.com/mcuteangel/hesabyaar/releases/latest/download/hesabyar-universal.apk) — برای همهٔ گوشی‌ها، همیشه آخرین نسخه
+- **صفحه آخرین نسخه:** [releases/latest](https://github.com/mcuteangel/hesabyaar/releases/latest) — نسخه‌های arm-v7a ،arm-v8a ،x86_64 و فایل AAB
+- **همه نسخه‌ها و تغییرات:** [releases](https://github.com/mcuteangel/hesabyaar/releases)
 
 ---
 

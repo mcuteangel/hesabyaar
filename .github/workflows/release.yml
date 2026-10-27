@@ -393,6 +393,16 @@ jobs:
             cp "$src" "$dst"
             echo "APK: $dst"
           done < <(find app/build/outputs/apk -name "*-release.apk")
+          # Versionless alias of the universal APK: the README links to it
+          # via releases/latest/download, so the direct-download link never
+          # needs editing when a new version ships. The finalize job
+          # attaches release-artifacts/*.apk as-is, so no change is needed
+          # there; the sha256 loop below covers the alias like any other
+          # artifact.
+          if [ -f "release-artifacts/hesabyar-${VER}-universal.apk" ]; then
+            cp "release-artifacts/hesabyar-${VER}-universal.apk" "release-artifacts/hesabyar-universal.apk"
+            echo "Alias: release-artifacts/hesabyar-universal.apk"
+          fi
           aab_dir="app/build/outputs/bundle/release"
           aab_files=("${aab_dir}"/*.aab)
           if [ -e "${aab_files[0]}" ]; then
