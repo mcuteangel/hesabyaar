@@ -448,7 +448,7 @@ fun JalaliDatePickerDialog(
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
                   verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                 ) {
-                  items(monthsList.zip(1..12)) { (name, monthVal) ->
+                  items(monthsList.zip(1..12), key = { it.second }) { (name, monthVal) ->
                     val isCurrent = tempMonth == monthVal
                     Box(
                       contentAlignment = Alignment.Center,
@@ -504,7 +504,7 @@ fun JalaliDatePickerDialog(
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
                   verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                 ) {
-                  items(selectableYears) { yr ->
+                  items(selectableYears, key = { it }) { yr ->
                     val isCurrent = tempYear == yr
                     Box(
                       contentAlignment = Alignment.Center,

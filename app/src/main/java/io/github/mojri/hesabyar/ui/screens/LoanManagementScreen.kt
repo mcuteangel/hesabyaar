@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,7 +116,7 @@ fun LoanManagementScreen(
 ) {
   val loans by loanViewModel.loans.collectAsState()
 
-  var showAddDialog by remember { mutableStateOf(false) }
+  var showAddDialog by rememberSaveable { mutableStateOf(false) }
   var editingLoan by remember { mutableStateOf<Loan?>(null) }
   // Identifies the current edit session: opening an editor bumps it, so a
   // slow update can only dismiss the session it belongs to (issue #529).
@@ -216,7 +218,7 @@ fun LoanManagementScreen(
         modifier = Modifier.weight(1f),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
       ) {
-        items(activeList) { loan ->
+        items(activeList, key = { it.id }) { loan ->
           LoanListItem(
             loan = loan,
             loanViewModel = loanViewModel,
@@ -609,7 +611,7 @@ internal fun AddLoanDialog(
   onConfirm: (personName: String, type: LoanType, amountRial: Long, description: String, date: Long) -> Unit,
   onDismiss: () -> Unit
 ) {
-  val form = remember { LoanFormState(initialType) }
+  val form = rememberSaveable(stateSaver = LoanFormStateSaver) { LoanFormState(initialType) }
   val tooLargeMessage = stringResource(R.string.loan_amount_too_large)
 
   AlertDialog(
@@ -657,6 +659,31 @@ internal fun AddLoanDialog(
     }
   )
 }
+
+/**
+ * Saves the add-loan form across configuration changes. The form is a plain
+ * class, so its fields are saved as a list and rebuilt on restore. The
+ * amount text is re-applied after construction because the constructor
+ * takes the amount in Rial, not the typed display text.
+ */
+internal val LoanFormStateSaver =
+  listSaver<LoanFormState, Any>(
+    save = {
+      listOf(it.personName, it.loanType.name, it.amountText, it.description, it.customDate)
+    },
+    restore = { saved ->
+      LoanFormState(
+        initialType =
+          runCatching { LoanType.valueOf(saved.getOrNull(1) as? String ?: "") }
+            .getOrDefault(LoanType.DEBTOR),
+        initialPersonName = saved.getOrNull(0) as? String ?: "",
+        initialDescription = saved.getOrNull(3) as? String ?: "",
+        initialDate = saved.getOrNull(4) as? Long ?: System.currentTimeMillis()
+      ).apply {
+        amountText = saved.getOrNull(2) as? String ?: ""
+      }
+    }
+  )
 
 internal class LoanFormState(
   initialType: LoanType,

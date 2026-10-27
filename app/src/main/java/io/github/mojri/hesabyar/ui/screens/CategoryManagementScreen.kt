@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -111,7 +113,7 @@ fun CategoryManagementScreen(
   modifier: Modifier = Modifier
 ) {
   val categories by categoryViewModel.categories.collectAsState()
-  var showAddDialog by remember { mutableStateOf(false) }
+  var showAddDialog by rememberSaveable { mutableStateOf(false) }
   var editingCategory by remember { mutableStateOf<Category?>(null) }
   var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
 
@@ -353,6 +355,18 @@ private fun CategoryItem(
   }
 }
 
+/**
+ * CategoryType is an enum. It is saved by name.
+ * An unknown name restores EXPENSE.
+ */
+private val CategoryTypeSaver: Saver<CategoryType, String> =
+  Saver(
+    save = { it.name },
+    restore = {
+      runCatching { CategoryType.valueOf(it) }.getOrDefault(CategoryType.EXPENSE)
+    }
+  )
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryDialog(
@@ -361,11 +375,13 @@ private fun CategoryDialog(
   onSave: (name: String, key: String, icon: String, color: Long, type: CategoryType) -> Unit
 ) {
   val isEditing = initialCategory != null
-  var name by remember { mutableStateOf(initialCategory?.name.orEmpty()) }
-  var key by remember { mutableStateOf(initialCategory?.key.orEmpty()) }
-  var selectedIcon by remember { mutableStateOf(initialCategory?.icon ?: "Paid") }
-  var selectedColor by remember { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
-  var selectedType by remember { mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE) }
+  var name by rememberSaveable { mutableStateOf(initialCategory?.name.orEmpty()) }
+  var key by rememberSaveable { mutableStateOf(initialCategory?.key.orEmpty()) }
+  var selectedIcon by rememberSaveable { mutableStateOf(initialCategory?.icon ?: "Paid") }
+  var selectedColor by rememberSaveable { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
+  var selectedType by rememberSaveable(stateSaver = CategoryTypeSaver) {
+    mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE)
+  }
   var typeDropdownExpanded by remember { mutableStateOf(false) }
 
   AlertDialog(
@@ -461,7 +477,7 @@ private fun CategoryDialog(
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
           ) {
-            items(CATEGORY_COLORS) { color ->
+            items(CATEGORY_COLORS, key = { it }) { color ->
               Box(
                 modifier =
                   Modifier
@@ -496,7 +512,7 @@ private fun CategoryDialog(
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
           ) {
-            items(CATEGORY_ICONS.entries.toList()) { (iconName, iconVector) ->
+            items(CATEGORY_ICONS.entries.toList(), key = { it.key }) { (iconName, iconVector) ->
               val isSelected = selectedIcon == iconName
               Box(
                 modifier =
