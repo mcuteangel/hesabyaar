@@ -260,11 +260,14 @@ jobs:
         env:
           BASE_REF: ${{ github.event.before }}
         run: |
+          set -euo pipefail
           result=$(bash scripts/parse-commits.sh "$BASE_REF" HEAD)
           bump_type=$(echo "$result" | jq -r '.bump_type')
+          core_bump_type=$(echo "$result" | jq -r '.core_bump_type // "null"')
           summary=$(echo "$result" | jq -r '.summary')
           {
             echo "bump_type=$bump_type"
+            echo "core_bump_type=$core_bump_type"
             echo "summary<<EOF"
             echo "$summary"
             echo "EOF"
@@ -276,8 +279,11 @@ jobs:
         id: bump
         env:
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
+          CORE_BUMP_TYPE: ${{ steps.parse.outputs.core_bump_type }}
         run: |
-          new_version=$(bash scripts/bump-version.sh "$BUMP_TYPE")
+          set -euo pipefail
+          new_version=$(bash scripts/bump-version.sh "$BUMP_TYPE" "$CORE_BUMP_TYPE")
+          [ -n "$new_version" ] || { echo "ERROR: bump-version.sh produced no version" >&2; exit 1; }
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
@@ -390,6 +396,19 @@ jobs:
             cp "$src" "$dst"
             echo "APK: $dst"
           done < <(find app/build/outputs/apk -name "*-release.apk")
+          # Versionless alias of the universal APK: the README links to it
+          # via releases/latest/download, so the direct-download link never
+          # needs editing when a new version ships. The finalize job
+          # attaches release-artifacts/*.apk as-is, so no change is needed
+          # there; the sha256 loop below covers the alias like any other
+          # artifact.
+          if [ -f "release-artifacts/hesabyar-${VER}-universal.apk" ]; then
+            cp "release-artifacts/hesabyar-${VER}-universal.apk" "release-artifacts/hesabyar-universal.apk"
+            echo "Alias: release-artifacts/hesabyar-universal.apk"
+          else
+            echo "ERROR: universal APK release-artifacts/hesabyar-${VER}-universal.apk missing; README links to hesabyar-universal.apk" >&2
+            exit 1
+          fi
           aab_dir="app/build/outputs/bundle/release"
           aab_files=("${aab_dir}"/*.aab)
           if [ -e "${aab_files[0]}" ]; then
@@ -485,6 +504,7 @@ jobs:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
           NEW_VERSION: ${{ steps.bump.outputs.new_version }}
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
+          CORE_BUMP_TYPE: ${{ steps.parse.outputs.core_bump_type }}
           SUMMARY: ${{ steps.parse.outputs.summary }}
           RUN_ID: ${{ github.run_id }}
         run: |
@@ -505,7 +525,7 @@ jobs:
           # Commit the release state on the dedicated branch. The branch tip
           # is the exact main commit that triggered this run.
           git checkout -B "$BRANCH"
-          git add VERSION CHANGELOG.md
+          git add VERSION CHANGELOG.md rust/Cargo.toml rust/Cargo.lock
           git commit -m "chore: release v${NEW_VERSION} [skip release]"
 
           existing_pr=$(gh pr list --head "$BRANCH" --base main --state open \
@@ -547,10 +567,15 @@ jobs:
           |------|-------|
           | Version | ${NEW_VERSION} |
           | Bump type | ${BUMP_TYPE} |
+          BODY_EOF
+              if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
+                printf '| Core bump | %s |\n' "$CORE_BUMP_TYPE"
+              fi
+              cat <<CHANGES_EOF
 
           ### Changes included
 
-          BODY_EOF
+          CHANGES_EOF
               printf '%s\n' "$SUMMARY"
               cat <<'FOOTER_EOF'
 
