@@ -295,6 +295,34 @@ assert_not_contains "$D/CHANGELOG.md" "## [0.18.1]" "staged app-write failure le
 assert_contains "$D/rust/Cargo.toml" 'version = "0.7.0"' "staged app-write failure leaves manifest untouched"
 assert_contains "$D/rust/Cargo.lock" 'version = "0.7.0"' "staged app-write failure leaves lock untouched"
 
+# --- Test 18: trailing comment containing an apostrophe ---
+# The old quote-spanning rewrite corrupted this line to
+# `version = "0.8.0"t bump` while the unanchored grep still passed.
+setup_files
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.7.0" # don'"'"'t bump\nedition = "2021"\n' > "$D/rust/Cargo.toml"
+set +e
+run_bump "$D" patch minor
+status=$?
+set -e
+assert_status 0 "$status" "apostrophe comment exits 0"
+assert_contains "$D/rust/Cargo.toml" 'version = "0.8.0" # don'"'"'t bump' "apostrophe comment preserved"
+assert_contains "$D/rust/Cargo.lock" 'version = "0.8.0"' "apostrophe comment refreshes lock"
+
+# --- Test 19: doubled closing quote fails fast, nothing written ---
+# The anchored verification rejects the rewritten line; the old
+# unanchored grep matched the version substring and proceeded.
+setup_files
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package]\nversion = "0.7.0""\nedition = "2021"\n' > "$D/rust/Cargo.toml"
+set +e
+run_bump "$D" patch minor
+status=$?
+set -e
+assert_status 1 "$status" "doubled closing quote fails"
+assert_contains "$D/VERSION" "0.18.0" "doubled closing quote leaves VERSION untouched"
+assert_not_contains "$D/CHANGELOG.md" "## [0.18.1]" "doubled closing quote leaves CHANGELOG untouched"
+assert_contains "$D/rust/Cargo.toml" 'version = "0.7.0""' "doubled closing quote leaves manifest untouched"
+assert_contains "$D/rust/Cargo.lock" 'version = "0.7.0"' "doubled closing quote leaves lock untouched"
+
 echo ""
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

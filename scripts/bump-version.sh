@@ -158,9 +158,10 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   new_core="${core_major}.${core_minor}.${core_patch}"
 
   # Rewrite only the version line inside [workspace.package], into a temp
-  # file. The match is quote-agnostic (TOML also allows single quotes);
-  # the rewritten line is verified below so a missed rewrite fails here,
-  # not after files were already written.
+  # file. The match is quote-agnostic (TOML also allows single quotes) and
+  # quote-paired, so a trailing comment containing an apostrophe cannot
+  # corrupt the line; the rewritten line is verified below so a missed
+  # rewrite fails here, not after files were already written.
   manifest_tmp="$CARGO_MANIFEST.tmp"
   awk -v new_ver="$new_core" '
     /^[[:space:]]*\[/ {
@@ -171,12 +172,12 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
       else in_pkg = 0
     }
     !done && in_pkg && $0 ~ /^[[:space:]]*version[[:space:]]*=[[:space:]]*['"'"'"]/ {
-      sub(/['"'"'"][^'"'"']*['"'"'"]/, "\"" new_ver "\"")
+      sub(/"[^"]*"|'"'"'[^'"'"']*'"'"'/, "\"" new_ver "\"")
       done = 1
     }
     { print }
   ' "$CARGO_MANIFEST" > "$manifest_tmp"
-  if ! grep -qE "version[[:space:]]*=[[:space:]]*\"$new_core\"" "$manifest_tmp"; then
+  if ! grep -qE "^[[:space:]]*version[[:space:]]*=[[:space:]]*\"${new_core//./\\.}\"[[:space:]]*(#.*)?$" "$manifest_tmp"; then
     echo "ERROR: failed to rewrite $CARGO_MANIFEST to $new_core" >&2
     exit 1
   fi
