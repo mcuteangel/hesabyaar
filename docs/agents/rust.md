@@ -22,10 +22,11 @@ The Kotlin side talks to the Rust core (`rust/hesabyar-core`) through the UniFFI
 
 The core is bundled with the app. It is not published separately. It has its own versioning scheme. It is independent from the Android app version (root `VERSION` file).
 
-- The base version (`MAJOR.MINOR.PATCH`) lives in `rust/Cargo.toml` `[workspace.package].version`. Bump it manually per SemVer:
+- The base version (`MAJOR.MINOR.PATCH`) lives in `rust/Cargo.toml` `[workspace.package].version`. It is bumped automatically by the release action — never bump it by hand in a fix PR. `scripts/parse-commits.sh` classifies the commits that touch `rust/` in the release range, and `scripts/bump-version.sh` applies the bump and refreshes the `hesabyar-core` entry in `rust/Cargo.lock` (a stale lock breaks `--locked` builds). The levels keep their SemVer meaning:
   - MAJOR — a breaking change to the FFI surface or the backup schema (`BackupPayload.version`).
   - MINOR — a backward-compatible feature or category added to the core API.
   - PATCH — a bug fix with no API or schema change.
+- A release with no `rust/` changes leaves the core version untouched. If the range already contains a hand-bumped core version, the action ships it as-is instead of bumping again. Rust source changes trigger a release on their own (`scripts/detect-changes.sh` treats `rust/` edits as application changes); previously only a manual manifest version bump did.
 - The build metadata (`+<hash>`) is auto-derived from the workspace `rust/Cargo.toml` and Rust source files under `rust/hesabyar-core/src` (excluding generated files). It is written to the gitignored `rust/hesabyar-core/src/generated/core_version.rs`, embedded through `build.rs` into `CORE_VERSION`, and exposed at runtime through `get_core_version()` (UniFFI); it identifies this source snapshot, not every build input.
 - Do not hand-edit `src/generated/core_version.rs`. It is regenerated on every binding or NDK build. `cargo build` and `cargo test` outside Gradle use the Cargo package version.
 
