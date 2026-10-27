@@ -133,6 +133,7 @@ workspace_version() {
   awk '
     /^[[:space:]]*\[/ {
       sec = $0
+      sub(/[[:space:]]+#.*$/, "", sec)
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
       else in_pkg = 0

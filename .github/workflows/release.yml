@@ -260,6 +260,7 @@ jobs:
         env:
           BASE_REF: ${{ github.event.before }}
         run: |
+          set -euo pipefail
           result=$(bash scripts/parse-commits.sh "$BASE_REF" HEAD)
           bump_type=$(echo "$result" | jq -r '.bump_type')
           core_bump_type=$(echo "$result" | jq -r '.core_bump_type // "null"')
@@ -280,7 +281,9 @@ jobs:
           BUMP_TYPE: ${{ steps.parse.outputs.bump_type }}
           CORE_BUMP_TYPE: ${{ steps.parse.outputs.core_bump_type }}
         run: |
+          set -euo pipefail
           new_version=$(bash scripts/bump-version.sh "$BUMP_TYPE" "$CORE_BUMP_TYPE")
+          [ -n "$new_version" ] || { echo "ERROR: bump-version.sh produced no version" >&2; exit 1; }
           echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists

@@ -74,6 +74,7 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   current_core=$(awk '
     /^[[:space:]]*\[/ {
       sec = $0
+      sub(/[[:space:]]+#.*$/, "", sec)
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
       else in_pkg = 0
@@ -106,10 +107,19 @@ pkg = os.environ["CORE_PACKAGE"]
 old = os.environ["OLD_CORE"]
 with open(lock_path, "r") as f:
     text = f.read()
+def unquote(value):
+    return value.replace("\"", "").replace(chr(39), "")
 for block in text.split("[[package]]")[1:]:
-    if re.search(r"(?m)^\s*name = \"%s\"$" % re.escape(pkg), block):
+    name_found = False
+    for line in block.split("\n"):
+        nm = re.match(r"^\s*name\s*=\s*(\S+)\s*(#.*)?$", line)
+        if nm and unquote(nm.group(1)) == pkg:
+            name_found = True
+            break
+    if name_found:
         for line in block.split("\n"):
-            if line.strip() == "version = \"%s\"" % old:
+            vm = re.match(r"^version\s*=\s*(\S+)\s*(#.*)?$", line.strip())
+            if vm and unquote(vm.group(1)) == old:
                 sys.exit(0)
         break
 sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
@@ -118,13 +128,16 @@ sys.exit("no [[package]] %s %s entry in %s" % (pkg, old, lock_path))
 fi
 
 # Stage the core bump before writing anything: all fallible work (awk,
-# python) happens here, so a failure leaves every file untouched. Staged
-# files are moved into place only after VERSION and CHANGELOG are written.
-# The trap cleans them up on any failure.
+# python) happens here, so a failure leaves every file untouched. VERSION
+# and CHANGELOG are staged to temp files as well, and every staged file is
+# moved into place only in the publish phase below. The trap cleans the
+# temp files up on any failure.
 new_core=""
 manifest_tmp=""
 lock_tmp=""
-trap 'rm -f "$manifest_tmp" "$lock_tmp"' EXIT
+version_tmp=""
+changelog_tmp=""
+trap 'rm -f "$manifest_tmp" "$lock_tmp" "$version_tmp" "$changelog_tmp"' EXIT
 if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   # current_core was read and validated before any file was written.
   IFS='.' read -r core_major core_minor core_patch <<< "$current_core"
@@ -152,6 +165,7 @@ if [ -n "$CORE_BUMP_TYPE" ] && [ "$CORE_BUMP_TYPE" != "null" ]; then
   awk -v new_ver="$new_core" '
     /^[[:space:]]*\[/ {
       sec = $0
+      sub(/[[:space:]]+#.*$/, "", sec)
       gsub(/^[[:space:]]*\[[[:space:]]*|[[:space:]]*\][[:space:]]*$/, "", sec)
       if (sec == "workspace.package") in_pkg = 1
       else in_pkg = 0
@@ -185,12 +199,19 @@ blocks = text.split("[[package]]")
 out = [blocks[0]]
 found = False
 for block in blocks[1:]:
-    if not found and re.search(r"(?m)^\s*name = \"%s\"$" % re.escape(pkg), block):
+    name_found = False
+    for line in block.split("\n"):
+        nm = re.match(r"^\s*name\s*=\s*(\S+)\s*(#.*)?$", line)
+        if nm and nm.group(1).replace("\"", "").replace(chr(39), "") == pkg:
+            name_found = True
+            break
+    if not found and name_found:
         lines = block.split("\n")
         for i, line in enumerate(lines):
-            if line.strip() == "version = \"%s\"" % old:
-                indent = line[:len(line) - len(line.lstrip())]
-                lines[i] = indent + "version = \"%s\"" % new
+            m = re.match(r"^(\s*)version\s*=\s*(\S+)\s*(#.*)?$", line)
+            if m and m.group(2).replace("\"", "").replace(chr(39), "") == old:
+                comment = m.group(3)
+                lines[i] = m.group(1) + "version = \"%s\"" % new + (" " + comment if comment else "")
                 found = True
                 break
         block = "\n".join(lines)
@@ -206,8 +227,8 @@ with open(lock_tmp, "w") as f:
   fi
 fi
 
-echo "$new_version" > "$VERSION_FILE"
-echo "Version bumped: $current -> $new_version" >&2
+version_tmp="$VERSION_FILE.tmp"
+echo "$new_version" > "$version_tmp"
 
 # Generate changelog entry
 if [ -f "$CHANGELOG_FILE" ]; then
@@ -233,17 +254,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 "
 
+changelog_tmp="$CHANGELOG_FILE.tmp"
 if echo "$existing" | grep -q "^# Changelog"; then
   # Extract body: skip the 7-line header block
   body=$(echo "$existing" | tail -n +8)
-  echo "${header}${entry}${body}" > "$CHANGELOG_FILE"
+  echo "${header}${entry}${body}" > "$changelog_tmp"
 else
-  echo "${header}${entry}${existing}" > "$CHANGELOG_FILE"
+  echo "${header}${entry}${existing}" > "$changelog_tmp"
 fi
 
-echo "CHANGELOG.md updated" >&2
-
-# Publish the staged core files. Re-validate the lock first: if it
+# Publish all staged files. Re-validate the lock first: if it
 # vanished after the pre-check, fail now, before anything is moved.
 if [ -n "$new_core" ]; then
   if [ -n "$lock_tmp" ] && [ ! -f "$CARGO_LOCK" ]; then
@@ -256,5 +276,9 @@ if [ -n "$new_core" ]; then
   fi
   echo "Core version bumped: $current_core -> $new_core" >&2
 fi
+mv "$version_tmp" "$VERSION_FILE"
+echo "Version bumped: $current -> $new_version" >&2
+mv "$changelog_tmp" "$CHANGELOG_FILE"
+echo "CHANGELOG.md updated" >&2
 
 echo "$new_version"

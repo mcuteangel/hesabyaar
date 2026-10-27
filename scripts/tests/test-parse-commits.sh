@@ -373,6 +373,20 @@ else
 fi
 PATH="$OLD_PATH"
 
+# --- Test 18: section header with a trailing comment still yields a core bump ---
+# The manifest must exist at base: a newly added manifest ships as-is
+# (see test 14), which would mask the parsing check.
+new_repo
+mkdir -p rust/hesabyar-core/src
+printf '[workspace]\nmembers = ["hesabyar-core"]\n\n[workspace.package] # core package\nversion = "0.7.0"\nedition = "2021"\n' > rust/Cargo.toml
+git add rust/Cargo.toml
+git commit -qm "base commented header manifest"
+git checkout -q -b core-comment-branch main
+echo "pub fn ch() {}" > rust/hesabyar-core/src/ch.rs
+git add rust/hesabyar-core/src/ch.rs
+git commit -qm "feat(core): commented header manifest version"
+check_core "commented header yields core minor" "minor"
+
 echo ""
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
