@@ -2,6 +2,7 @@
 # POSIX sh compatible (also invoked as `bash scripts/detect-changes.sh` in CI).
 set -eu
 # dash/BSD sh lack `set -o pipefail`; enable it only where supported.
+# shellcheck disable=SC3040 # guarded: only enabled where supported
 (set -o pipefail) 2>/dev/null && set -o pipefail || true
 
 # detect-changes.sh - Determines whether application code changed.
@@ -67,10 +68,10 @@ while IFS= read -r file; do
   # update would flood the releases page. App code touching these same
   # files alongside other sources still triggers a release below.
   #
-  # NOTE: this also means Rust source edits (*.rs) and manifest deletions do
-  # NOT gate a release by themselves. Releases are intentionally version-
-  # driven: bumping [workspace.package].version is what ships a core change,
-  # because an artifact with an unchanged versionCode cannot be published.
+  # NOTE: Rust source edits (*.rs) gate a release through the include
+  # patterns below; the release action bumps [workspace.package].version
+  # itself, so no manual manifest bump is needed to ship a core change.
+  # Manifest deletions still do not gate a release by themselves.
   case "$file" in
     gradle/libs.versions.toml|gradle/libs.versions.toml.lock|gradle.lockfile|versions.lock|*/gradle.lockfile|*/versions.lock)
       continue
@@ -105,11 +106,12 @@ while IFS= read -r file; do
 
   # Check if this file matches any include pattern
   case "$file" in
-    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml)
+    app/*|src/*|*.kt|*.kts|*.java|*.xml|*.toml|rust/*.rs)
       has_app_changes=true
       break
       ;;
-    build.gradle.kts|build.gradle|settings.gradle.kts|settings.gradle|gradle.properties|proguard-rules.pro)
+    # build.gradle.kts and settings.gradle.kts are already covered by *.kts above.
+    build.gradle|settings.gradle|gradle.properties|proguard-rules.pro)
       has_app_changes=true
       break
       ;;

@@ -5,6 +5,7 @@
 # Usage: ./scripts/tests/test-detect-changes.sh
 set -eu
 
+# shellcheck disable=SC1007 # CDPATH= applies to this cd only; intentional (same idiom as other scripts/tests)
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DETECT="$HERE/../detect-changes.sh"
 TMP=$(mktemp -d)
@@ -214,15 +215,15 @@ EOF
 commit_all
 check "deep-nested member version bump" 0 "Version bump detected in rust/a/b/c/Cargo.toml"
 
-# 12. Rust source edit without a version bump -> skip BY DESIGN:
-#     releases are version-driven (unchanged versionCode cannot publish),
-#     so core changes ship by bumping [workspace.package].version.
+# 12. Rust source edit without a version bump -> release: the release action
+#     bumps [workspace.package].version itself, so no manual manifest bump
+#     is needed to ship a core change.
 new_repo
 branch t12
 mkdir -p rust/hesabyar-core/src
 echo 'fn fixed() {}' > rust/hesabyar-core/src/lib.rs
 commit_all
-check "rust source edit without bump" 1 "SKIP"
+check "rust source edit triggers release" 0 "RELEASE_NEEDED"
 
 # 13. Newly added versioned manifest -> skip BY DESIGN: a new file carrying
 #     its own version key is not a bump. Like any other core change it ships
