@@ -142,7 +142,8 @@ class RustBridgeTest {
         dueDate = null,
         installmentId = null,
         accountId = 1L,
-        destinationAccountId = null
+        destinationAccountId = null,
+        loanId = null
       )
     val loan =
       Loan(

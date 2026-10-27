@@ -48,9 +48,11 @@ internal object BackupStableLinks {
   }
 
   /**
-   * The Rust record types predate the links and drop them while parsing, so
-   * re-apply them from the raw JSON, keyed by each row's own id (backup ids
-   * are database primary keys, hence unique within one array).
+   * Re-apply the links from the raw JSON, keyed by each row's own id
+   * (backup ids are database primary keys, hence unique within one array).
+   * Rust parsing now preserves the links, but re-applying still normalizes
+   * them: absent, null, zero or negative values become "no link", and links
+   * on rows sharing a duplicate id are dropped as ambiguous.
    */
   fun applyFromRawJson(
     payload: BackupPayload,
