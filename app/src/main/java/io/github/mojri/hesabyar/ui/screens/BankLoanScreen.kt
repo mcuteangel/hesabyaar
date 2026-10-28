@@ -21,7 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +50,7 @@ fun BankLoanScreen(
   modifier: Modifier = Modifier
 ) {
   val bankLoans by bankLoanViewModel.bankLoans.collectAsState()
-  var showAddDialog by remember { mutableStateOf(false) }
+  var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
   HesabyarScaffold(
     modifier = modifier,
@@ -102,7 +102,7 @@ private fun BankLoanItem(
   onToggleSettled: () -> Unit,
   onDelete: () -> Unit
 ) {
-  var showDeleteConfirm by remember { mutableStateOf(false) }
+  var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
   if (showDeleteConfirm) {
     ConfirmDialog(
       title = "حذف وام بانکی",
@@ -183,16 +183,23 @@ private fun bankLoanDetailRows(loan: BankLoan) {
 }
 
 private class AddBankLoanFormState(
-  initialStartDate: Long = System.currentTimeMillis()
+  val bankNameState: androidx.compose.runtime.MutableState<String>,
+  val loanNameState: androidx.compose.runtime.MutableState<String>,
+  val receivedState: androidx.compose.runtime.MutableState<String>,
+  val monthlyState: androidx.compose.runtime.MutableState<String>,
+  val countState: androidx.compose.runtime.MutableState<String>,
+  val descriptionState: androidx.compose.runtime.MutableState<String>,
+  val startDateState: androidx.compose.runtime.MutableState<Long>,
+  val showDatePickerState: androidx.compose.runtime.MutableState<Boolean>
 ) {
-  var bankName by mutableStateOf("")
-  var loanName by mutableStateOf("")
-  var received by mutableStateOf("")
-  var monthly by mutableStateOf("")
-  var count by mutableStateOf("")
-  var description by mutableStateOf("")
-  var startDate by mutableStateOf(initialStartDate)
-  var showDatePicker by mutableStateOf(false)
+  var bankName by bankNameState
+  var loanName by loanNameState
+  var received by receivedState
+  var monthly by monthlyState
+  var count by countState
+  var description by descriptionState
+  var startDate by startDateState
+  var showDatePicker by showDatePickerState
 
   val countVal: Int
     get() = count.toIntOrNull() ?: 0
@@ -208,6 +215,31 @@ private class AddBankLoanFormState(
 }
 
 @Composable
+private fun rememberAddBankLoanFormState(initialStartDate: Long = System.currentTimeMillis()): AddBankLoanFormState {
+  val bankNameState = rememberSaveable { mutableStateOf("") }
+  val loanNameState = rememberSaveable { mutableStateOf("") }
+  val receivedState = rememberSaveable { mutableStateOf("") }
+  val monthlyState = rememberSaveable { mutableStateOf("") }
+  val countState = rememberSaveable { mutableStateOf("") }
+  val descriptionState = rememberSaveable { mutableStateOf("") }
+  val startDateState = rememberSaveable { mutableStateOf(initialStartDate) }
+  val showDatePickerState = rememberSaveable { mutableStateOf(false) }
+
+  return androidx.compose.runtime.remember {
+    AddBankLoanFormState(
+      bankNameState = bankNameState,
+      loanNameState = loanNameState,
+      receivedState = receivedState,
+      monthlyState = monthlyState,
+      countState = countState,
+      descriptionState = descriptionState,
+      startDateState = startDateState,
+      showDatePickerState = showDatePickerState
+    )
+  }
+}
+
+@Composable
 private fun AddBankLoanDialog(
   onDismiss: () -> Unit,
   onConfirm: (
@@ -220,7 +252,7 @@ private fun AddBankLoanDialog(
     description: String
   ) -> Unit
 ) {
-  val state = remember { AddBankLoanFormState() }
+  val state = rememberAddBankLoanFormState()
 
   if (state.showDatePicker) {
     JalaliDatePickerDialog(

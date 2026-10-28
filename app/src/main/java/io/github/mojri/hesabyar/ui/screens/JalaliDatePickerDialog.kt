@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,16 +45,16 @@ fun JalaliDatePickerDialog(
   val jalaliToday = remember(initialTimestamp) { JalaliCalendarHelper.gregorianToJalali(initialTimestamp) }
 
   // View state tracks what year/month is currently shown in the calendar grid
-  var viewYear by remember { mutableStateOf(jalaliToday.year) }
-  var viewMonth by remember { mutableStateOf(jalaliToday.month) }
+  var viewYear by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.year) }
+  var viewMonth by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.month) }
 
   // Selection state tracks the currently chosen date
-  var selectedYear by remember { mutableStateOf(jalaliToday.year) }
-  var selectedMonth by remember { mutableStateOf(jalaliToday.month) }
-  var selectedDay by remember { mutableStateOf(jalaliToday.day) }
+  var selectedYear by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.year) }
+  var selectedMonth by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.month) }
+  var selectedDay by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.day) }
 
   // Toggle between standard Calendar Grid view and Month/Year Quick Selector
-  var showQuickSelector by remember { mutableStateOf(false) }
+  var showQuickSelector by rememberSaveable(initialTimestamp) { mutableStateOf(false) }
 
   val monthsList =
     listOf(
@@ -414,8 +415,8 @@ fun JalaliDatePickerDialog(
             }
           } else {
             // RE-ENGINEERED Standard Month & Year Speed Selector
-            var tempYear by remember { mutableStateOf(viewYear) }
-            var tempMonth by remember { mutableStateOf(viewMonth) }
+            var tempYear by rememberSaveable(initialTimestamp) { mutableStateOf(viewYear) }
+            var tempMonth by rememberSaveable(initialTimestamp) { mutableStateOf(viewMonth) }
 
             Column(
               modifier =
@@ -452,7 +453,7 @@ fun JalaliDatePickerDialog(
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
                   verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                 ) {
-                  items(monthsList.zip(1..12)) { (name, monthVal) ->
+                  items(monthsList.zip(1..12), key = { it.second }) { (name, monthVal) ->
                     val isCurrent = tempMonth == monthVal
                     Box(
                       contentAlignment = Alignment.Center,
@@ -508,7 +509,7 @@ fun JalaliDatePickerDialog(
                   horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
                   verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
                 ) {
-                  items(selectableYears) { yr ->
+                  items(selectableYears, key = { it }) { yr ->
                     val isCurrent = tempYear == yr
                     Box(
                       contentAlignment = Alignment.Center,

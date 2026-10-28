@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,6 +112,8 @@ private val CategoryType.displayName: String
       CategoryType.UNKNOWN -> stringResource(R.string.category_type_unknown)
     }
 
+private const val NO_EDITING_CATEGORY_ID = -1L
+
 @Composable
 fun CategoryManagementScreen(
   categoryViewModel: CategoryViewModel,
@@ -117,8 +121,28 @@ fun CategoryManagementScreen(
   modifier: Modifier = Modifier
 ) {
   val categories by categoryViewModel.categories.collectAsState()
-  var showAddDialog by remember { mutableStateOf(false) }
-  var editingCategory by remember { mutableStateOf<Category?>(null) }
+  var showAddDialog by rememberSaveable { mutableStateOf(false) }
+  // The edit target is stored as an id, not as a Category object.
+  // Ids are saveable, objects are not. Minus one means no edit target.
+  // The dialog re-opens from the id after a configuration change.
+  // Its fields restore from their own saveable state.
+  var editingCategoryId by rememberSaveable { mutableStateOf(NO_EDITING_CATEGORY_ID) }
+  val editingCategory =
+    if (editingCategoryId == NO_EDITING_CATEGORY_ID) {
+      null
+    } else {
+      categories.find { it.id == editingCategoryId }
+    }
+
+  // A restored id with no matching category clears itself once the list loads.
+  LaunchedEffect(editingCategoryId, categories) {
+    if (editingCategoryId != NO_EDITING_CATEGORY_ID &&
+      categories.isNotEmpty() &&
+      categories.none { it.id == editingCategoryId }
+    ) {
+      editingCategoryId = NO_EDITING_CATEGORY_ID
+    }
+  }
   var showDeleteConfirmation by remember { mutableStateOf<Category?>(null) }
 
   HesabyarScaffold(
@@ -135,7 +159,7 @@ fun CategoryManagementScreen(
     CategoryManagementContent(
       categories = categories,
       contentPadding = contentPadding,
-      onEdit = { editingCategory = it },
+      onEdit = { editingCategoryId = it.id },
       onDelete = { showDeleteConfirmation = it }
     )
   }
@@ -146,7 +170,7 @@ fun CategoryManagementScreen(
     showDeleteConfirmation = showDeleteConfirmation,
     categoryViewModel = categoryViewModel,
     onDismissAdd = { showAddDialog = false },
-    onDismissEdit = { editingCategory = null },
+    onDismissEdit = { editingCategoryId = NO_EDITING_CATEGORY_ID },
     onDismissDelete = { showDeleteConfirmation = null }
   )
 }
@@ -235,22 +259,28 @@ private fun CategoryManagementDialogs(
   }
 
   if (editingCategory != null) {
-    CategoryDialog(
-      initialCategory = editingCategory,
-      onDismiss = onDismissEdit,
-      onSave = { name, key, icon, color, type ->
-        categoryViewModel.updateCategory(
-          editingCategory.copy(
-            name = name,
-            key = key,
-            icon = icon,
-            color = color,
-            type = type
+    // The dialog's saveable fields are scoped to the edited category.
+    // A restored entry for another category can never leak into this one.
+    // The value in the key resets the dialog only when the category data
+    // itself changes; a mere re-emission with equal values does not.
+    key(editingCategory.id to editingCategory) {
+      CategoryDialog(
+        initialCategory = editingCategory,
+        onDismiss = onDismissEdit,
+        onSave = { name, key, icon, color, type ->
+          categoryViewModel.updateCategory(
+            editingCategory.copy(
+              name = name,
+              key = key,
+              icon = icon,
+              color = color,
+              type = type
+            )
           )
-        )
-        onDismissEdit()
-      }
-    )
+          onDismissEdit()
+        }
+      )
+    }
   }
 
   if (showDeleteConfirmation != null) {
@@ -359,20 +389,34 @@ private fun CategoryItem(
   }
 }
 
+/**
+ * CategoryType is an enum. It is saved by name.
+ * An unknown name restores UNKNOWN, matching the Room converter.
+ */
+private val CategoryTypeSaver: Saver<CategoryType, String> =
+  Saver(
+    save = { it.name },
+    restore = {
+      runCatching { CategoryType.valueOf(it) }.getOrDefault(CategoryType.UNKNOWN)
+    }
+  )
+
 private class CategoryFormState(
   val isEditing: Boolean,
-  initialName: String = "",
   val initialKey: String = "",
-  initialIcon: String = "Paid",
-  initialColor: Long = 0xFF4CAF50L,
-  initialType: CategoryType = CategoryType.EXPENSE,
-  val isKeyEnabled: Boolean = true
+  val initialType: CategoryType = CategoryType.EXPENSE,
+  val isKeyEnabled: Boolean = true,
+  nameState: MutableState<String>,
+  keyState: MutableState<String>,
+  selectedIconState: MutableState<String>,
+  selectedColorState: MutableState<Long>,
+  selectedTypeState: MutableState<CategoryType>
 ) {
-  var name by mutableStateOf(initialName)
-  var key by mutableStateOf(initialKey)
-  var selectedIcon by mutableStateOf(initialIcon)
-  var selectedColor by mutableStateOf(initialColor)
-  var selectedType by mutableStateOf(initialType)
+  var name by nameState
+  var key by keyState
+  var selectedIcon by selectedIconState
+  var selectedColor by selectedColorState
+  var selectedType by selectedTypeState
   var typeDropdownExpanded by mutableStateOf(false)
 
   val isValid: Boolean
@@ -381,12 +425,53 @@ private class CategoryFormState(
   val finalKey: String
     get() =
       if (isEditing && !isKeyEnabled) {
-        initialKey
+        initialKey.ifBlank { name.trim().replace("\\s+".toRegex(), "") }
       } else {
         key.trim().ifBlank {
           name.trim().replace("\\s+".toRegex(), "")
         }
       }
+
+  val typeToSave: CategoryType
+    get() =
+      if (selectedType == CategoryType.UNKNOWN) {
+        if (initialType != CategoryType.UNKNOWN) {
+          initialType
+        } else {
+          CategoryType.EXPENSE
+        }
+      } else {
+        selectedType
+      }
+}
+
+@Composable
+private fun rememberCategoryFormState(initialCategory: Category?): CategoryFormState {
+  val isEditing = initialCategory != null
+  val isKeyEnabled = !isEditing || initialCategory?.isDefault != true
+  val categoryKey = initialCategory?.id ?: -1L
+  val nameState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.name.orEmpty()) }
+  val keyState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.key.orEmpty()) }
+  val selectedIconState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.icon ?: "Paid") }
+  val selectedColorState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
+  val selectedTypeState =
+    rememberSaveable(categoryKey, stateSaver = CategoryTypeSaver) {
+      mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE)
+    }
+
+  return remember(initialCategory) {
+    CategoryFormState(
+      isEditing = isEditing,
+      initialKey = initialCategory?.key.orEmpty(),
+      initialType = initialCategory?.type ?: CategoryType.EXPENSE,
+      isKeyEnabled = isKeyEnabled,
+      nameState = nameState,
+      keyState = keyState,
+      selectedIconState = selectedIconState,
+      selectedColorState = selectedColorState,
+      selectedTypeState = selectedTypeState
+    )
+  }
 }
 
 @Composable
@@ -396,19 +481,7 @@ private fun CategoryDialog(
   onSave: (name: String, key: String, icon: String, color: Long, type: CategoryType) -> Unit
 ) {
   val isEditing = initialCategory != null
-  val isKeyEnabled = !isEditing || initialCategory?.isDefault != true
-  val state =
-    remember(initialCategory) {
-      CategoryFormState(
-        isEditing = isEditing,
-        initialName = initialCategory?.name.orEmpty(),
-        initialKey = initialCategory?.key.orEmpty(),
-        initialIcon = initialCategory?.icon ?: "Paid",
-        initialColor = initialCategory?.color ?: 0xFF4CAF50L,
-        initialType = initialCategory?.type ?: CategoryType.EXPENSE,
-        isKeyEnabled = isKeyEnabled
-      )
-    }
+  val state = rememberCategoryFormState(initialCategory)
 
   HesabyarDialog(
     onDismissRequest = onDismiss,
@@ -422,7 +495,7 @@ private fun CategoryDialog(
               state.finalKey,
               state.selectedIcon,
               state.selectedColor,
-              state.selectedType
+              state.typeToSave
             )
           }
         },

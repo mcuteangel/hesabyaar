@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,8 +58,8 @@ fun InstallmentScreen(
 ) {
   val installments by installmentViewModel.visibleInstallments.collectAsState()
 
-  var showAddDialog by remember { mutableStateOf(false) }
-  var listFilterState by remember { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
+  var showAddDialog by rememberSaveable { mutableStateOf(false) }
+  var listFilterState by rememberSaveable { mutableStateOf("UNPAID") } // "UNPAID", "PAID", "ALL"
 
   // Process lists
   val unpaid = installments.filter { !it.isPaid }
@@ -187,7 +188,7 @@ fun InstallmentScreen(
         modifier = Modifier.weight(1f),
         verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
       ) {
-        items(displayList) { installment ->
+        items(displayList, key = { it.id }) { installment ->
           InstallmentListItem(
             installment = installment,
             installmentViewModel = installmentViewModel
@@ -217,11 +218,11 @@ private fun AddInstallmentDialog(
   onConfirm: (title: String, amountRial: Long, dateInMillis: Long, reminderEnabled: Boolean, notes: String) -> Unit,
   onValidationError: (String) -> Unit
 ) {
-  var title by remember { mutableStateOf("") }
-  var amountText by remember { mutableStateOf("") }
-  var dateInMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-  var reminderEnabled by remember { mutableStateOf(true) }
-  var notes by remember { mutableStateOf("") }
+  var title by rememberSaveable { mutableStateOf("") }
+  var amountText by rememberSaveable { mutableStateOf("") }
+  var dateInMillis by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+  var reminderEnabled by rememberSaveable { mutableStateOf(true) }
+  var notes by rememberSaveable { mutableStateOf("") }
 
   HesabyarDialog(
     onDismissRequest = onDismiss,
@@ -340,9 +341,10 @@ fun InstallmentListItem(
   installmentViewModel: InstallmentViewModel
 ) {
   var expanded by remember { mutableStateOf(false) }
-  // Holds the tapped installment itself, not a boolean: LazyColumn items are
-  // positional (no keys), so a reorder while the dialog is open must not
-  // retarget the delete to a different row.
+  // Holds the tapped installment itself, not a boolean.
+  // Items are keyed by installment id. The state stays with its row
+  // while the row remains in the list. Filtering the row out removes
+  // its composition, and with it any open delete dialog.
   var pendingDelete by remember { mutableStateOf<Installment?>(null) }
   val colorAccent = if (installment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
