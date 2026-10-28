@@ -40,11 +40,14 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -141,6 +144,12 @@ internal fun resolveDeleteDialogState(
     is AccountViewModel.DeleteCheckResult.CheckFailed -> AccountDialogState.DeleteCheckError(account, result.message)
   }
 
+/** No account form dialog survives recreation. */
+private const val NO_FORM_DIALOG_ID = -1L
+
+/** The add-account form dialog survives recreation. */
+private const val ADD_FORM_DIALOG_ID = -2L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountManagementScreen(
@@ -149,7 +158,16 @@ fun AccountManagementScreen(
   modifier: Modifier = Modifier
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
-  var dialogState by remember { mutableStateOf<AccountDialogState>(AccountDialogState.None) }
+  var formDialogTargetId by rememberSaveable { mutableStateOf(NO_FORM_DIALOG_ID) }
+  var dialogState by remember(formDialogTargetId) {
+    mutableStateOf<AccountDialogState>(
+      if (formDialogTargetId == ADD_FORM_DIALOG_ID) {
+        AccountDialogState.Add()
+      } else {
+        AccountDialogState.None
+      }
+    )
+  }
   val scope = rememberCoroutineScope()
 
   val currentDialog = dialogState
@@ -165,13 +183,38 @@ fun AccountManagementScreen(
     }
   }
 
+  // Replays a restored form dialog once accounts load. The target survives
+  // recreation. The dialog itself does not. This effect reopens the dialog.
+  LaunchedEffect(formDialogTargetId, accounts) {
+    if (formDialogTargetId == NO_FORM_DIALOG_ID) return@LaunchedEffect
+    if (dialogState is AccountDialogState.Add || dialogState is AccountDialogState.Edit) return@LaunchedEffect
+    if (formDialogTargetId == ADD_FORM_DIALOG_ID) {
+      dialogState = AccountDialogState.Add()
+    } else {
+      val target = accounts.find { it.id == formDialogTargetId }
+      if (target != null) {
+        dialogState = AccountDialogState.Edit(target)
+      } else if (accounts.isNotEmpty()) {
+        formDialogTargetId = NO_FORM_DIALOG_ID
+      }
+    }
+  }
+
   AccountManagementScaffoldSection(
     accounts = accounts,
     dialogState = dialogState,
     modifier = modifier,
     accountViewModel = accountViewModel,
     onBack = onBack,
-    onDialogStateChange = { dialogState = it },
+    onDialogStateChange = { newState ->
+      dialogState = newState
+      formDialogTargetId =
+        when (newState) {
+          is AccountDialogState.Add -> ADD_FORM_DIALOG_ID
+          is AccountDialogState.Edit -> newState.account.id
+          else -> NO_FORM_DIALOG_ID
+        }
+    },
     scope = scope,
     currentDialogState = { dialogState }
   )
@@ -303,11 +346,13 @@ private fun AccountManagementDialogs(
         isSaving = isSavingAccount
       )
     is AccountDialogState.Edit ->
-      AccountDialog(
-        initialAccount = dialogState.account,
-        onDismiss = onDismiss,
-        onSave = { form -> onUpdateAccount(dialogState.account, form) }
-      )
+      key(dialogState.account.id) {
+        AccountDialog(
+          initialAccount = dialogState.account,
+          onDismiss = onDismiss,
+          onSave = { form -> onUpdateAccount(dialogState.account, form) }
+        )
+      }
     is AccountDialogState.DeleteConfirmation ->
       DeleteAccountConfirmDialog(
         account = dialogState.account,
@@ -563,6 +608,51 @@ private fun AccountOverflowMenu(
   }
 }
 
+private class AccountDialogFormState(
+  val nameState: MutableState<String>,
+  val selectedTypeState: MutableState<AccountType>,
+  val bankNameState: MutableState<String>,
+  val cardNumberState: MutableState<String>,
+  val accountNumberState: MutableState<String>,
+  val ibanState: MutableState<String>,
+  val initialBalanceState: MutableState<String>,
+  val selectedColorState: MutableState<Long>,
+  val prefilledBalance: String,
+)
+
+@Composable
+private fun rememberAccountDialogFormState(initialAccount: AccountEntity?): AccountDialogFormState {
+  val accountIdKey = initialAccount?.id ?: ADD_FORM_DIALOG_ID
+  val nameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.name.orEmpty()) }
+  val selectedTypeState =
+    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
+  val bankNameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.bankName.orEmpty()) }
+  val cardNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
+  val accountNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
+  val ibanState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.iban.orEmpty()) }
+  val prefilledBalance =
+    remember(accountIdKey, initialAccount?.initialBalance) {
+      initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0"
+    }
+  val initialBalanceState = rememberSaveable(accountIdKey) { mutableStateOf(prefilledBalance) }
+  val selectedColorState =
+    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
+
+  return remember(initialAccount) {
+    AccountDialogFormState(
+      nameState = nameState,
+      selectedTypeState = selectedTypeState,
+      bankNameState = bankNameState,
+      cardNumberState = cardNumberState,
+      accountNumberState = accountNumberState,
+      ibanState = ibanState,
+      initialBalanceState = initialBalanceState,
+      selectedColorState = selectedColorState,
+      prefilledBalance = prefilledBalance,
+    )
+  }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AccountDialog(
@@ -571,6 +661,8 @@ private fun AccountDialog(
   onSave: (AccountFormData) -> Unit,
   isSaving: Boolean = false
 ) {
+  val formState = rememberAccountDialogFormState(initialAccount)
+
   AlertDialog(
     onDismissRequest = onDismiss,
     title = {
@@ -579,7 +671,14 @@ private fun AccountDialog(
         fontWeight = FontWeight.Bold
       )
     },
-    text = { AccountDialogForm(initialAccount = initialAccount, onSave = onSave, isSaving = isSaving) },
+    text = {
+      AccountDialogForm(
+        formState = formState,
+        initialAccount = initialAccount,
+        onSave = onSave,
+        isSaving = isSaving
+      )
+    },
     confirmButton = {},
     dismissButton = {
       HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Text)
@@ -591,20 +690,20 @@ private fun AccountDialog(
 @Suppress("LongMethod")
 @Composable
 private fun AccountDialogForm(
+  formState: AccountDialogFormState,
   initialAccount: AccountEntity?,
   onSave: (AccountFormData) -> Unit,
   isSaving: Boolean = false
 ) {
-  var name by remember { mutableStateOf(initialAccount?.name.orEmpty()) }
-  var selectedType by remember { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
-  var bankName by remember { mutableStateOf(initialAccount?.bankName.orEmpty()) }
-  var cardNumber by remember { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
-  var accountNumber by remember { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
-  var iban by remember { mutableStateOf(initialAccount?.iban.orEmpty()) }
-  // The opening balance is typed in the user's display unit; the database stores Rial.
-  val prefilledBalance =
-    remember { initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0" }
-  var initialBalance by remember { mutableStateOf(prefilledBalance) }
+  var name by formState.nameState
+  var selectedType by formState.selectedTypeState
+  var bankName by formState.bankNameState
+  var cardNumber by formState.cardNumberState
+  var accountNumber by formState.accountNumberState
+  var iban by formState.ibanState
+  var initialBalance by formState.initialBalanceState
+  var selectedColor by formState.selectedColorState
+  val prefilledBalance = formState.prefilledBalance
   val parsedBalance =
     DisplayAmountInput.resolveEditedRial(
       text = initialBalance,
@@ -612,7 +711,6 @@ private fun AccountDialogForm(
       originalRial = initialAccount?.initialBalance
     )
   val balanceError = initialBalance.isNotBlank() && parsedBalance == null
-  var selectedColor by remember { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
   var typeDropdownExpanded by remember { mutableStateOf(false) }
 
   Column(

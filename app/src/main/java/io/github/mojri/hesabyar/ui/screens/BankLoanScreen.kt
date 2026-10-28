@@ -24,7 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +52,7 @@ fun BankLoanScreen(
   modifier: Modifier = Modifier
 ) {
   val bankLoans by bankLoanViewModel.bankLoans.collectAsState()
-  var showAddDialog by remember { mutableStateOf(false) }
+  var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
   HesabyarScaffold(
     modifier = modifier,
@@ -104,7 +104,7 @@ private fun BankLoanItem(
   onToggleSettled: () -> Unit,
   onDelete: () -> Unit
 ) {
-  var showDeleteConfirm by remember { mutableStateOf(false) }
+  var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
   if (showDeleteConfirm) {
     ConfirmDialog(
       title = "حذف وام بانکی",
@@ -197,14 +197,14 @@ private fun AddBankLoanDialog(
     description: String
   ) -> Unit
 ) {
-  var bankName by remember { mutableStateOf("") }
-  var loanName by remember { mutableStateOf("") }
-  var received by remember { mutableStateOf("") }
-  var monthly by remember { mutableStateOf("") }
-  var count by remember { mutableStateOf("") }
-  var description by remember { mutableStateOf("") }
-  var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
-  var showDatePicker by remember { mutableStateOf(false) }
+  var bankName by rememberSaveable { mutableStateOf("") }
+  var loanName by rememberSaveable { mutableStateOf("") }
+  var received by rememberSaveable { mutableStateOf("") }
+  var monthly by rememberSaveable { mutableStateOf("") }
+  var count by rememberSaveable { mutableStateOf("") }
+  var description by rememberSaveable { mutableStateOf("") }
+  var startDate by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+  var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
   if (showDatePicker) {
     JalaliDatePickerDialog(

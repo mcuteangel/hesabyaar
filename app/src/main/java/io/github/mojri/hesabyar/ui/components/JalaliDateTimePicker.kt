@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +44,8 @@ internal fun JalaliDateTimePicker(
   initialTimestamp: Long,
   onTimestampChanged: (Long) -> Unit
 ) {
-  var showJalaliDatePicker by remember { mutableStateOf(false) }
-  var showCustomTimePicker by remember { mutableStateOf(false) }
+  var showJalaliDatePicker by rememberSaveable { mutableStateOf(false) }
+  var showCustomTimePicker by rememberSaveable { mutableStateOf(false) }
 
   val calendar =
     remember(initialTimestamp) {

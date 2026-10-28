@@ -20,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -84,7 +85,7 @@ fun DashboardScreen(
   val accounts by dashboardViewModel.accounts.collectAsState()
   val selectedAccountId by dashboardViewModel.selectedAccountId.collectAsState()
 
-  var showManualAddDialog by remember { mutableStateOf(false) }
+  var showManualAddDialog by rememberSaveable { mutableStateOf(false) }
   var showFullForecast by remember { mutableStateOf(false) }
   var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
   var deletingTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -231,7 +232,7 @@ fun DashboardScreen(
           )
         }
       } else {
-        items(dashboardData.upcomingInstallments.take(3)) { installment ->
+        items(dashboardData.upcomingInstallments.take(3), key = { "installment-${it.id}" }) { installment ->
           InstallmentMiniItem(
             installment = installment,
             onTogglePaid = { installmentViewModel.toggleInstallmentPaid(installment) }
@@ -259,7 +260,7 @@ fun DashboardScreen(
           )
         }
       } else {
-        items(transactions.take(5)) { transaction ->
+        items(transactions.take(5), key = { "transaction-${it.id}" }) { transaction ->
           TransactionMiniItem(
             transaction = transaction,
             categories = categories,
