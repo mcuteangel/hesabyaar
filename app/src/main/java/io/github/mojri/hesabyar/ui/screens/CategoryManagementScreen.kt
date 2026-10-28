@@ -416,13 +416,15 @@ private fun CategoryDialog(
     confirmButton = {
       HesabyarButton(
         onClick = {
-          onSave(
-            state.name.trim(),
-            state.finalKey,
-            state.selectedIcon,
-            state.selectedColor,
-            state.selectedType
-          )
+          if (state.isValid) {
+            onSave(
+              state.name.trim(),
+              state.finalKey,
+              state.selectedIcon,
+              state.selectedColor,
+              state.selectedType
+            )
+          }
         },
         text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,

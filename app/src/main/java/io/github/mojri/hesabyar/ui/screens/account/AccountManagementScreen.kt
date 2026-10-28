@@ -572,7 +572,7 @@ private fun AccountDialog(
 
   HesabyarDialog(
     title = if (initialAccount != null) "ویرایش حساب" else "افزودن حساب جدید",
-    onDismissRequest = onDismiss,
+    onDismissRequest = { if (!isSaving) onDismiss() },
     confirmButton = {
       HesabyarButton(
         onClick = {
@@ -582,14 +582,16 @@ private fun AccountDialog(
         },
         text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,
-        enabled = state.isSaveEnabled && !isSaving
+        enabled = state.isSaveEnabled && !isSaving,
+        loading = isSaving
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
         text = stringResource(R.string.action_cancel),
-        variant = ButtonVariant.Text
+        variant = ButtonVariant.Text,
+        enabled = !isSaving
       )
     }
   ) {

@@ -750,10 +750,11 @@ private object SecurityDialogs {
     var verifying by remember { mutableStateOf(false) }
 
     HesabyarDialog(
-      onDismissRequest = onDismiss,
+      onDismissRequest = { if (!verifying) onDismiss() },
       title = "تأیید رمز عبور",
       confirmText = "تأیید و غیرفعال‌سازی",
       confirmEnabled = currentPin.length == PIN_LENGTH && !verifying,
+      confirmLoading = verifying,
       onConfirm = {
         scope.launch {
           verifying = true
@@ -783,7 +784,7 @@ private object SecurityDialogs {
         }
       },
       dismissText = stringResource(R.string.action_cancel),
-      onDismiss = onDismiss
+      onDismiss = { if (!verifying) onDismiss() }
     ) {
       HesabyarInputField(
         value = currentPin,
