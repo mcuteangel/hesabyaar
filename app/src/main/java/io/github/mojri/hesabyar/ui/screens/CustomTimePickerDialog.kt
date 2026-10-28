@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,9 +53,9 @@ fun CustomTimePickerDialog(
   onDismissRequest: () -> Unit,
   onTimeSelected: (Int, Int) -> Unit
 ) {
-  var selectedHour by rememberSaveable { mutableStateOf(initialHour) }
-  var selectedMinute by rememberSaveable { mutableStateOf(initialMinute) }
-  var activeTab by rememberSaveable { mutableStateOf(TimePickerTab.HOUR) }
+  var selectedHour by rememberSaveable(initialHour) { mutableStateOf(initialHour) }
+  var selectedMinute by rememberSaveable(initialMinute) { mutableStateOf(initialMinute) }
+  var activeTab by rememberSaveable(initialHour, initialMinute) { mutableStateOf(TimePickerTab.HOUR) }
 
   val density = LocalDensity.current
   val outerLabelRadiusPx = remember(density) { with(density) { 96.dp.toPx() } }
