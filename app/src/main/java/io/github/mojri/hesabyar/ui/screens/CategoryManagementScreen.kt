@@ -615,7 +615,12 @@ private fun CategoryDialog(
           // corrupted restore. It never persists from this dialog.
           val typeToSave =
             if (selectedType == CategoryType.UNKNOWN) {
-              initialCategory?.type ?: CategoryType.EXPENSE
+              val current = initialCategory?.type
+              if (current != null && current != CategoryType.UNKNOWN) {
+                current
+              } else {
+                CategoryType.EXPENSE
+              }
             } else {
               selectedType
             }
