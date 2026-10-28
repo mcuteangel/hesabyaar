@@ -1,0 +1,25 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CustomTimePickerDialog.kt
+  s_99eb87419a29b6::t_a7f51862b05419 13
+  s_99eb87419a29b6::t_e83952d611e21d 56-58
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_99eb87419a29b6::t_f96e0c2b305c93 162-170
+  s_99eb87419a29b6::t_b61fbc73c6a2fd 43
+  s_99eb87419a29b6::t_bd5ad5e9029622 349-355
+  s_99eb87419a29b6::t_b966137042056e 611-650,659-660,670-675,688,693-701
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fbf2b9852f8feade58a52f1a734fad10415c120b",
+  "prompts": {},
+  "sessions": {
+    "s_99eb87419a29b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4b0e1d0-87ad-4421-b988-d829658f0c8f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
