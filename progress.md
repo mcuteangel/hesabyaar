@@ -12,7 +12,7 @@ Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 
 
 - [x] Await user approval of Plan 025 before execution. (Approved by user)
 - [x] Phase 0: Baseline verification & branch setup (`refactor/issue-71-category-type-end-to-end`).
-- [ ] Phase 1: Data layer refactoring (`CategoryDao`, `CategoryOps`, `CategoryDelegate`).
+- [x] Phase 1: Data layer refactoring (`CategoryDao`, `CategoryOps`, `CategoryDelegate`).
 - [ ] Phase 2: Domain layer update (`ManageCategoryUseCase`).
 - [ ] Phase 3: Test fakes and test suite updates (`FakeRepository` variants, `ManageCategoryUseCaseTest`, `RepositoryLogicTest`).
 - [ ] Phase 4: Verification, static analysis (`ktlintCheck`, `detekt`, `testDebugUnitTest`), and evidence collection.

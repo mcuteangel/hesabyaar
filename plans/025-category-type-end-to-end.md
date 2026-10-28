@@ -79,23 +79,13 @@ This raw `String` boundary introduces several issues:
    ```
 4. Verify baseline passes before applying any edits. (Completed: BUILD SUCCESSFUL, exit code 0)
 
-### Phase 1: Data Layer Refactoring
+### Phase 1: Data Layer Refactoring (Completed)
 1. Edit `app/src/main/java/io/github/mojri/hesabyar/data/Daos.kt`:
-   - Update `CategoryDao`:
-     ```kotlin
-     @Query("SELECT * FROM categories WHERE type = :type OR type = 'BOTH' ORDER BY isDefault DESC, name ASC")
-     fun getCategoriesByType(type: CategoryType): Flow<List<Category>>
-     ```
+   - Updated `CategoryDao.getCategoriesByType` to accept `CategoryType`. (Completed)
 2. Edit `app/src/main/java/io/github/mojri/hesabyar/data/RepositoryOps.kt`:
-   - Update `CategoryOps`:
-     ```kotlin
-     fun getCategoriesByType(type: CategoryType): Flow<List<Category>>
-     ```
+   - Updated `CategoryOps.getCategoriesByType` to accept `CategoryType`. (Completed)
 3. Edit `app/src/main/java/io/github/mojri/hesabyar/data/CategoryDelegate.kt`:
-   - Update `CategoryDelegate`:
-     ```kotlin
-     override fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = categoryDao.getCategoriesByType(type)
-     ```
+   - Updated `CategoryDelegate.getCategoriesByType` to pass `type: CategoryType`. (Completed)
 
 ### Phase 2: Domain Layer Update
 1. Edit `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCase.kt`:
