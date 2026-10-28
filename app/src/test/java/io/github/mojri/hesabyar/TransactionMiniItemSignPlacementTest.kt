@@ -1,14 +1,17 @@
-package io.github.mojri.hesabyar.ui
+package io.github.mojri.hesabyar
 
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.LayoutDirection
-import io.github.mojri.hesabyar.ui.components.TransactionItem
+import io.github.mojri.hesabyar.data.Transaction
+import io.github.mojri.hesabyar.data.TransactionType
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.CurrencyUnit
+import io.github.mojri.hesabyar.ui.screens.dashboard.components.TransactionMiniItem
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,25 +23,25 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Compose UI tests for [TransactionItem] signed-amount rendering.
+ * Compose UI tests for [TransactionMiniItem] signed-amount rendering.
  *
- * The amount block renders the sign and the formatted amount in separate
- * `Text` composables inside an LTR provider (see
- * `CurrencyFormatter.formatSignedParts` — separate Texts prevent the bidi
- * algorithm from reordering the sign across the digits in an RTL layout).
- * The shared Row merges descendants so TalkBack announces the pair as one
- * node instead of two separate focusables.
+ * Migrated from [io.github.mojri.hesabyar.ui.TransactionItemSignPlacementTest]
+ * as part of issue #340 dead code cleanup.
+ *
+ * Verifies that:
+ * 1. The minus sign for negative amounts renders to the LEFT of the amount digits in RTL layout.
+ * 2. The plus sign for positive amounts renders to the LEFT of the amount digits in RTL layout.
+ * 3. Separate Text composables are maintained for the sign and digits to prevent RTL bidi reversal.
+ * 4. Transfer transactions render positive (+) sign instead of negative expense treatment.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
-class TransactionItemSignPlacementTest {
+class TransactionMiniItemSignPlacementTest {
   @get:Rule
   val composeRule = createComposeRule()
 
   @Before
   fun setUp() {
-    // Fixed display unit so the expected formatted strings are deterministic
-    // regardless of the unit state left behind by other tests.
     CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
   }
 
@@ -49,20 +52,25 @@ class TransactionItemSignPlacementTest {
 
   private fun setAmountUnderRtl(
     amount: Long,
-    isIncome: Boolean
+    type: TransactionType
   ) {
+    val transaction =
+      Transaction(
+        id = 42L,
+        type = type,
+        categoryId = 1L,
+        amount = amount,
+        description = "خرید نان",
+        date = 1752580800000L,
+        accountId = 1L,
+      )
+
     composeRule.setContent {
-      // Simulate the app's RTL layout: the sign must still render to the
-      // LEFT of the digits because the amount block forces LTR paragraph
-      // direction and keeps the sign in its own Text.
       CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        TransactionItem(
-          title = "خرید نان",
-          amount = amount,
-          isIncome = isIncome,
-          categoryColor = Color.Gray,
-          categoryInitial = "ن",
-          transactionId = 42L,
+        TransactionMiniItem(
+          transaction = transaction,
+          categories = emptyList(),
+          accounts = emptyList(),
         )
       }
     }
@@ -70,7 +78,7 @@ class TransactionItemSignPlacementTest {
 
   @Test
   fun negativeAmountRendersMinusSignToTheLeftOfAmount() {
-    setAmountUnderRtl(amount = 1_000_000L, isIncome = false)
+    setAmountUnderRtl(amount = 1_000_000L, type = TransactionType.EXPENSE)
 
     val signNode =
       composeRule
@@ -91,7 +99,7 @@ class TransactionItemSignPlacementTest {
 
   @Test
   fun positiveAmountRendersPlusSignToTheLeftOfAmount() {
-    setAmountUnderRtl(amount = 1_000_000L, isIncome = true)
+    setAmountUnderRtl(amount = 1_000_000L, type = TransactionType.INCOME)
 
     val signNode =
       composeRule
@@ -111,18 +119,18 @@ class TransactionItemSignPlacementTest {
   }
 
   @Test
-  fun amountRowMergesSignAndAmountIntoOneAccessibilityNode() {
-    setAmountUnderRtl(amount = 1_000_000L, isIncome = false)
+  fun amountRowMaintainsSeparateSignAndAmountNodes() {
+    setAmountUnderRtl(amount = 1_000_000L, type = TransactionType.EXPENSE)
 
     // The sign and the amount stay separate Text nodes (the BIDI safeguard
     // from formatSignedParts) — not a single concatenated string.
     assertEquals(
-      "sign must be its own text node",
+      "sign must be its own text node in unmerged tree",
       1,
       composeRule.onAllNodesWithText("-", useUnmergedTree = true).fetchSemanticsNodes().size
     )
     assertEquals(
-      "amount must be its own text node",
+      "amount must be its own text node in unmerged tree",
       1,
       composeRule
         .onAllNodesWithText("۱۰۰٬۰۰۰", substring = true, useUnmergedTree = true)
@@ -130,41 +138,34 @@ class TransactionItemSignPlacementTest {
         .size
     )
 
-    // But the shared Row merges descendants, so in the merged (accessibility)
-    // tree exactly one node carries the sign and one node the amount, and
-    // that node is displayed.
-    assertEquals(
-      "merged tree must expose exactly one node for the sign",
-      1,
-      composeRule.onAllNodesWithText("-").fetchSemanticsNodes().size
-    )
-    assertEquals(
-      "merged tree must expose exactly one node for the amount",
-      1,
-      composeRule.onAllNodesWithText("۱۰۰٬۰۰۰", substring = true).fetchSemanticsNodes().size
-    )
-    composeRule.onNodeWithText("-").assertIsDisplayed()
+    composeRule.onNodeWithText("-", useUnmergedTree = true).assertIsDisplayed()
+    composeRule.onNodeWithText("۱۰۰٬۰۰۰", substring = true, useUnmergedTree = true).assertIsDisplayed()
   }
 
   @Test
   fun transferRendersPositiveAmountNotAsExpense() {
+    val transaction =
+      Transaction(
+        id = 42L,
+        type = TransactionType.TRANSFER,
+        categoryId = 1L,
+        amount = 1_000_000L,
+        description = "انتقال",
+        date = 1752580800000L,
+        accountId = 1L,
+        destinationAccountId = 2L,
+      )
+
     composeRule.setContent {
       CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        TransactionItem(
-          title = "انتقال",
-          amount = 1_000_000L,
-          isIncome = false,
-          isTransfer = true,
-          categoryColor = Color.Gray,
-          categoryInitial = "ن",
-          transactionId = 42L,
+        TransactionMiniItem(
+          transaction = transaction,
+          categories = emptyList(),
+          accounts = emptyList(),
         )
       }
     }
 
-    // A transfer is neither income nor expense: it must render a positive (+)
-    // sign, not the red, negative minus-expense treatment. (Distinct from the
-    // bidi sign-placement tests above.)
     composeRule.onNodeWithText("+", useUnmergedTree = true).assertIsDisplayed()
     assertEquals(
       "transfer must not render a minus-expense sign",
