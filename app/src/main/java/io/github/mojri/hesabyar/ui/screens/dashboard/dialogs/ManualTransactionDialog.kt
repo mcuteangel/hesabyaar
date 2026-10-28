@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,8 +48,8 @@ internal fun ManualTransactionDialog(
 ) {
   val context = LocalContext.current
   val isEditMode = transactionToEdit != null
-  var selectedType by remember { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
-  var destinationAccountId by remember {
+  var selectedType by rememberSaveable { mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name) }
+  var destinationAccountId by rememberSaveable {
     mutableStateOf(
       if (isEditMode && transactionToEdit.type == TransactionType.TRANSFER) {
         transactionToEdit.destinationAccountId
@@ -62,22 +63,22 @@ internal fun ManualTransactionDialog(
   // selection (falling back to the transaction's own account) and must not be
   // re-derived from the transaction on every recomposition, which would
   // discard the user's choice.
-  var sourceAccountId by remember { mutableStateOf(selectedAccountId ?: transactionToEdit?.accountId) }
+  var sourceAccountId by rememberSaveable { mutableStateOf(selectedAccountId ?: transactionToEdit?.accountId) }
   val originalAmountRial by remember { mutableStateOf(transactionToEdit?.amount ?: 0L) }
-  var amountValue by remember {
+  var amountValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
     mutableStateOf(
       TextFieldValue(
         if (isEditMode) CurrencyFormatter.fromRial(transactionToEdit.amount).toString() else ""
       )
     )
   }
-  var amountModified by remember { mutableStateOf(false) }
-  var descriptionText by remember { mutableStateOf(transactionToEdit?.description.orEmpty()) }
-  var selectedCategoryId by remember { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
-  var personNameText by remember { mutableStateOf(transactionToEdit?.personName ?: "") }
-  var titleText by remember { mutableStateOf(transactionToEdit?.description ?: "") }
-  var daysFromNowText by remember { mutableStateOf("30") }
-  var customDate by remember { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
+  var amountModified by rememberSaveable { mutableStateOf(false) }
+  var descriptionText by rememberSaveable { mutableStateOf(transactionToEdit?.description.orEmpty()) }
+  var selectedCategoryId by rememberSaveable { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
+  var personNameText by rememberSaveable { mutableStateOf(transactionToEdit?.personName ?: "") }
+  var titleText by rememberSaveable { mutableStateOf(transactionToEdit?.description ?: "") }
+  var daysFromNowText by rememberSaveable { mutableStateOf("30") }
+  var customDate by rememberSaveable { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
   var isSubmitting by remember { mutableStateOf(false) }
 
   val filteredCategories =
