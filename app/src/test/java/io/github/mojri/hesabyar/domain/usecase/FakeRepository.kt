@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 internal class FakeRepository : HesabyarRepositoryInterface {
   private val bankLoans = mutableListOf<BankLoan>()
@@ -59,7 +61,8 @@ internal class FakeRepository : HesabyarRepositoryInterface {
     end: Long
   ): Flow<List<Transaction>> = flowOf(emptyList())
 
-  override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
+  override fun getCategoriesByType(type: CategoryType): Flow<List<Category>> =
+    _allCategories.map { list -> list.filter { it.type == type || it.type == CategoryType.BOTH } }
 
   override suspend fun getCategoryById(id: Long): Category? = _allCategories.value.firstOrNull { it.id == id }
 

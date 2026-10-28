@@ -44,8 +44,8 @@ This raw `String` boundary introduces several issues:
 
 | File | Purpose |
 |---|---|
-| `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCaseTest.kt` <!-- check-docs: ignore --> | New unit test suite verifying `ManageCategoryUseCase` delegates `getCategoriesByType(CategoryType)` and all category operations |
-| `app/src/test/java/io/github/mojri/hesabyar/RepositoryLogicTest.kt` | Add in-memory Room test verifying `getCategoriesByType(CategoryType)` query binding and `BOTH` matching |
+| `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCaseTest.kt` | New unit test suite verifying `ManageCategoryUseCase` delegates `getCategoriesByType(CategoryType)` and all category operations |
+| `app/src/test/java/io/github/mojri/hesabyar/data/CategoryRepositoryLogicTest.kt` | Add in-memory Room test verifying `getCategoriesByType(CategoryType)` query binding and `BOTH` matching (split to avoid LargeClass) |
 
 ## 2. Goals & Acceptance Criteria
 
@@ -61,7 +61,7 @@ This raw `String` boundary introduces several issues:
 - [ ] **Criterion 3 (Test Fakes & Suite Consistency):**
   - All repository test fakes (`ui/FakeRepository.kt`, `domain/usecase/FakeRepository.kt`, and `InstallmentViewModelTest.kt`) implement the updated `CategoryType` signature.
   - New comprehensive unit test suite in `ManageCategoryUseCaseTest.kt` covering all methods of `ManageCategoryUseCase`.
-  - Integration/logic test in `RepositoryLogicTest.kt` verifying Room query execution with `CategoryType.EXPENSE`, `CategoryType.INCOME`, and `CategoryType.BOTH`.
+  - Integration/logic test in `CategoryRepositoryLogicTest.kt` verifying Room query execution with `CategoryType.EXPENSE`, `CategoryType.INCOME`, and `CategoryType.BOTH`.
 
 - [ ] **Criterion 4 (Clean Build & Static Analysis):**
   - `./gradlew testDebugUnitTest --no-daemon` passes with 0 failures.
@@ -91,19 +91,19 @@ This raw `String` boundary introduces several issues:
 1. Edit `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCase.kt`:
    - Updated `getCategoriesByType` to forward `type: CategoryType` directly to `repository.getCategoriesByType(type)`. (Completed)
 
-### Phase 3: Test Fakes and Test Suite Updates
+### Phase 3: Test Fakes and Test Suite Updates (Completed)
 1. Edit `app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt`:
-   - Update `getCategoriesByType` signature to `(type: CategoryType)`.
+   - Updated `getCategoriesByType` signature to `(type: CategoryType)`. (Completed)
 2. Edit `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/FakeRepository.kt`:
-   - Update `getCategoriesByType` signature to `(type: CategoryType)`.
+   - Updated `getCategoriesByType` signature to `(type: CategoryType)` and filtered for `type` or `CategoryType.BOTH`. (Completed)
 3. Edit `app/src/test/java/io/github/mojri/hesabyar/ui/InstallmentViewModelTest.kt`:
-   - Update `getCategoriesByType` signature to `(type: CategoryType)`.
-4. Create `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCaseTest.kt` <!-- check-docs: ignore -->:
-   - Test `getCategoriesByType` passes `CategoryType` correctly and returns matching flow.
-   - Test `addCategory` with `CategoryType`.
-   - Test `getCategoryById`, `getCategoryByKey`, `deleteCategory`, and `allCategories` delegation.
-5. Edit `app/src/test/java/io/github/mojri/hesabyar/RepositoryLogicTest.kt`:
-   - Add test `getCategoriesByTypeFiltersCorrectlyWithBoth()` asserting that `repo.getCategoriesByType(CategoryType.EXPENSE)` retrieves both `EXPENSE` and `BOTH` categories, but excludes `INCOME` categories.
+   - Updated `getCategoriesByType` signature to `(type: CategoryType)`. (Completed)
+4. Create `app/src/test/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCaseTest.kt`:
+   - Tested `getCategoriesByType` passing `CategoryType` for `EXPENSE` and `INCOME` (both matching `BOTH`). (Completed, 7/7 tests pass)
+   - Tested `addCategory` with `CategoryType`. (Completed)
+   - Tested `getCategoryById`, `getCategoryByKey`, `updateCategory`, `deleteCategory`, and `allCategories` delegation. (Completed)
+5. Create `app/src/test/java/io/github/mojri/hesabyar/data/CategoryRepositoryLogicTest.kt`:
+   - Added test `getCategoriesByTypeFiltersCorrectlyWithBoth()` asserting that `repo.getCategoriesByType(CategoryType.EXPENSE)` retrieves both `EXPENSE` and `BOTH` categories in in-memory Room SQLite database, and excludes `INCOME` categories. Created in a dedicated class to avoid tripping detekt `LargeClass` on `RepositoryLogicTest.kt`. (Completed, passed)
 
 ### Phase 4: Verification & Static Analysis
 1. Run code formatting and static analysis:
