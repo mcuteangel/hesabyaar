@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui
 
 import io.github.mojri.hesabyar.ui.utils.extractForecastPreview
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,6 +14,11 @@ import org.junit.Test
 class DashboardHelperTest {
   /** Strip LRM prefix so tests focus on formatting logic, not BIDI control chars. */
   private fun String.stripLrm(): String = removePrefix("\u200E")
+
+  @After
+  fun tearDown() {
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+  }
 
   // --- CurrencyFormatter.format tests (default: تومان) ---
 

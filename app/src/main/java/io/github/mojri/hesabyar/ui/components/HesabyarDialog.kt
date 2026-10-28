@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -219,7 +220,13 @@ private fun resolveConfirmButton(
       variant = ButtonVariant.Filled,
       enabled = enabled,
       loading = loading,
-      colors = color?.let { ButtonDefaults.buttonColors(containerColor = it) }
+      colors =
+        color?.let {
+          ButtonDefaults.buttonColors(
+            containerColor = it,
+            contentColor = contentColorFor(it)
+          )
+        }
     )
   }
 }

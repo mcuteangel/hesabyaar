@@ -636,6 +636,11 @@ fun SecuritySection(
         pendingDisable = false
         showVerifyPinDialog = false
         settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+      },
+      onClearFailed = { error ->
+        showVerifyPinDialog = false
+        pendingDisable = false
+        settingsViewModel.showMessage(error)
       }
     )
   }
@@ -738,10 +743,42 @@ private fun RestoreModeOption(
 private object SecurityDialogs {
   private const val PIN_LENGTH = 6
 
+  private suspend fun verifyAndClearPin(
+    context: Context,
+    pin: String,
+    onSuccess: () -> Unit,
+    onClearFailed: (String) -> Unit,
+    onInvalidPin: (String) -> Unit,
+    onVerifyError: (String) -> Unit
+  ) {
+    try {
+      val verified = withContext(Dispatchers.IO) { PinStorage.verifyPin(context, pin) }
+      if (verified) {
+        val cleared =
+          try {
+            withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
+            true
+          } catch (_: Exception) {
+            false
+          }
+        if (cleared) {
+          onSuccess()
+        } else {
+          onClearFailed("خطا در غیرفعالسازی قفل برنامه")
+        }
+      } else {
+        onInvalidPin("رمز عبور اشتباه است")
+      }
+    } catch (_: Exception) {
+      onVerifyError("خطا در بررسی رمز عبور")
+    }
+  }
+
   @Composable
   fun VerifyPinDialog(
     onDismiss: () -> Unit,
-    onPinVerifiedAndCleared: () -> Unit
+    onPinVerifiedAndCleared: () -> Unit,
+    onClearFailed: ((String) -> Unit)? = null
   ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -759,25 +796,21 @@ private object SecurityDialogs {
         scope.launch {
           verifying = true
           try {
-            val verified = withContext(Dispatchers.IO) { PinStorage.verifyPin(context, currentPin) }
-            if (verified) {
-              val cleared =
-                try {
-                  withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
-                  true
-                } catch (_: Exception) {
-                  false
+            verifyAndClearPin(
+              context = context,
+              pin = currentPin,
+              onSuccess = onPinVerifiedAndCleared,
+              onClearFailed = { error ->
+                pinError = error
+                if (onClearFailed != null) {
+                  onClearFailed(error)
+                } else {
+                  onDismiss()
                 }
-              if (cleared) {
-                onPinVerifiedAndCleared()
-              } else {
-                pinError = "خطا در غیرفعالسازی قفل برنامه"
-              }
-            } else {
-              pinError = "رمز عبور اشتباه است"
-            }
-          } catch (_: Exception) {
-            pinError = "خطا در بررسی رمز عبور"
+              },
+              onInvalidPin = { pinError = it },
+              onVerifyError = { pinError = it }
+            )
           } finally {
             verifying = false
           }

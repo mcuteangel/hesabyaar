@@ -2,9 +2,13 @@ package io.github.mojri.hesabyar.ui.screens.account
 
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
+import io.github.mojri.hesabyar.ui.CurrencyUnit
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -14,6 +18,19 @@ import org.junit.Test
  * - Non-blank malformed balance marks [AccountFormState.balanceError] and disables saving.
  */
 class AccountFormStateTest {
+  private var previousUnit: CurrencyUnit? = null
+
+  @Before
+  fun setUp() {
+    previousUnit = CurrencyFormatter.currentUnit
+    CurrencyFormatter.setUnit(CurrencyUnit.TOMAN)
+  }
+
+  @After
+  fun tearDown() {
+    previousUnit?.let { CurrencyFormatter.setUnit(it) }
+  }
+
   @Test
   fun addModeWithBlankBalanceDefaultsToZeroAndAllowsSave() {
     val state = AccountFormState(initialAccount = null)
@@ -34,6 +51,18 @@ class AccountFormStateTest {
     assertFalse(state.balanceError)
     assertTrue(state.isSaveEnabled)
     assertEquals(500_000L, state.toFormData().initialBalance)
+  }
+
+  @Test
+  fun addModeWithValidBalanceInRialUnitStoresExactAmount() {
+    CurrencyFormatter.setUnit(CurrencyUnit.RIAL)
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب جاری"
+    state.initialBalance = "50000"
+
+    assertFalse(state.balanceError)
+    assertTrue(state.isSaveEnabled)
+    assertEquals(50_000L, state.toFormData().initialBalance)
   }
 
   @Test
