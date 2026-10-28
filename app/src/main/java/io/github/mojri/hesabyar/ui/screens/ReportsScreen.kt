@@ -607,7 +607,9 @@ fun ReportsScreen(
       message = "آیا از حذف این تراکنش اطمینان دارید؟",
       confirmText = "حذف",
       onConfirm = {
-        transactionViewModel.deleteTransaction(deletingTransaction!!)
+        deletingTransaction?.let { tx ->
+          transactionViewModel.deleteTransaction(tx)
+        }
         deletingTransaction = null
       },
       onDismiss = { deletingTransaction = null }

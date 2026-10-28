@@ -6,8 +6,6 @@
 
 ## Active Task
 
-## Active Task
-
 - None currently active.
 
 ## Goal
@@ -16,7 +14,7 @@
 
 ## Completed
 
-- **Task:** Issue #350 — [UX][Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 024)
+- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 024)
 - **Status:** Completed and verified (branch `feat/issue-350-dialog-policy`)
 - **Completed Date:** 2026-10-26
 - **Deliverables:**

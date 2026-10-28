@@ -575,7 +575,11 @@ private fun AccountDialog(
     onDismissRequest = onDismiss,
     confirmButton = {
       HesabyarButton(
-        onClick = { onSave(state.toFormData()) },
+        onClick = {
+          if (!isSaving && state.isSaveEnabled) {
+            onSave(state.toFormData())
+          }
+        },
         text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,
         enabled = state.isSaveEnabled && !isSaving
@@ -672,7 +676,7 @@ private class AccountFormState(
       cardNumber = cardNumber.trim().ifBlank { null },
       accountNumber = accountNumber.trim().ifBlank { null },
       iban = iban.trim().ifBlank { null },
-      initialBalance = parsedBalance ?: 0L,
+      initialBalance = parsedBalance ?: (initialAccount?.initialBalance ?: 0L),
       color = selectedColor
     )
 }

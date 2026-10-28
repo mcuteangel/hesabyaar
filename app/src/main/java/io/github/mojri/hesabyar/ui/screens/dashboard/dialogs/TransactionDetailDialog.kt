@@ -192,8 +192,12 @@ private fun TransactionAccountRow(
       )
       Text(
         text =
-          if (isTransfer && destAccount != null) {
-            "${sourceAccount.name} → ${destAccount.name}"
+          if (isTransfer) {
+            if (destAccount != null) {
+              "${sourceAccount.name} → ${destAccount.name}"
+            } else {
+              "${sourceAccount.name} → (نامشخص)"
+            }
           } else {
             sourceAccount.name
           },

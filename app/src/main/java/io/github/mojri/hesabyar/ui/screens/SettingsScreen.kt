@@ -644,10 +644,14 @@ fun SecuritySection(
     SecurityDialogs.SetPinDialog(
       onDismiss = { showSetPinDialog = false },
       onPinSet = { pin ->
-        PinStorage.setPin(context, pin)
-        isPinSet = true
-        showSetPinDialog = false
-        settingsViewModel.showMessage("قفل برنامه با رمز فعال شد")
+        try {
+          PinStorage.setPin(context, pin)
+          isPinSet = true
+          showSetPinDialog = false
+          settingsViewModel.showMessage("قفل برنامه با رمز فعال شد")
+        } catch (_: Exception) {
+          settingsViewModel.showMessage("خطا در تنظیم رمز عبور")
+        }
       }
     )
   }
@@ -748,41 +752,28 @@ private object SecurityDialogs {
     HesabyarDialog(
       onDismissRequest = onDismiss,
       title = "تأیید رمز عبور",
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            scope.launch {
-              verifying = true
-              try {
-                val verified =
-                  withContext(Dispatchers.IO) {
-                    PinStorage.verifyPin(context, currentPin)
-                  }
-                if (verified) {
-                  withContext(Dispatchers.IO) {
-                    PinStorage.clearPin(context)
-                  }
-                  onPinVerifiedAndCleared()
-                } else {
-                  pinError = "رمز عبور اشتباه است"
-                }
-              } finally {
-                verifying = false
-              }
+      confirmText = "تأیید و غیرفعال‌سازی",
+      confirmEnabled = currentPin.length == PIN_LENGTH && !verifying,
+      onConfirm = {
+        scope.launch {
+          verifying = true
+          try {
+            val verified = withContext(Dispatchers.IO) { PinStorage.verifyPin(context, currentPin) }
+            if (verified) {
+              withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
+              onPinVerifiedAndCleared()
+            } else {
+              pinError = "رمز عبور اشتباه است"
             }
-          },
-          text = "تأیید و غیرفعال‌سازی",
-          variant = ButtonVariant.Filled,
-          enabled = currentPin.length == PIN_LENGTH && !verifying
-        )
+          } catch (_: Exception) {
+            pinError = "خطا در بررسی رمز عبور"
+          } finally {
+            verifying = false
+          }
+        }
       },
-      dismissButton = {
-        HesabyarButton(
-          onClick = onDismiss,
-          text = stringResource(R.string.action_cancel),
-          variant = ButtonVariant.Text
-        )
-      }
+      dismissText = stringResource(R.string.action_cancel),
+      onDismiss = onDismiss
     ) {
       HesabyarInputField(
         value = currentPin,

@@ -205,6 +205,44 @@ private fun HesabyarDialogHeader(
 }
 
 @Composable
+private fun resolveConfirmButton(
+  text: String?,
+  onConfirm: (() -> Unit)?,
+  enabled: Boolean,
+  loading: Boolean,
+  color: Color?,
+  fallback: (@Composable () -> Unit)?
+): (@Composable () -> Unit)? {
+  if (text.isNullOrBlank() || onConfirm == null) return fallback
+  return {
+    HesabyarButton(
+      onClick = onConfirm,
+      text = text,
+      variant = ButtonVariant.Filled,
+      enabled = enabled,
+      loading = loading,
+      colors = color?.let { ButtonDefaults.buttonColors(containerColor = it) }
+    )
+  }
+}
+
+@Composable
+private fun resolveDismissButton(
+  text: String?,
+  onDismiss: (() -> Unit)?,
+  fallback: (@Composable () -> Unit)?
+): (@Composable () -> Unit)? {
+  if (text.isNullOrBlank() || onDismiss == null) return fallback
+  return {
+    HesabyarButton(
+      onClick = onDismiss,
+      text = text,
+      variant = ButtonVariant.Text
+    )
+  }
+}
+
+@Composable
 private fun HesabyarDialogActions(
   confirmText: String?,
   onConfirm: (() -> Unit)?,
@@ -217,36 +255,21 @@ private fun HesabyarDialogActions(
   dismissButton: (@Composable () -> Unit)?,
   actions: (@Composable RowScope.() -> Unit)?
 ) {
-  val resolvedConfirm: (@Composable () -> Unit)? =
-    when {
-      confirmText != null && onConfirm != null -> {
-        {
-          HesabyarButton(
-            onClick = onConfirm,
-            text = confirmText,
-            variant = ButtonVariant.Filled,
-            enabled = confirmEnabled,
-            loading = confirmLoading,
-            colors = confirmColor?.let { ButtonDefaults.buttonColors(containerColor = it) }
-          )
-        }
-      }
-      else -> confirmButton
-    }
-
-  val resolvedDismiss: (@Composable () -> Unit)? =
-    when {
-      dismissText != null && onDismiss != null -> {
-        {
-          HesabyarButton(
-            onClick = onDismiss,
-            text = dismissText,
-            variant = ButtonVariant.Text
-          )
-        }
-      }
-      else -> dismissButton
-    }
+  val resolvedConfirm =
+    resolveConfirmButton(
+      text = confirmText,
+      onConfirm = onConfirm,
+      enabled = confirmEnabled,
+      loading = confirmLoading,
+      color = confirmColor,
+      fallback = confirmButton
+    )
+  val resolvedDismiss =
+    resolveDismissButton(
+      text = dismissText,
+      onDismiss = onDismiss,
+      fallback = dismissButton
+    )
 
   if (resolvedConfirm != null || resolvedDismiss != null) {
     Spacer(modifier = Modifier.size(SpacingTokens.sm))

@@ -1,7 +1,6 @@
 package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -9,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -361,7 +362,7 @@ private fun CategoryItem(
 private class CategoryFormState(
   val isEditing: Boolean,
   initialName: String = "",
-  initialKey: String = "",
+  val initialKey: String = "",
   initialIcon: String = "Paid",
   initialColor: Long = 0xFF4CAF50L,
   initialType: CategoryType = CategoryType.EXPENSE,
@@ -379,8 +380,12 @@ private class CategoryFormState(
 
   val finalKey: String
     get() =
-      key.trim().ifBlank {
-        name.trim().replace("\\s+".toRegex(), "")
+      if (isEditing && !isKeyEnabled) {
+        initialKey
+      } else {
+        key.trim().ifBlank {
+          name.trim().replace("\\s+".toRegex(), "")
+        }
       }
 }
 
@@ -575,16 +580,20 @@ private fun CategoryColorPicker(
     ) {
       items(CATEGORY_COLORS) { color ->
         val isSelected = selectedColor == color
+        val colorHex = (color and 0xFFFFFFL).toString(16).padStart(6, '0')
         Box(
           modifier =
             Modifier
               .size(Dimens.ContainerXSmall)
               .clip(CircleShape)
               .background(Color(color))
-              .semantics {
+              .selectable(
+                selected = isSelected,
+                onClick = { onColorSelected(color) },
                 role = Role.RadioButton
-                selected = isSelected
-              }.clickable { onColorSelected(color) },
+              ).semantics {
+                contentDescription = "رنگ #$colorHex"
+              },
           contentAlignment = Alignment.Center
         ) {
           if (isSelected) {
@@ -635,7 +644,11 @@ private fun CategoryIconPicker(
                 } else {
                   MaterialTheme.colorScheme.surfaceContainerLow
                 }
-              ).clickable { onIconSelected(iconName) },
+              ).selectable(
+                selected = isSelected,
+                onClick = { onIconSelected(iconName) },
+                role = Role.RadioButton
+              ),
           contentAlignment = Alignment.Center
         ) {
           Icon(

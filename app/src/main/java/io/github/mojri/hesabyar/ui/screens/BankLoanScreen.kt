@@ -204,7 +204,7 @@ private class AddBankLoanFormState(
     get() = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
 
   val canConfirm: Boolean
-    get() = bankName.isNotBlank() && receivedRial > 0 && monthlyRial > 0 && countVal > 0
+    get() = bankName.trim().isNotBlank() && receivedRial > 0 && monthlyRial > 0 && countVal > 0
 }
 
 @Composable
@@ -296,9 +296,11 @@ internal fun BankLoanForm(
   description: String,
   onDescription: (String) -> Unit,
   startDateLabel: String,
-  onPickDate: () -> Unit
+  onPickDate: () -> Unit,
+  modifier: Modifier = Modifier
 ) {
   Column(
+    modifier = modifier.fillMaxWidth(),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
     HesabyarInputField(value = bankName, onValueChange = onBankName, label = "نام بانک")
