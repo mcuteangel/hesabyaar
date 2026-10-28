@@ -145,6 +145,7 @@ internal fun resolveDeleteDialogState(
 
 /** No account form dialog survives recreation. */
 private const val NO_FORM_DIALOG_ID = -1L
+
 /** The add-account form dialog survives recreation. */
 private const val ADD_FORM_DIALOG_ID = -2L
 
