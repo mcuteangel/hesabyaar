@@ -10,7 +10,7 @@ import androidx.compose.ui.test.StateRestorationTester
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -128,7 +128,7 @@ class StateRestorationTest {
       settle()
       assertEquals(TAB_ASSISTANT, observedTab)
 
-      tester.emulateSavedInstanceStateRestore()
+      tester.emulateSaveAndRestore()
       settle()
       onNodeWithTag("main_content").assertIsDisplayed()
       assertEquals(TAB_ASSISTANT, observedTab)
@@ -159,7 +159,7 @@ class StateRestorationTest {
         .performTextInput("۱۲۳۴۵")
       settle()
 
-      tester.emulateSavedInstanceStateRestore()
+      tester.emulateSaveAndRestore()
       settle()
 
       onNodeWithText("ثبت قسط جدید").assertIsDisplayed()

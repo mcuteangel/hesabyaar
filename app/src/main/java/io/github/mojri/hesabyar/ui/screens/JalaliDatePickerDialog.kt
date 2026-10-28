@@ -41,16 +41,16 @@ fun JalaliDatePickerDialog(
   val jalaliToday = remember(initialTimestamp) { JalaliCalendarHelper.gregorianToJalali(initialTimestamp) }
 
   // View state tracks what year/month is currently shown in the calendar grid
-  var viewYear by rememberSaveable { mutableStateOf(jalaliToday.year) }
-  var viewMonth by rememberSaveable { mutableStateOf(jalaliToday.month) }
+  var viewYear by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.year) }
+  var viewMonth by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.month) }
 
   // Selection state tracks the currently chosen date
-  var selectedYear by rememberSaveable { mutableStateOf(jalaliToday.year) }
-  var selectedMonth by rememberSaveable { mutableStateOf(jalaliToday.month) }
-  var selectedDay by rememberSaveable { mutableStateOf(jalaliToday.day) }
+  var selectedYear by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.year) }
+  var selectedMonth by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.month) }
+  var selectedDay by rememberSaveable(initialTimestamp) { mutableStateOf(jalaliToday.day) }
 
   // Toggle between standard Calendar Grid view and Month/Year Quick Selector
-  var showQuickSelector by rememberSaveable { mutableStateOf(false) }
+  var showQuickSelector by rememberSaveable(initialTimestamp) { mutableStateOf(false) }
 
   val monthsList =
     listOf(
@@ -411,8 +411,8 @@ fun JalaliDatePickerDialog(
             }
           } else {
             // RE-ENGINEERED Standard Month & Year Speed Selector
-            var tempYear by rememberSaveable { mutableStateOf(viewYear) }
-            var tempMonth by rememberSaveable { mutableStateOf(viewMonth) }
+            var tempYear by rememberSaveable(initialTimestamp, viewYear) { mutableStateOf(viewYear) }
+            var tempMonth by rememberSaveable(initialTimestamp, viewMonth) { mutableStateOf(viewMonth) }
 
             Column(
               modifier =
