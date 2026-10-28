@@ -17,19 +17,19 @@ import io.github.mojri.hesabyar.core.filterDigits
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
-import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 
 private const val DESCRIPTION_MAX_LENGTH = 500
 
 /**
  * Dialog for adding a DEBTOR or CREDITOR loan linked to a person (plans/011 Phase 3).
  *
- * Enforces valid numeric input capped at [Long.MAX_VALUE] in Rial (or
- * `Long.MAX_VALUE / 10` in Toman) so multiplication does not overflow.
+ * Rejects amounts flagged by overflowsTomanConversion, so the
+ * display-to-Rial conversion cannot overflow.
  */
 @Composable
 internal fun AddPersonLoanDialog(
@@ -42,14 +42,8 @@ internal fun AddPersonLoanDialog(
 ) {
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
-  val maxAllowedDisplay =
-    if (CurrencyFormatter.currentUnit == CurrencyUnit.TOMAN) {
-      Long.MAX_VALUE / 10L
-    } else {
-      Long.MAX_VALUE
-    }
   val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
-  val isValidAmount = parsedAmount in 1L..maxAllowedDisplay
+  val isValidAmount = parsedAmount >= 1L && !overflowsTomanConversion(parsedAmount)
   val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
 
   AlertDialog(
@@ -64,7 +58,7 @@ internal fun AddPersonLoanDialog(
     text = {
       AddPersonLoanInputs(
         amountText = amountText,
-        onAmountChange = { amountText = it },
+        onAmountChange = { amountText = it.filterDigits() },
         description = description,
         onDescriptionChange = { description = it },
         errorMessage = errorMessage
@@ -107,7 +101,7 @@ private fun AddPersonLoanInputs(
   ) {
     HesabyarInputField(
       value = amountText,
-      onValueChange = { onAmountChange(it.filterDigits()) },
+      onValueChange = onAmountChange,
       label = "مبلغ (${CurrencyFormatter.unitLabel})",
       singleLine = true
     )
@@ -132,3 +126,6 @@ private fun AddPersonLoanInputs(
     }
   }
 }
+
+private fun overflowsTomanConversion(displayValue: Long): Boolean =
+  displayValue > DisplayAmountInput.maxDisplayAmount()

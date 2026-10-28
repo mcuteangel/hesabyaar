@@ -22,6 +22,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -121,13 +122,13 @@ class BankLoanFormTest {
 
   @Test
   @Suppress("LongMethod")
-  fun monthlyFieldShowsErrorForInvalidInputAndClearsForValidInput() {
+  fun monthlyFieldFiltersNonDigitsAndClearsForValidInput() {
     val invalidErrorText = context.getString(R.string.balance_invalid_amount)
     val monthlyLabel = context.getString(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel)
+    var monthly by mutableStateOf("")
 
     composeRule.setContent {
       var received by remember { mutableStateOf("100000") }
-      var monthly by remember { mutableStateOf("") }
 
       BankLoanForm(
         bankName = "Melli",
@@ -151,11 +152,90 @@ class BankLoanFormTest {
 
     composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
 
-    monthlyNode.performTextInput("abc")
-    composeRule.onNodeWithText(invalidErrorText).assertIsDisplayed()
+    monthlyNode.performTextInput("5a0b0")
+    composeRule.waitForIdle()
+    assertEquals("Filtered state keeps digits only", "500", monthly)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
 
     monthlyNode.performTextClearance()
     monthlyNode.performTextInput("50000")
     composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+  }
+
+  @Test
+  fun persianAndArabicDigitsAreNormalizedInAmountFields() {
+    val invalidErrorText = context.getString(R.string.balance_invalid_amount)
+    val receivedLabel = context.getString(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel)
+    val monthlyLabel = context.getString(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel)
+    var received by mutableStateOf("")
+    var monthly by mutableStateOf("")
+
+    composeRule.setContent {
+      BankLoanForm(
+        bankName = "Melli",
+        onBankName = {},
+        loanName = "Resalat",
+        onLoanName = {},
+        received = received,
+        onReceived = { received = it },
+        monthly = monthly,
+        onMonthly = { monthly = it },
+        count = "12",
+        onCount = {},
+        description = "",
+        onDescription = {},
+        startDateLabel = "1403/01/01",
+        onPickDate = {}
+      )
+    }
+
+    composeRule
+      .onNode(hasText(receivedLabel).and(hasSetTextAction()))
+      .performTextInput("۵۰۰۰۰۰")
+    composeRule.waitForIdle()
+    assertEquals("Persian digits normalize to ASCII", "500000", received)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+
+    composeRule
+      .onNode(hasText(monthlyLabel).and(hasSetTextAction()))
+      .performTextInput("٥٠٠٠٠")
+    composeRule.waitForIdle()
+    assertEquals("Arabic digits normalize to ASCII", "50000", monthly)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+  }
+
+  @Test
+  fun countFieldFiltersNonDigits() {
+    var count by mutableStateOf("")
+
+    composeRule.setContent {
+      BankLoanForm(
+        bankName = "Melli",
+        onBankName = {},
+        loanName = "Resalat",
+        onLoanName = {},
+        received = "100000",
+        onReceived = {},
+        monthly = "50000",
+        onMonthly = {},
+        count = count,
+        onCount = { count = it },
+        description = "",
+        onDescription = {},
+        startDateLabel = "1403/01/01",
+        onPickDate = {}
+      )
+    }
+
+    val countNode = composeRule.onNode(hasText("تعداد اقساط").and(hasSetTextAction()))
+
+    countNode.performTextInput("1a2")
+    composeRule.waitForIdle()
+    assertEquals("Filtered count keeps digits only", "12", count)
+
+    countNode.performTextClearance()
+    countNode.performTextInput("۱۲")
+    composeRule.waitForIdle()
+    assertEquals("Persian count digits normalize to ASCII", "12", count)
   }
 }
