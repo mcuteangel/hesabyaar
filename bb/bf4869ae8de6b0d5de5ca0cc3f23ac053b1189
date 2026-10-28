@@ -1,0 +1,23 @@
+plans/025-category-type-end-to-end.md
+  s_9409f734c55ea8::t_8f195ce083fa10 90,92
+progress.md
+  s_9409f734c55ea8::t_8b225272031f11 16
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCase.kt
+  s_9409f734c55ea8::t_4ba17d67f34dd8 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bbbf4869ae8de6b0d5de5ca0cc3f23ac053b1189",
+  "prompts": {},
+  "sessions": {
+    "s_9409f734c55ea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2972529e-b4b2-4e8c-8f09-cd96ffc2fdf2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
