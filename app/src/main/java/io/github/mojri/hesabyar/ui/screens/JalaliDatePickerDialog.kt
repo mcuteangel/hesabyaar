@@ -411,8 +411,8 @@ fun JalaliDatePickerDialog(
             }
           } else {
             // RE-ENGINEERED Standard Month & Year Speed Selector
-            var tempYear by rememberSaveable(initialTimestamp, viewYear) { mutableStateOf(viewYear) }
-            var tempMonth by rememberSaveable(initialTimestamp, viewMonth) { mutableStateOf(viewMonth) }
+            var tempYear by rememberSaveable(initialTimestamp) { mutableStateOf(viewYear) }
+            var tempMonth by rememberSaveable(initialTimestamp) { mutableStateOf(viewMonth) }
 
             Column(
               modifier =
