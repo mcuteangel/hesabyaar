@@ -622,16 +622,19 @@ private class AccountDialogFormState(
 
 @Composable
 private fun rememberAccountDialogFormState(initialAccount: AccountEntity?): AccountDialogFormState {
-  val nameState = rememberSaveable { mutableStateOf(initialAccount?.name.orEmpty()) }
-  val selectedTypeState = rememberSaveable { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
-  val bankNameState = rememberSaveable { mutableStateOf(initialAccount?.bankName.orEmpty()) }
-  val cardNumberState = rememberSaveable { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
-  val accountNumberState = rememberSaveable { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
-  val ibanState = rememberSaveable { mutableStateOf(initialAccount?.iban.orEmpty()) }
+  val accountIdKey = initialAccount?.id
+  val nameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.name.orEmpty()) }
+  val selectedTypeState =
+    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
+  val bankNameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.bankName.orEmpty()) }
+  val cardNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
+  val accountNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
+  val ibanState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.iban.orEmpty()) }
   val prefilledBalance =
-    remember { initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0" }
-  val initialBalanceState = rememberSaveable { mutableStateOf(prefilledBalance) }
-  val selectedColorState = rememberSaveable { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
+    remember(accountIdKey) { initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0" }
+  val initialBalanceState = rememberSaveable(accountIdKey) { mutableStateOf(prefilledBalance) }
+  val selectedColorState =
+    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
 
   return remember(initialAccount) {
     AccountDialogFormState(
