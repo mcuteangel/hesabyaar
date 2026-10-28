@@ -203,9 +203,9 @@ class BankLoanFormTest {
 
     setBankLoanFormContent(receivedState, monthlyState, countState)
 
-    composeRule
-      .onNode(hasText(receivedLabel).and(hasSetTextAction()))
-      .performTextInput("-5000")
+    val receivedNode = composeRule.onNode(hasText(receivedLabel).and(hasSetTextAction()))
+
+    receivedNode.performTextInput("-5000")
     composeRule.waitForIdle()
     assertEquals("Leading minus is preserved", "-5000", receivedState.value)
     composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(1)
@@ -215,6 +215,12 @@ class BankLoanFormTest {
       .performTextInput("\u22125000")
     composeRule.waitForIdle()
     assertEquals("Unicode minus normalizes to ASCII minus", "-5000", monthlyState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(2)
+
+    receivedNode.performTextClearance()
+    receivedNode.performTextInput(" -5000")
+    composeRule.waitForIdle()
+    assertEquals("Whitespace before minus is dropped, sign kept", "-5000", receivedState.value)
     composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(2)
 
     composeRule

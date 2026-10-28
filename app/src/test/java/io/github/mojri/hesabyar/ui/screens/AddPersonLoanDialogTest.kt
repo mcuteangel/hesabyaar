@@ -294,6 +294,32 @@ class AddPersonLoanDialogTest {
     assertEquals("Mixed garbage filters to digits before conversion", 1_230L, confirmedRial)
   }
 
+  @Test
+  fun negativeAmountsDisableConfirm() {
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = NAME_ALI,
+        onConfirm = { _, _ -> },
+        onDismiss = {}
+      )
+    }
+
+    val amountNode =
+      composeRule.onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
+
+    amountNode.performTextInput("-5000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput("\u22125000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput(" -5000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+  }
+
   private companion object {
     const val NAME_ALI = "Ali"
     const val NAME_REZA = "Reza"

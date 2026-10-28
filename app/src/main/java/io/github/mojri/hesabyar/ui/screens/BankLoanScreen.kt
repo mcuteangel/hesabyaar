@@ -32,7 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import io.github.mojri.hesabyar.R
-import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -323,16 +323,6 @@ internal fun BankLoanForm(
       variant = ButtonVariant.Outlined
     )
   }
-}
-
-/**
- * Filters digits while keeping a leading minus sign (ASCII or Unicode),
- * so a pasted negative amount stays negative and [isInvalidAmount] flags
- * it instead of silently flipping it to a positive amount.
- */
-private fun String.filterDigitsPreservingLeadingMinus(): String {
-  val sign = if (startsWith("-") || startsWith("\u2212")) "-" else ""
-  return sign + filterDigits()
 }
 
 /** True when the user typed something that is not a usable loan amount (garbage, too large, zero, or negative). */

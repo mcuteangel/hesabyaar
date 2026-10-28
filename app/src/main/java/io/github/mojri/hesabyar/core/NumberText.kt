@@ -42,3 +42,15 @@ fun String.filterDigits(): String {
  * Returns null when the text holds no digit or overflows [Long].
  */
 fun String.toCleanLongOrNull(): Long? = filterDigits().toLongOrNull()
+
+/**
+ * Keeps accepted digits only, in ASCII form, preserving a leading minus
+ * sign (ASCII or Unicode) so validation can still reject negative input.
+ * Leading whitespace before the sign is dropped; a minus anywhere else
+ * is dropped with the other non-digit characters.
+ */
+fun String.filterDigitsPreservingLeadingMinus(): String {
+  val trimmed = trimStart()
+  val sign = if (trimmed.startsWith("-") || trimmed.startsWith("\u2212")) "-" else ""
+  return sign + trimmed.filterDigits()
+}

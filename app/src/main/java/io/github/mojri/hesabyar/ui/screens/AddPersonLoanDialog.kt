@@ -13,7 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -29,7 +29,8 @@ private const val DESCRIPTION_MAX_LENGTH = 500
  * Dialog for adding a DEBTOR or CREDITOR loan linked to a person (plans/011 Phase 3).
  *
  * Rejects amounts flagged by overflowsTomanConversion, so the
- * display-to-Rial conversion cannot overflow.
+ * display-to-Rial conversion cannot overflow. Negative amounts
+ * are rejected, never silently flipped to positive.
  */
 @Composable
 internal fun AddPersonLoanDialog(
@@ -42,8 +43,10 @@ internal fun AddPersonLoanDialog(
 ) {
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
+  val normalized = amountText.replace('\u2212', '-')
+  val hasLeadingMinus = normalized.startsWith("-")
   val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
-  val isValidAmount = parsedAmount >= 1L && !overflowsTomanConversion(parsedAmount)
+  val isValidAmount = !hasLeadingMinus && parsedAmount >= 1L && !overflowsTomanConversion(parsedAmount)
   val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
 
   AlertDialog(
@@ -58,7 +61,7 @@ internal fun AddPersonLoanDialog(
     text = {
       AddPersonLoanInputs(
         amountText = amountText,
-        onAmountChange = { amountText = it.filterDigits() },
+        onAmountChange = { amountText = it.filterDigitsPreservingLeadingMinus() },
         description = description,
         onDescriptionChange = { description = it },
         errorMessage = errorMessage
