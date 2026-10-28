@@ -1,0 +1,28 @@
+plans/025-category-type-end-to-end.md
+  s_9409f734c55ea8::t_12a778581573f1 73-75,80
+  s_9409f734c55ea8::t_ed3dd799798c65 47
+  s_9409f734c55ea8::t_c321eb82944823 7
+  s_9409f734c55ea8::t_1a63375c4c97ac 114
+  s_9409f734c55ea8::t_432c339b577c93 1-6,8-46,48-72,76-79,81-113,115-167
+plans/README.md
+  s_9409f734c55ea8::t_9e5c69c81c3933 46
+progress.md
+  s_9409f734c55ea8::t_934d127958afb9 13-14
+  s_9409f734c55ea8::t_3ec264f3b79c62 9,15-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "763a6189a56733a608f8bc794bb22cd80c58655d",
+  "prompts": {},
+  "sessions": {
+    "s_9409f734c55ea8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2972529e-b4b2-4e8c-8f09-cd96ffc2fdf2",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
