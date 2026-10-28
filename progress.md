@@ -6,18 +6,23 @@
 
 ## Active Task
 
-Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 025)
+None (Plan 025 completed, ready for PR).
 
 ## Goal
 
-- [x] Await user approval of Plan 025 before execution. (Approved by user)
-- [x] Phase 0: Baseline verification & branch setup (`refactor/issue-71-category-type-end-to-end`).
-- [x] Phase 1: Data layer refactoring (`CategoryDao`, `CategoryOps`, `CategoryDelegate`).
-- [x] Phase 2: Domain layer update (`ManageCategoryUseCase`).
-- [x] Phase 3: Test fakes and test suite updates (`FakeRepository` variants, `ManageCategoryUseCaseTest`, `RepositoryLogicTest`).
-- [ ] Phase 4: Verification, static analysis (`ktlintCheck`, `detekt`, `testDebugUnitTest`), and evidence collection.
+- [ ] Awaiting next task assignment or PR creation.
 
 ## Completed
+
+- **Task:** Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 025)
+- **Status:** Completed and verified (branch `refactor/issue-71-category-type-end-to-end`)
+- **Completed Date:** 2026-10-28
+- **Deliverables:**
+    - [x] Phase 0: Baseline verification & branch setup (`refactor/issue-71-category-type-end-to-end`).
+    - [x] Phase 1: Data layer refactoring (`CategoryDao`, `CategoryOps`, `CategoryDelegate`) to accept `CategoryType` end-to-end.
+    - [x] Phase 2: Domain layer update (`ManageCategoryUseCase.getCategoriesByType` forwards `CategoryType` directly without string conversion).
+    - [x] Phase 3: Test fakes and test suite updates (`ui/FakeRepository`, `domain/usecase/FakeRepository`, `InstallmentViewModelTest`, `ManageCategoryUseCaseTest`, and `CategoryRepositoryLogicTest`).
+    - [x] Phase 4: Verification and static analysis (`ktlintCheck`, `detekt`, `testDebugUnitTest` — 0 errors, 0 failures, `check_docs.py` — clean).
 
 - **Task:** Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (Plan 024)
 - **Status:** Completed and verified (branch `refactor/issue-340-dead-code-removal`)

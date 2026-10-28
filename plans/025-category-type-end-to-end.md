@@ -4,7 +4,7 @@
 - **PR:** —
 - **Created:** 2026-10-28
 - **Author:** Claude Code
-- **Status:** IN PROGRESS
+- **Status:** COMPLETED
 
 ## 1. Problem Statement
 
@@ -49,21 +49,21 @@ This raw `String` boundary introduces several issues:
 
 ## 2. Goals & Acceptance Criteria
 
-- [ ] **Criterion 1 (Type-Safe Data Layer):**
+- [x] **Criterion 1 (Type-Safe Data Layer):**
   - `CategoryDao.getCategoriesByType` accepts `CategoryType`.
   - `CategoryOps.getCategoriesByType` accepts `CategoryType`.
   - `CategoryDelegate.getCategoriesByType` accepts `CategoryType`.
   - No raw `String` parameter remains for `getCategoriesByType` anywhere in production code.
 
-- [ ] **Criterion 2 (Direct Forwarding at Use Case Layer):**
+- [x] **Criterion 2 (Direct Forwarding at Use Case Layer):**
   - `ManageCategoryUseCase.getCategoriesByType(type: CategoryType)` passes `type` directly to `repository.getCategoriesByType(type)` without `.name` string conversion.
 
-- [ ] **Criterion 3 (Test Fakes & Suite Consistency):**
+- [x] **Criterion 3 (Test Fakes & Suite Consistency):**
   - All repository test fakes (`ui/FakeRepository.kt`, `domain/usecase/FakeRepository.kt`, and `InstallmentViewModelTest.kt`) implement the updated `CategoryType` signature.
   - New comprehensive unit test suite in `ManageCategoryUseCaseTest.kt` covering all methods of `ManageCategoryUseCase`.
   - Integration/logic test in `CategoryRepositoryLogicTest.kt` verifying Room query execution with `CategoryType.EXPENSE`, `CategoryType.INCOME`, and `CategoryType.BOTH`.
 
-- [ ] **Criterion 4 (Clean Build & Static Analysis):**
+- [x] **Criterion 4 (Clean Build & Static Analysis):**
   - `./gradlew testDebugUnitTest --no-daemon` passes with 0 failures.
   - `./gradlew ktlintCheck detekt --no-daemon` passes with 0 findings.
   - `python scripts/check_docs.py` succeeds with no broken references.
@@ -105,19 +105,22 @@ This raw `String` boundary introduces several issues:
 5. Create `app/src/test/java/io/github/mojri/hesabyar/data/CategoryRepositoryLogicTest.kt`:
    - Added test `getCategoriesByTypeFiltersCorrectlyWithBoth()` asserting that `repo.getCategoriesByType(CategoryType.EXPENSE)` retrieves both `EXPENSE` and `BOTH` categories in in-memory Room SQLite database, and excludes `INCOME` categories. Created in a dedicated class to avoid tripping detekt `LargeClass` on `RepositoryLogicTest.kt`. (Completed, passed)
 
-### Phase 4: Verification & Static Analysis
+### Phase 4: Verification & Static Analysis (Completed)
 1. Run code formatting and static analysis:
    ```bash
    ./gradlew ktlintFormat ktlintCheck detekt --no-daemon
    ```
+   (Completed: BUILD SUCCESSFUL, 0 findings)
 2. Run test suite:
    ```bash
    ./gradlew testDebugUnitTest --no-daemon
    ```
+   (Completed: BUILD SUCCESSFUL, 0 failures)
 3. Run doc reference check:
    ```bash
    python scripts/check_docs.py
    ```
+   (Completed: Docs: no broken path references.)
 
 ## 4. Evidence & Verification Plan
 
