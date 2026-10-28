@@ -1,0 +1,19 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_99eb87419a29b6::t_9b03871383583e 625-632,634-637
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b234c098c9f0beb886ef7905d4a7a3e49f63835f",
+  "prompts": {},
+  "sessions": {
+    "s_99eb87419a29b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4b0e1d0-87ad-4421-b988-d829658f0c8f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
