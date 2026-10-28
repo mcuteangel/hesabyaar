@@ -1,0 +1,20 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CustomTimePickerDialog.kt
+  s_99eb87419a29b6::t_572d14eff4b144 13
+  s_99eb87419a29b6::t_a4429a58d7770e 50-55,65-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "febe421e4e59374907716d972828b5d38f08d12c",
+  "prompts": {},
+  "sessions": {
+    "s_99eb87419a29b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4b0e1d0-87ad-4421-b988-d829658f0c8f",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
