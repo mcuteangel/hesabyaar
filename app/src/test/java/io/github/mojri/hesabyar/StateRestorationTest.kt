@@ -99,71 +99,73 @@ class StateRestorationTest {
   }
 
   @Test
-  fun tabSurvivesRestoration() = runComposeUiTest {
-    fun settle() {
-      testDispatcher.scheduler.advanceUntilIdle()
-      waitForIdle()
+  fun tabSurvivesRestoration() =
+    runComposeUiTest {
+      fun settle() {
+        testDispatcher.scheduler.advanceUntilIdle()
+        waitForIdle()
+      }
+
+      val tester = StateRestorationTester(this)
+      var observedTab = TAB_DASHBOARD
+      var navToAssistant: (() -> Unit)? = null
+
+      tester.setContent {
+        MainNavigationCoordinator(
+          startTab = TAB_DASHBOARD,
+          startDebtSection = DebtSection.INSTALLMENTS,
+          onExitConfirmed = {},
+          mainContent = { currentTab, _, callbacks ->
+            observedTab = currentTab
+            navToAssistant = callbacks.onNavigateToAssistant
+            Box(Modifier.fillMaxSize().testTag("main_content"))
+          }
+        )
+      }
+      onNodeWithTag("main_content").assertIsDisplayed()
+
+      runOnUiThread { checkNotNull(navToAssistant)() }
+      settle()
+      assertEquals(TAB_ASSISTANT, observedTab)
+
+      tester.emulateSavedInstanceStateRestore()
+      settle()
+      onNodeWithTag("main_content").assertIsDisplayed()
+      assertEquals(TAB_ASSISTANT, observedTab)
     }
-
-    val tester = StateRestorationTester(this)
-    var observedTab = TAB_DASHBOARD
-    var navToAssistant: (() -> Unit)? = null
-
-    tester.setContent {
-      MainNavigationCoordinator(
-        startTab = TAB_DASHBOARD,
-        startDebtSection = DebtSection.INSTALLMENTS,
-        onExitConfirmed = {},
-        mainContent = { currentTab, _, callbacks ->
-          observedTab = currentTab
-          navToAssistant = callbacks.onNavigateToAssistant
-          Box(Modifier.fillMaxSize().testTag("main_content"))
-        }
-      )
-    }
-    onNodeWithTag("main_content").assertIsDisplayed()
-
-    runOnUiThread { checkNotNull(navToAssistant)() }
-    settle()
-    assertEquals(TAB_ASSISTANT, observedTab)
-
-    tester.emulateSavedInstanceStateRestore()
-    settle()
-    onNodeWithTag("main_content").assertIsDisplayed()
-    assertEquals(TAB_ASSISTANT, observedTab)
-  }
 
   @Test
-  fun installmentAddDialogSurvivesRestoration() = runComposeUiTest {
-    fun settle() {
-      testDispatcher.scheduler.advanceUntilIdle()
-      waitForIdle()
+  fun installmentAddDialogSurvivesRestoration() =
+    runComposeUiTest {
+      fun settle() {
+        testDispatcher.scheduler.advanceUntilIdle()
+        waitForIdle()
+      }
+
+      val tester = StateRestorationTester(this)
+      tester.setContent {
+        InstallmentScreen(
+          installmentViewModel = installmentViewModel,
+          settingsViewModel = settingsViewModel,
+          bankLoanViewModel = bankLoanViewModel
+        )
+      }
+      onNodeWithTag("add_installment_button").performClick()
+      settle()
+
+      onNode(hasText("عنوان قسط (مثلا قسط ماشین)").and(hasSetTextAction()))
+        .performTextInput("قسط ماشین")
+      onNode(hasText("مبلغ قسط (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+        .performTextInput("۱۲۳۴۵")
+      settle()
+
+      tester.emulateSavedInstanceStateRestore()
+      settle()
+
+      onNodeWithText("ثبت قسط جدید").assertIsDisplayed()
+      onNode(hasText("قسط ماشین").and(hasSetTextAction()))
+        .assertIsDisplayed()
+      onNode(hasText("12345").and(hasSetTextAction()))
+        .assertIsDisplayed()
     }
-
-    val tester = StateRestorationTester(this)
-    tester.setContent {
-      InstallmentScreen(
-        installmentViewModel = installmentViewModel,
-        settingsViewModel = settingsViewModel,
-        bankLoanViewModel = bankLoanViewModel
-      )
-    }
-    onNodeWithTag("add_installment_button").performClick()
-    settle()
-
-    onNode(hasText("عنوان قسط (مثلا قسط ماشین)").and(hasSetTextAction()))
-      .performTextInput("قسط ماشین")
-    onNode(hasText("مبلغ قسط (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
-      .performTextInput("۱۲۳۴۵")
-    settle()
-
-    tester.emulateSavedInstanceStateRestore()
-    settle()
-
-    onNodeWithText("ثبت قسط جدید").assertIsDisplayed()
-    onNode(hasText("قسط ماشین").and(hasSetTextAction()))
-      .assertIsDisplayed()
-    onNode(hasText("12345").and(hasSetTextAction()))
-      .assertIsDisplayed()
-  }
 }

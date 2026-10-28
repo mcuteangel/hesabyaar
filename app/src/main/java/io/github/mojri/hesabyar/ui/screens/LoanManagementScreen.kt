@@ -125,7 +125,7 @@ fun LoanManagementScreen(
   // submit and dismissal until the result arrives.
   var editSaving by remember { mutableStateOf(false) }
   var deletingLoan by remember { mutableStateOf<Loan?>(null) }
-  var termState by remember { mutableStateOf(LoanType.DEBTOR) } // DEBTOR = they owe me, CREDITOR = I owe them
+  var termState by rememberSaveable { mutableStateOf(LoanType.DEBTOR) } // DEBTOR = they owe me, CREDITOR = I owe them
 
   // Filtered lists
   val debtors = loans.filter { it.type == LoanType.DEBTOR }
