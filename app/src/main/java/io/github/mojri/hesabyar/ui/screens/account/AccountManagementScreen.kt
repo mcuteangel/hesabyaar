@@ -78,7 +78,7 @@ import kotlinx.coroutines.launch
 
 private const val COLOR_PICKER_COLUMNS = 8
 
-private data class AccountFormData(
+internal data class AccountFormData(
   val name: String,
   val type: AccountType,
   val bankName: String?,
@@ -582,8 +582,7 @@ private fun AccountDialog(
         },
         text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,
-        enabled = state.isSaveEnabled && !isSaving,
-        loading = isSaving
+        enabled = state.isSaveEnabled && !isSaving
       )
     },
     dismissButton = {
@@ -642,7 +641,7 @@ private fun AccountDialogFields(state: AccountFormState) {
   )
 }
 
-private class AccountFormState(
+internal class AccountFormState(
   private val initialAccount: AccountEntity?
 ) {
   var name by mutableStateOf(initialAccount?.name.orEmpty())
@@ -665,12 +664,7 @@ private class AccountFormState(
       )
 
   val balanceError: Boolean
-    get() =
-      if (initialAccount != null) {
-        initialBalance.isBlank() || parsedBalance == null
-      } else {
-        initialBalance.isNotBlank() && parsedBalance == null
-      }
+    get() = initialBalance.isNotBlank() && parsedBalance == null
 
   val isSaveEnabled: Boolean
     get() = name.isNotBlank() && !balanceError

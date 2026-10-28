@@ -1,0 +1,132 @@
+package io.github.mojri.hesabyar.ui.screens.account
+
+import io.github.mojri.hesabyar.data.AccountEntity
+import io.github.mojri.hesabyar.data.AccountType
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Unit tests for [AccountFormState] validation, save-enabling logic, and balance fallback:
+ * - In add mode, blank balance defaults to 0 and valid non-blank balance parses to Rial.
+ * - In edit mode, blank or unchanged balance preserves the original Rial balance.
+ * - Non-blank malformed balance marks [AccountFormState.balanceError] and disables saving.
+ */
+class AccountFormStateTest {
+  @Test
+  fun addModeWithBlankBalanceDefaultsToZeroAndAllowsSave() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب جاری"
+    state.initialBalance = ""
+
+    assertFalse("Blank balance must not trigger balance error", state.balanceError)
+    assertTrue("Non-blank name with blank balance must be savable", state.isSaveEnabled)
+    assertEquals(0L, state.toFormData().initialBalance)
+  }
+
+  @Test
+  fun addModeWithValidBalanceParsesCorrectly() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب جاری"
+    state.initialBalance = "50000"
+
+    assertFalse(state.balanceError)
+    assertTrue(state.isSaveEnabled)
+    assertEquals(500_000L, state.toFormData().initialBalance)
+  }
+
+  @Test
+  fun addModeWithMalformedBalanceDisablesSave() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب جاری"
+    state.initialBalance = "invalid_number"
+
+    assertTrue("Malformed balance must set balanceError", state.balanceError)
+    assertFalse("Malformed balance must disable save", state.isSaveEnabled)
+  }
+
+  @Test
+  fun addModeWithBlankNameDisablesSave() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "   "
+    state.initialBalance = "1000"
+
+    assertFalse(state.balanceError)
+    assertFalse("Blank name must disable save", state.isSaveEnabled)
+  }
+
+  @Test
+  fun editModeWithPrefilledBalancePreservesOriginalRial() {
+    val original =
+      AccountEntity(
+        id = 10,
+        name = "حساب پس‌انداز",
+        type = AccountType.BANK,
+        initialBalance = 1_234_567L
+      )
+    val state = AccountFormState(initialAccount = original)
+
+    assertFalse(state.balanceError)
+    assertTrue(state.isSaveEnabled)
+    assertEquals(
+      "Unmodified balance must preserve original exact Rial value",
+      1_234_567L,
+      state.toFormData().initialBalance
+    )
+  }
+
+  @Test
+  fun editModeWithBlankBalancePreservesOriginalRialAndAllowsSave() {
+    val original =
+      AccountEntity(
+        id = 10,
+        name = "حساب پس‌انداز",
+        type = AccountType.BANK,
+        initialBalance = 750_000L
+      )
+    val state = AccountFormState(initialAccount = original)
+    state.initialBalance = ""
+
+    assertFalse("Blank balance in edit mode must not trigger balanceError", state.balanceError)
+    assertTrue("Clearing balance field in edit mode must still allow saving", state.isSaveEnabled)
+    assertEquals(
+      "Blank balance must fallback to original account balance",
+      750_000L,
+      state.toFormData().initialBalance
+    )
+  }
+
+  @Test
+  fun editModeWithNewValidBalanceUpdatesBalance() {
+    val original =
+      AccountEntity(
+        id = 10,
+        name = "حساب پس‌انداز",
+        type = AccountType.BANK,
+        initialBalance = 100_000L
+      )
+    val state = AccountFormState(initialAccount = original)
+    state.initialBalance = "25000"
+
+    assertFalse(state.balanceError)
+    assertTrue(state.isSaveEnabled)
+    assertEquals(250_000L, state.toFormData().initialBalance)
+  }
+
+  @Test
+  fun editModeWithMalformedBalanceDisablesSave() {
+    val original =
+      AccountEntity(
+        id = 10,
+        name = "حساب پس‌انداز",
+        type = AccountType.BANK,
+        initialBalance = 100_000L
+      )
+    val state = AccountFormState(initialAccount = original)
+    state.initialBalance = "invalid_amount"
+
+    assertTrue("Malformed balance in edit mode must set balanceError", state.balanceError)
+    assertFalse("Malformed balance in edit mode must disable save", state.isSaveEnabled)
+  }
+}
