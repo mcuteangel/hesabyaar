@@ -1,0 +1,19 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarDialogTest.kt
+  s_9d0f88e244df98::t_8f29440082dc34 79,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c1f2f353d7999d81d1c6480feac53b0389b9d908",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
