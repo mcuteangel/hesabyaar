@@ -611,7 +611,15 @@ private fun CategoryDialog(
             key.trim().ifBlank {
               name.trim().replace("\\s+".toRegex(), "")
             }
-          onSave(name.trim(), finalKey, selectedIcon, selectedColor, selectedType)
+          // UNKNOWN is never a user choice: it only arrives from a
+          // corrupted restore. It never persists from this dialog.
+          val typeToSave =
+            if (selectedType == CategoryType.UNKNOWN) {
+              initialCategory?.type ?: CategoryType.EXPENSE
+            } else {
+              selectedType
+            }
+          onSave(name.trim(), finalKey, selectedIcon, selectedColor, typeToSave)
         },
         text = "ذخیره",
         variant = ButtonVariant.Filled,
