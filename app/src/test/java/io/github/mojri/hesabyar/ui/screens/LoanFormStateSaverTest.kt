@@ -16,8 +16,12 @@ class LoanFormStateSaverTest {
     val state = LoanFormState(LoanType.CREDITOR, "Ali", 0L, "desc", 123L)
     state.amountText = "5,000"
 
-    val scope = SaverScope { true }
-    val saved = checkNotNull(with(scope) { LoanFormStateSaver.save(state) })
+    val saved =
+      checkNotNull(
+        with(LoanFormStateSaver) {
+          SaverScope { true }.save(state)
+        }
+      )
     val restored = checkNotNull(LoanFormStateSaver.restore(saved))
 
     assertEquals("Ali", restored.personName)
