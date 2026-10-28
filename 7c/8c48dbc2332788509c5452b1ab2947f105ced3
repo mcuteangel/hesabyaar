@@ -1,0 +1,29 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/account/AccountFormStateTest.kt
+  s_9d0f88e244df98::t_5d7da535a2f12f 5-7,11,21-33
+  s_9d0f88e244df98::t_1eb13046127e8b 57-67
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarDialog.kt
+  s_9d0f88e244df98::t_f0d9e1a90c1adf 223-229
+  s_9d0f88e244df98::t_f015ff08ef9d2f 26
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_9d0f88e244df98::t_515bf11b91a2b1 746-776,799-804,806,810-813
+  s_9d0f88e244df98::t_5fe5e908481290 780-781,805,807-808
+  s_9d0f88e244df98::t_b3f0e36bf957cd 639-643
+app/src/test/java/io/github/mojri/hesabyar/ui/DashboardHelperTest.kt
+  s_9d0f88e244df98::t_bfe1bc6b89581c 4,18-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7c8c48dbc2332788509c5452b1ab2947f105ced3",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
