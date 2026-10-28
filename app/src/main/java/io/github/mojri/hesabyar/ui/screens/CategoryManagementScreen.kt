@@ -376,7 +376,7 @@ private class CategoryFormState(
   var typeDropdownExpanded by mutableStateOf(false)
 
   val isValid: Boolean
-    get() = name.isNotBlank()
+    get() = name.isNotBlank() && finalKey.isNotBlank()
 
   val finalKey: String
     get() =

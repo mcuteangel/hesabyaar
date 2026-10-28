@@ -760,8 +760,18 @@ private object SecurityDialogs {
           try {
             val verified = withContext(Dispatchers.IO) { PinStorage.verifyPin(context, currentPin) }
             if (verified) {
-              withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
-              onPinVerifiedAndCleared()
+              val cleared =
+                try {
+                  withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
+                  true
+                } catch (_: Exception) {
+                  false
+                }
+              if (cleared) {
+                onPinVerifiedAndCleared()
+              } else {
+                pinError = "خطا در غیرفعالسازی قفل برنامه"
+              }
             } else {
               pinError = "رمز عبور اشتباه است"
             }

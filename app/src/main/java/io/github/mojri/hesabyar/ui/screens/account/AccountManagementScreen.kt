@@ -663,7 +663,12 @@ private class AccountFormState(
       )
 
   val balanceError: Boolean
-    get() = initialBalance.isNotBlank() && parsedBalance == null
+    get() =
+      if (initialAccount != null) {
+        initialBalance.isBlank() || parsedBalance == null
+      } else {
+        initialBalance.isNotBlank() && parsedBalance == null
+      }
 
   val isSaveEnabled: Boolean
     get() = name.isNotBlank() && !balanceError

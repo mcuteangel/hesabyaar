@@ -116,7 +116,6 @@ fun HesabyarDialog(
           title = title,
           leadingIcon = leadingIcon,
           showCloseButton = showCloseButton,
-          isFullScreen = isFullScreen,
           onDismissRequest = onDismissRequest
         )
 
@@ -163,7 +162,6 @@ private fun HesabyarDialogHeader(
   title: String,
   leadingIcon: ImageVector?,
   showCloseButton: Boolean,
-  isFullScreen: Boolean,
   onDismissRequest: () -> Unit
 ) {
   Row(
@@ -190,9 +188,9 @@ private fun HesabyarDialogHeader(
         color = MaterialTheme.colorScheme.primary
       )
     }
-    // Per M3 guidelines, close icons belong on bottom sheets/full-screen surfaces,
-    // not on standard alert/confirm dialogs.
-    if (showCloseButton && isFullScreen) {
+    // Per M3 guidelines, dialogs default to no header close icon,
+    // but callers may explicitly enable it via showCloseButton.
+    if (showCloseButton) {
       IconButton(onClick = onDismissRequest) {
         Icon(
           imageVector = Icons.Filled.Close,

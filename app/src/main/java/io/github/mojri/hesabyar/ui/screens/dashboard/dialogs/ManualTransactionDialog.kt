@@ -103,14 +103,15 @@ internal fun ManualTransactionDialog(
 
   HesabyarDialog(
     title = if (isEditMode) "ویرایش تراکنش" else "ثبت دستی تراکنش جدید",
-    onDismissRequest = onDismiss,
+    onDismissRequest = { if (!isSubmitting) onDismiss() },
     widthFraction = 0.92f,
     actions = {
       HesabyarButton(
         onClick = onDismiss,
         modifier = Modifier.weight(1f),
         text = stringResource(R.string.action_cancel),
-        variant = ButtonVariant.Text
+        variant = ButtonVariant.Text,
+        enabled = !isSubmitting
       )
 
       HesabyarButton(

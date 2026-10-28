@@ -587,13 +587,16 @@ internal fun AddLoanDialog(
   onDismiss: () -> Unit
 ) {
   val form = remember { LoanFormState(initialType) }
+  var submitting by remember { mutableStateOf(false) }
   val tooLargeMessage = stringResource(R.string.loan_amount_too_large)
 
   HesabyarDialog(
-    onDismissRequest = onDismiss,
+    onDismissRequest = { if (!submitting) onDismiss() },
     title = "ثبت قرض جدید",
     confirmButton = {
       HesabyarButton(
+        enabled = !submitting,
+        loading = submitting,
         onClick = {
           val maxTomanDisplay = Long.MAX_VALUE / TOMAN_TO_RIAL_FACTOR
           val amountDisplay = form.amountText.toLongOrNull() ?: 0L
@@ -603,6 +606,7 @@ internal fun AddLoanDialog(
           ) {
             showMessage(tooLargeMessage)
           } else if (form.personName.isNotBlank() && amountDisplay > 0L) {
+            submitting = true
             onConfirm(
               form.personName,
               form.loanType,
@@ -620,6 +624,7 @@ internal fun AddLoanDialog(
     },
     dismissButton = {
       HesabyarButton(
+        enabled = !submitting,
         onClick = onDismiss,
         text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
@@ -869,6 +874,7 @@ private fun LoanRepaymentDialog(
     },
     dismissButton = {
       HesabyarButton(
+        enabled = !submitting,
         onClick = onDismiss,
         text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
