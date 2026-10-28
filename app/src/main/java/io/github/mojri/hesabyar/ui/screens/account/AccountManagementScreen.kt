@@ -159,7 +159,7 @@ fun AccountManagementScreen(
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
   var formDialogTargetId by rememberSaveable { mutableStateOf(NO_FORM_DIALOG_ID) }
-  var dialogState by remember {
+  var dialogState by remember(formDialogTargetId) {
     mutableStateOf<AccountDialogState>(
       if (formDialogTargetId == ADD_FORM_DIALOG_ID) {
         AccountDialogState.Add()
@@ -622,7 +622,7 @@ private class AccountDialogFormState(
 
 @Composable
 private fun rememberAccountDialogFormState(initialAccount: AccountEntity?): AccountDialogFormState {
-  val accountIdKey = initialAccount?.id
+  val accountIdKey = initialAccount?.id ?: ADD_FORM_DIALOG_ID
   val nameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.name.orEmpty()) }
   val selectedTypeState =
     rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
@@ -631,7 +631,9 @@ private fun rememberAccountDialogFormState(initialAccount: AccountEntity?): Acco
   val accountNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
   val ibanState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.iban.orEmpty()) }
   val prefilledBalance =
-    remember(accountIdKey) { initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0" }
+    remember(accountIdKey, initialAccount?.initialBalance) {
+      initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0"
+    }
   val initialBalanceState = rememberSaveable(accountIdKey) { mutableStateOf(prefilledBalance) }
   val selectedColorState =
     rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
