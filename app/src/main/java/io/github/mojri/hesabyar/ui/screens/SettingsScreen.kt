@@ -69,8 +69,10 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.GeneralSecurityException
 
 fun Context.findActivity(): FragmentActivity? {
   var currentContext = this
@@ -743,6 +745,21 @@ private fun RestoreModeOption(
 private object SecurityDialogs {
   private const val PIN_LENGTH = 6
 
+  private suspend fun safeClearPin(context: Context): Boolean =
+    try {
+      withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
+      true
+    } catch (e: GeneralSecurityException) {
+      AppLogger.e("SettingsScreen", "Security exception clearing PIN", e)
+      false
+    } catch (e: IOException) {
+      AppLogger.e("SettingsScreen", "IO exception clearing PIN", e)
+      false
+    } catch (e: SecurityException) {
+      AppLogger.e("SettingsScreen", "Permission exception clearing PIN", e)
+      false
+    }
+
   private suspend fun verifyAndClearPin(
     context: Context,
     pin: String,
@@ -751,26 +768,30 @@ private object SecurityDialogs {
     onInvalidPin: (String) -> Unit,
     onVerifyError: (String) -> Unit
   ) {
-    try {
-      val verified = withContext(Dispatchers.IO) { PinStorage.verifyPin(context, pin) }
-      if (verified) {
-        val cleared =
-          try {
-            withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
-            true
-          } catch (_: Exception) {
-            false
-          }
-        if (cleared) {
+    val verified =
+      try {
+        withContext(Dispatchers.IO) { PinStorage.verifyPin(context, pin) }
+      } catch (e: GeneralSecurityException) {
+        AppLogger.e("SettingsScreen", "Security exception verifying PIN", e)
+        null
+      } catch (e: IOException) {
+        AppLogger.e("SettingsScreen", "IO exception verifying PIN", e)
+        null
+      } catch (e: SecurityException) {
+        AppLogger.e("SettingsScreen", "Permission exception verifying PIN", e)
+        null
+      }
+
+    when (verified) {
+      null -> onVerifyError("خطا در بررسی رمز عبور")
+      false -> onInvalidPin("رمز عبور اشتباه است")
+      true -> {
+        if (safeClearPin(context)) {
           onSuccess()
         } else {
           onClearFailed("خطا در غیرفعالسازی قفل برنامه")
         }
-      } else {
-        onInvalidPin("رمز عبور اشتباه است")
       }
-    } catch (_: Exception) {
-      onVerifyError("خطا در بررسی رمز عبور")
     }
   }
 
