@@ -10,7 +10,7 @@ import androidx.compose.ui.test.StateRestorationTester
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.runComposeUiTest
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -53,9 +53,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
 class StateRestorationTest {
-  @get:Rule
-  val composeRule = createComposeRule()
-
   @get:Rule
   val rustIsolationRule = RustIsolationRule()
 
@@ -101,14 +98,14 @@ class StateRestorationTest {
     previousUnit?.let { CurrencyFormatter.setUnit(it) }
   }
 
-  private fun settle() {
-    testDispatcher.scheduler.advanceUntilIdle()
-    composeRule.waitForIdle()
-  }
-
   @Test
-  fun tabSurvivesRestoration() {
-    val tester = StateRestorationTester(composeRule)
+  fun tabSurvivesRestoration() = runComposeUiTest {
+    fun settle() {
+      testDispatcher.scheduler.advanceUntilIdle()
+      waitForIdle()
+    }
+
+    val tester = StateRestorationTester(this)
     var observedTab = TAB_DASHBOARD
     var navToAssistant: (() -> Unit)? = null
 
@@ -124,21 +121,26 @@ class StateRestorationTest {
         }
       )
     }
-    composeRule.onNodeWithTag("main_content").assertIsDisplayed()
+    onNodeWithTag("main_content").assertIsDisplayed()
 
-    composeRule.runOnUiThread { checkNotNull(navToAssistant)() }
+    runOnUiThread { checkNotNull(navToAssistant)() }
     settle()
     assertEquals(TAB_ASSISTANT, observedTab)
 
     tester.emulateSavedInstanceStateRestore()
     settle()
-    composeRule.onNodeWithTag("main_content").assertIsDisplayed()
+    onNodeWithTag("main_content").assertIsDisplayed()
     assertEquals(TAB_ASSISTANT, observedTab)
   }
 
   @Test
-  fun installmentAddDialogSurvivesRestoration() {
-    val tester = StateRestorationTester(composeRule)
+  fun installmentAddDialogSurvivesRestoration() = runComposeUiTest {
+    fun settle() {
+      testDispatcher.scheduler.advanceUntilIdle()
+      waitForIdle()
+    }
+
+    val tester = StateRestorationTester(this)
     tester.setContent {
       InstallmentScreen(
         installmentViewModel = installmentViewModel,
@@ -146,26 +148,22 @@ class StateRestorationTest {
         bankLoanViewModel = bankLoanViewModel
       )
     }
-    composeRule.onNodeWithTag("add_installment_button").performClick()
+    onNodeWithTag("add_installment_button").performClick()
     settle()
 
-    composeRule
-      .onNode(hasText("عنوان قسط (مثلا قسط ماشین)").and(hasSetTextAction()))
+    onNode(hasText("عنوان قسط (مثلا قسط ماشین)").and(hasSetTextAction()))
       .performTextInput("قسط ماشین")
-    composeRule
-      .onNode(hasText("مبلغ قسط (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
+    onNode(hasText("مبلغ قسط (${CurrencyFormatter.unitLabel})").and(hasSetTextAction()))
       .performTextInput("۱۲۳۴۵")
     settle()
 
     tester.emulateSavedInstanceStateRestore()
     settle()
 
-    composeRule.onNodeWithText("ثبت قسط جدید").assertIsDisplayed()
-    composeRule
-      .onNode(hasText("قسط ماشین").and(hasSetTextAction()))
+    onNodeWithText("ثبت قسط جدید").assertIsDisplayed()
+    onNode(hasText("قسط ماشین").and(hasSetTextAction()))
       .assertIsDisplayed()
-    composeRule
-      .onNode(hasText("12345").and(hasSetTextAction()))
+    onNode(hasText("12345").and(hasSetTextAction()))
       .assertIsDisplayed()
   }
 }

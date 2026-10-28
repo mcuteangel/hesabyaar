@@ -255,7 +255,9 @@ private fun CategoryManagementDialogs(
   if (editingCategory != null) {
     // The dialog's saveable fields are scoped to the edited category.
     // A restored entry for another category can never leak into this one.
-    key(editingCategory.id) {
+    // The value in the key resets the dialog only when the category data
+    // itself changes; a mere re-emission with equal values does not.
+    key(editingCategory.id to editingCategory) {
       CategoryDialog(
         initialCategory = editingCategory,
         onDismiss = onDismissEdit,
