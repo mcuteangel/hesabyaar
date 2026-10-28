@@ -1,0 +1,21 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_9d0f88e244df98::t_4b9c019d356f96 776,779,782,785-789
+  s_9d0f88e244df98::t_ec62faca145857 748-762,771-775,777-778,780-781,784
+  s_9d0f88e244df98::t_07a9611ac3a5aa 72,75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0fb71a13d65364a7cd4843f79b122f4d7ce1cf6b",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
