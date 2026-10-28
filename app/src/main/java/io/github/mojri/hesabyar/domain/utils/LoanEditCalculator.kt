@@ -7,7 +7,7 @@ import io.github.mojri.hesabyar.data.Loan
  *
  * Keeps already-repaid money intact: the new remaining amount shrinks only by
  * the difference between the new and the old principal. No UI or persistence
- * state is touched here (extracted from `LoanManagementScreen.submitLoanEdit`).
+ * state is touched here (pure calculation preserved from legacy loan edit logic).
  */
 object LoanEditCalculator {
   data class Result(
