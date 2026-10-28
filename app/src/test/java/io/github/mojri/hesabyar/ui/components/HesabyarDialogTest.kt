@@ -76,7 +76,7 @@ class HesabyarDialogTest {
   }
 
   @Test
-  fun dialogHidesCloseButtonEvenIfRequestedWhenNotFullScreen() {
+  fun dialogShowsCloseButtonWhenExplicitlyRequestedEvenWhenNotFullScreen() {
     composeRule.setContent {
       HesabyarDialog(
         title = DIALOG_TITLE,
@@ -88,7 +88,7 @@ class HesabyarDialogTest {
       }
     }
 
-    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertDoesNotExist()
+    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertIsDisplayed()
   }
 
   @Test
