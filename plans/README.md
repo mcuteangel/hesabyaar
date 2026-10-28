@@ -42,7 +42,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 021  | [Design System] Add a page-scaffold standard + adopt WindowSizeTokens (`plans/archive/021-add-page-scaffold-and-adopt-window-size-tokens.md`, issue #458) | P2 | L | 015 (shared component family pattern) | DONE |
 | 022  | [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (`plans/archive/022-topbar-heading-semantics-and-emoji-cleanup.md`, issue #361) | P2 | S | — | DONE (branch `feat/issue-361-topbar-heading-semantics`, PR #540) |
 | 023  | [Tech-debt] Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (`plans/archive/023-consolidate-ai-result-card-and-markdown-text.md`, issue #356) | P2 | M | 005 | DONE |
-| 024  | Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (`plans/024-dead-code-removal-loan-and-transaction-components.md`, issue #340) | P1 | M | — | DONE (verified on branch `refactor/issue-340-dead-code-removal`, issue #340) |
+| 024  | Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (`plans/archive/024-dead-code-removal-loan-and-transaction-components.md`, issue #340, PR #569) | P1 | M | — | DONE (verified on branch `refactor/issue-340-dead-code-removal`, PR #569) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

@@ -26,8 +26,6 @@ None (Plan 024 completed, ready for PR).
     - [x] Phase 5: Synchronized `docs/MODULE_MAP.md` architecture table and feature paths.
     - [x] Phase 6: Verified full test suite (`testDebugUnitTest` — 1,244 tests passing, 0 failures), static analysis (`ktlintCheck`, `detekt` — 0 findings), and documentation links (`check_docs.py` — clean).
 
-## Completed
-
 - **Task:** Issue #356 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Plan 023)
 - **Status:** Completed and verified (branch `feat/issue-356-ai-result-card-consolidation`)
 - **Completed Date:** 2026-10-25

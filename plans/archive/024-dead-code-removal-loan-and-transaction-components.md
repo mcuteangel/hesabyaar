@@ -13,7 +13,7 @@ Across `app/src/main/java/io/github/mojri/hesabyar/ui/`, approximately 1,260 lin
 This dead code introduces substantial technical debt:
 1. **Misleading planning & audit noise:** Previous plans (such as plan 013) originally planned migration steps around `LoanManagementScreen` until issue #339 explicitly excluded them.
 2. **Duplicate implementations:** `TransactionItem.kt`, `LoanItem.kt`, and `InstallmentItem.kt` are redundant variants alongside live components (`TransactionMiniItem.kt`, `InstallmentMiniItem.kt`, `InstallmentListItem`, `PersonCard`).
-3. **Detekt baseline pollution:** 14 stale entries in `config/detekt/detekt-baseline.xml` exist solely to suppress issues in these unused files.
+3. **Detekt baseline pollution:** 16 stale entries in `config/detekt/detekt-baseline.xml` exist solely to suppress issues in these unused files.
 4. **Maintenance overhead:** Any refactoring across theme tokens, dialog policies, or UI helpers must artificially touch or exclude these dead files.
 
 Issue #340 explicitly requires deciding between deletion and deprecation. Per repo recommendation and user direction, the decision is **complete deletion** after preserving reusable logic context and migrating test coverage.
