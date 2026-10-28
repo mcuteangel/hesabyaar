@@ -1,0 +1,24 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_9d0f88e244df98::t_70179f9496ddfc 644
+  s_9d0f88e244df98::t_bbc87d455837c0 81
+  s_9d0f88e244df98::t_83f53a1720b7ea 667
+  s_9d0f88e244df98::t_cca63ced0d30c4 585
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/account/AccountFormStateTest.kt
+  s_9d0f88e244df98::t_12f8f85ec337a7 1-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5ca11f82a675e56cb43616a88b5fb513f04f9003",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
