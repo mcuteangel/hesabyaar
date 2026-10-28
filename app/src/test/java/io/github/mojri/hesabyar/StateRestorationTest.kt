@@ -164,5 +164,8 @@ class StateRestorationTest {
     composeRule
       .onNode(hasText("قسط ماشین").and(hasSetTextAction()))
       .assertIsDisplayed()
+    composeRule
+      .onNode(hasText("12345").and(hasSetTextAction()))
+      .assertIsDisplayed()
   }
 }

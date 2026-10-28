@@ -253,22 +253,26 @@ private fun CategoryManagementDialogs(
   }
 
   if (editingCategory != null) {
-    CategoryDialog(
-      initialCategory = editingCategory,
-      onDismiss = onDismissEdit,
-      onSave = { name, key, icon, color, type ->
-        categoryViewModel.updateCategory(
-          editingCategory.copy(
-            name = name,
-            key = key,
-            icon = icon,
-            color = color,
-            type = type
+    // The dialog's saveable fields are scoped to the edited category.
+    // A restored entry for another category can never leak into this one.
+    key(editingCategory.id) {
+      CategoryDialog(
+        initialCategory = editingCategory,
+        onDismiss = onDismissEdit,
+        onSave = { name, key, icon, color, type ->
+          categoryViewModel.updateCategory(
+            editingCategory.copy(
+              name = name,
+              key = key,
+              icon = icon,
+              color = color,
+              type = type
+            )
           )
-        )
-        onDismissEdit()
-      }
-    )
+          onDismissEdit()
+        }
+      )
+    }
   }
 
   if (showDeleteConfirmation != null) {

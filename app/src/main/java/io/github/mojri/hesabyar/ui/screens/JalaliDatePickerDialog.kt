@@ -50,7 +50,7 @@ fun JalaliDatePickerDialog(
   var selectedDay by rememberSaveable { mutableStateOf(jalaliToday.day) }
 
   // Toggle between standard Calendar Grid view and Month/Year Quick Selector
-  var showQuickSelector by remember { mutableStateOf(false) }
+  var showQuickSelector by rememberSaveable { mutableStateOf(false) }
 
   val monthsList =
     listOf(
@@ -411,8 +411,8 @@ fun JalaliDatePickerDialog(
             }
           } else {
             // RE-ENGINEERED Standard Month & Year Speed Selector
-            var tempYear by remember { mutableStateOf(viewYear) }
-            var tempMonth by remember { mutableStateOf(viewMonth) }
+            var tempYear by rememberSaveable { mutableStateOf(viewYear) }
+            var tempMonth by rememberSaveable { mutableStateOf(viewMonth) }
 
             Column(
               modifier =

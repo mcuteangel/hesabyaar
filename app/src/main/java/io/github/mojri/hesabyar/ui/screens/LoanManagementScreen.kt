@@ -611,7 +611,9 @@ internal fun AddLoanDialog(
   onConfirm: (personName: String, type: LoanType, amountRial: Long, description: String, date: Long) -> Unit,
   onDismiss: () -> Unit
 ) {
-  val form = rememberSaveable(stateSaver = LoanFormStateSaver) { LoanFormState(initialType) }
+  val form by rememberSaveable(stateSaver = LoanFormStateSaver) {
+    mutableStateOf(LoanFormState(initialType))
+  }
   val tooLargeMessage = stringResource(R.string.loan_amount_too_large)
 
   AlertDialog(
