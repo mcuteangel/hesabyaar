@@ -87,12 +87,9 @@ This raw `String` boundary introduces several issues:
 3. Edit `app/src/main/java/io/github/mojri/hesabyar/data/CategoryDelegate.kt`:
    - Updated `CategoryDelegate.getCategoriesByType` to pass `type: CategoryType`. (Completed)
 
-### Phase 2: Domain Layer Update
+### Phase 2: Domain Layer Update (Completed)
 1. Edit `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/ManageCategoryUseCase.kt`:
-   - Update `getCategoriesByType`:
-     ```kotlin
-     fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = repository.getCategoriesByType(type)
-     ```
+   - Updated `getCategoriesByType` to forward `type: CategoryType` directly to `repository.getCategoriesByType(type)`. (Completed)
 
 ### Phase 3: Test Fakes and Test Suite Updates
 1. Edit `app/src/test/java/io/github/mojri/hesabyar/ui/FakeRepository.kt`:

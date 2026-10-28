@@ -10,7 +10,7 @@ class ManageCategoryUseCase(
 ) {
   val allCategories: Flow<List<Category>> = repository.allCategories
 
-  fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = repository.getCategoriesByType(type.name)
+  fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = repository.getCategoriesByType(type)
 
   suspend fun getCategoryById(id: Long): Category? = repository.getCategoryById(id)
 
