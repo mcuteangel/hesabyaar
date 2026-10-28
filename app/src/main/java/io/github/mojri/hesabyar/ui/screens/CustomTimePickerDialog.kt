@@ -52,9 +52,9 @@ fun CustomTimePickerDialog(
   onDismissRequest: () -> Unit,
   onTimeSelected: (Int, Int) -> Unit
 ) {
-  var selectedHour by remember { mutableStateOf(initialHour) }
-  var selectedMinute by remember { mutableStateOf(initialMinute) }
-  var activeTab by remember { mutableStateOf(TimePickerTab.HOUR) }
+  var selectedHour by rememberSaveable { mutableStateOf(initialHour) }
+  var selectedMinute by rememberSaveable { mutableStateOf(initialMinute) }
+  var activeTab by rememberSaveable { mutableStateOf(TimePickerTab.HOUR) }
 
   val density = LocalDensity.current
   val outerLabelRadiusPx = remember(density) { with(density) { 96.dp.toPx() } }

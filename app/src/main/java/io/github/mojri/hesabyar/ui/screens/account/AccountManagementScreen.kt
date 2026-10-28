@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -611,7 +612,11 @@ private fun AccountDialog(
         fontWeight = FontWeight.Bold
       )
     },
-    text = { AccountDialogForm(initialAccount = initialAccount, onSave = onSave, isSaving = isSaving) },
+    text = {
+      key(initialAccount?.id to initialAccount) {
+        AccountDialogForm(initialAccount = initialAccount, onSave = onSave, isSaving = isSaving)
+      }
+    },
     confirmButton = {},
     dismissButton = {
       HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Text)
