@@ -52,10 +52,15 @@ internal fun AddPersonLoanDialog(
   val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
   val isValidAmount = parsedAmount in 1L..maxAllowedDisplay
   val title =
-    if (type == LoanType.DEBTOR) {
-      stringResource(R.string.add_person_loan_debtor_title, personName)
-    } else {
-      stringResource(R.string.add_person_loan_creditor_title, personName)
+    when {
+      personName.isNotBlank() && type == LoanType.DEBTOR ->
+        stringResource(R.string.add_person_loan_debtor_title, personName.trim())
+      personName.isNotBlank() ->
+        stringResource(R.string.add_person_loan_creditor_title, personName.trim())
+      type == LoanType.DEBTOR ->
+        stringResource(R.string.add_person_loan_debtor_generic_title)
+      else ->
+        stringResource(R.string.add_person_loan_creditor_generic_title)
     }
 
   HesabyarDialog(

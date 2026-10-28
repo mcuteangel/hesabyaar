@@ -420,7 +420,7 @@ private class CategoryFormState(
   var typeDropdownExpanded by mutableStateOf(false)
 
   val isValid: Boolean
-    get() = name.isNotBlank() && finalKey.isNotBlank()
+    get() = name.isNotBlank() && finalKey.isNotBlank() && resolvedType != CategoryType.UNKNOWN
 
   val finalKey: String
     get() =
@@ -432,17 +432,22 @@ private class CategoryFormState(
         }
       }
 
-  val typeToSave: CategoryType
+  private val resolvedType: CategoryType
     get() =
-      if (selectedType == CategoryType.UNKNOWN) {
-        if (initialType != CategoryType.UNKNOWN) {
-          initialType
-        } else {
-          CategoryType.EXPENSE
-        }
-      } else {
+      if (selectedType != CategoryType.UNKNOWN) {
         selectedType
+      } else {
+        initialType
       }
+
+  val typeToSave: CategoryType
+    get() {
+      val resolved = resolvedType
+      if (resolved == CategoryType.UNKNOWN) {
+        throw IllegalStateException("Unknown category type cannot be saved")
+      }
+      return resolved
+    }
 }
 
 @Composable

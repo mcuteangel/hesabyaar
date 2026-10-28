@@ -197,6 +197,8 @@
     <string name="person_loan_submit">ثبت</string>
     <string name="add_person_loan_debtor_title">ثبت طلب از %1$s</string>
     <string name="add_person_loan_creditor_title">ثبت بدهی به %1$s</string>
+    <string name="add_person_loan_debtor_generic_title">ثبت طلب</string>
+    <string name="add_person_loan_creditor_generic_title">ثبت بدهی</string>
 
     <!-- Shared top-bar back navigation icon -->
     <string name="action_back">بازگشت</string>

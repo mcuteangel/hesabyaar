@@ -640,7 +640,7 @@ fun SecuritySection(
         settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
       },
       onClearFailed = { error ->
-        showVerifyPinDialog = false
+        isPinSet = PinStorage.isPinSet(context)
         pendingDisable = false
         settingsViewModel.showMessage(error)
       }
