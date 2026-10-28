@@ -14,7 +14,7 @@
 
 ## Completed
 
-- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 024)
+- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 025)
 - **Status:** Completed and verified (branch `feat/issue-350-dialog-policy`)
 - **Completed Date:** 2026-10-26
 - **Deliverables:**
@@ -27,6 +27,18 @@
     - [x] Standardized all dismiss buttons across pickers and dialogs to `ButtonVariant.Text` (`CustomTimePickerDialog`, `JalaliDatePickerDialog`, `ManualTransactionDialog`, `ReportsScreen`).
     - [x] Added unit tests in `HesabyarDialogTest.kt` (8 tests) and `ConfirmDialogTest.kt` (4 tests).
     - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python scripts/check_docs.py` reporting 0 broken references.
+
+- **Task:** Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (Plan 024)
+- **Status:** Completed and verified (branch `refactor/issue-340-dead-code-removal`)
+- **Completed Date:** 2026-10-26
+- **Deliverables:**
+    - [x] Phase 0: Completed drift audit confirming zero production callers for the 5 dead files.
+    - [x] Phase 1: Migrated signed-amount RTL placement tests to `TransactionMiniItemSignPlacementTest.kt` (4/4 tests passing).
+    - [x] Phase 2: Deleted dead test files (`LoanManagementDialogTest`, `LoanEditRejectionScreenTest`, `LoanViewModelTest`, and legacy `TransactionItemSignPlacementTest`).
+    - [x] Phase 3: Deleted 5 dead production files in `app/src/main` (~1,260 lines) + `LoanEditAmountPreservationTest.kt` in `app/src/test` and decoupled KDoc in `LoanEditCalculator.kt`.
+    - [x] Phase 4: Removed 3 unused string keys (`loan_type_debtor`, `loan_type_creditor`, `loan_amount_too_large`) and pruned 16 stale detekt baseline entries.
+    - [x] Phase 5: Synchronized `docs/MODULE_MAP.md` architecture table and feature paths.
+    - [x] Phase 6: Verified full test suite (`testDebugUnitTest` — 1,244 tests passing, 0 failures), static analysis (`ktlintCheck`, `detekt` — 0 findings), and documentation links (`check_docs.py` — clean).
 
 - **Task:** Issue #356 — Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (Plan 023)
 - **Status:** Completed and verified (branch `feat/issue-356-ai-result-card-consolidation`)
