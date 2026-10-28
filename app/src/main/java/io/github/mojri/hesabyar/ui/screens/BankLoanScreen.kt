@@ -296,7 +296,7 @@ internal fun BankLoanForm(
     HesabyarInputField(value = loanName, onValueChange = onLoanName, label = "نام وام")
     HesabyarInputField(
       value = received,
-      onValueChange = { onReceived(it.filterDigits()) },
+      onValueChange = { onReceived(it.filterDigitsPreservingLeadingMinus()) },
       label = stringResource(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel),
       isError = isInvalidAmount(received),
       supportingText = invalidAmountText(received)?.let { text -> { Text(text) } },
@@ -304,7 +304,7 @@ internal fun BankLoanForm(
     )
     HesabyarInputField(
       value = monthly,
-      onValueChange = { onMonthly(it.filterDigits()) },
+      onValueChange = { onMonthly(it.filterDigitsPreservingLeadingMinus()) },
       label = stringResource(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel),
       isError = isInvalidAmount(monthly),
       supportingText = invalidAmountText(monthly)?.let { text -> { Text(text) } },
@@ -312,7 +312,7 @@ internal fun BankLoanForm(
     )
     HesabyarInputField(
       value = count,
-      onValueChange = { onCount(it.filterDigits()) },
+      onValueChange = { onCount(it.filterDigitsPreservingLeadingMinus()) },
       label = "تعداد اقساط",
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
@@ -323,6 +323,16 @@ internal fun BankLoanForm(
       variant = ButtonVariant.Outlined
     )
   }
+}
+
+/**
+ * Filters digits while keeping a leading minus sign (ASCII or Unicode),
+ * so a pasted negative amount stays negative and [isInvalidAmount] flags
+ * it instead of silently flipping it to a positive amount.
+ */
+private fun String.filterDigitsPreservingLeadingMinus(): String {
+  val sign = if (startsWith("-") || startsWith("\u2212")) "-" else ""
+  return sign + filterDigits()
 }
 
 /** True when the user typed something that is not a usable loan amount (garbage, too large, zero, or negative). */

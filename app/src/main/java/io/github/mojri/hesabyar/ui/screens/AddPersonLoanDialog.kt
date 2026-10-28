@@ -127,5 +127,4 @@ private fun AddPersonLoanInputs(
   }
 }
 
-private fun overflowsTomanConversion(displayValue: Long): Boolean =
-  displayValue > DisplayAmountInput.maxDisplayAmount()
+private fun overflowsTomanConversion(displayValue: Long): Boolean = displayValue > DisplayAmountInput.maxDisplayAmount()
