@@ -1,0 +1,21 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/DashboardViewModelCategoryExclusionTest.kt
+  s_9d0f88e244df98::t_407224b0b303e8 34-36,38-39
+app/src/test/java/io/github/mojri/hesabyar/ui/AnalyticsViewModelCategoryExclusionTest.kt
+  s_9d0f88e244df98::t_470b06b610772d 36-38,40-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8f0701149cb6458bc12439ae12c4508d6d3b22a8",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
