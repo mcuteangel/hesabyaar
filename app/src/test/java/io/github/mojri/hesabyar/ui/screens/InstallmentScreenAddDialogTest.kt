@@ -154,6 +154,7 @@ class InstallmentScreenAddDialogTest {
   fun negativeAmountIsRejectedAndKeepsDialogOpen() {
     openAddDialog()
     fillDialog("قسط ماشین", "-5000")
+    composeRule.onNodeWithText("-5000").assertIsDisplayed()
     composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
     settle()
     assertTrue("nothing must be saved", repo.saved.isEmpty())

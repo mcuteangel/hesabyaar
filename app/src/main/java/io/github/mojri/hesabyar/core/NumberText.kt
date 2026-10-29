@@ -38,12 +38,16 @@ fun String.filterDigits(): String {
 }
 
 /**
- * Parses the accepted digits into a [Long], preserving a leading minus
- * sign (ASCII or Unicode, after leading whitespace and bidirectional
- * marks) so a negative value yields a negative [Long]. A minus anywhere
- * else is dropped with the other non-digit characters. Returns null when
- * the text holds no digit, holds only a lone minus, or overflows [Long]
- * (including negative overflow).
+ * Parses the accepted digits into a [Long].
+ * The parser preserves a leading minus sign.
+ * The minus can be ASCII or Unicode.
+ * It can follow leading whitespace and bidirectional marks.
+ * A preserved minus yields a negative [Long].
+ * The parser drops a minus anywhere else.
+ * The parser returns null when the text holds no digit.
+ * The parser returns null when the text holds only a lone minus.
+ * The parser returns null when the value overflows [Long].
+ * The parser returns null for negative overflow too.
  */
 fun String.toCleanLongOrNull(): Long? = filterDigitsPreservingLeadingMinus().toLongOrNull()
 
