@@ -260,7 +260,8 @@ class BackupJsonValidator(
         "error_loan_remaining_amount_invalid" to R.string.error_loan_remaining_amount_invalid,
         "error_loan_type_invalid" to R.string.error_loan_type_invalid,
         "error_loan_invalid_person" to R.string.error_loan_invalid_person,
-        "error_transaction_invalid_person" to R.string.error_transaction_invalid_person,
+        "error_transaction_invalid_person" to
+          R.string.error_transaction_invalid_person,
         "error_installment_title_blank" to R.string.error_installment_title_blank,
         "error_installment_amount_invalid" to R.string.error_installment_amount_invalid,
         "error_installment_due_date_invalid" to R.string.error_installment_due_date_invalid,
