@@ -8,7 +8,7 @@ rules:
   # Real pair, documented in the template header itself:
   # "when a Rust FFI function's signature changes, update the matching line here too".
   # Note: BranchGuard matches file paths, not function signatures.
-  # Primary UniFFI export entry points: ffi/mod.rs and lib.rs (offline sentence parser).
+  # Direct UniFFI export files whose functions are wrapped in HesabyarCore.template.kt:
   - name: rust-ffi-template
     description: "FFI changes must update the hand-maintained Kotlin wrapper template"
     check_type: file_pair
@@ -18,6 +18,11 @@ rules:
         include:
           - "rust/hesabyar-core/src/ffi/mod.rs"
           - "rust/hesabyar-core/src/lib.rs"
+          - "rust/hesabyar-core/src/calendar.rs"
+          - "rust/hesabyar-core/src/currency.rs"
+          - "rust/hesabyar-core/src/parser/amount.rs"
+          - "rust/hesabyar-core/src/parser/money_detector.rs"
+          - "rust/hesabyar-core/src/parser/text_preprocessor.rs"
     config:
       companion: "app/buildSrc/template/HesabyarCore.template.kt"
 
@@ -88,7 +93,8 @@ rules:
   # - AST or signature-aware diffing: file_pair triggers on any file diff,
   #   not just signature changes.
   # - Semantic lockfile consistency checks: cargo-lock uses file_pair companion
-  #   matching; strict `--locked` build verification is enforced by GitHub Actions CI.
+  #   matching; GitHub Actions CI does not currently enforce a workspace
+  #   command with `--locked`.
   # - Measuring branch age independent of merge-base commit timestamp (branch_age
   #   uses merge_base_commit committer date).
   # - A generic "every changed Kotlin file needs a test" rule: file_pair
