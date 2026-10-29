@@ -1,0 +1,19 @@
+app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonValidator.kt
+  s_68a85eea47171d::t_f85ffc53d8ddf9 263-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "81a795dbc4ee460330525552de065d5fd93f33c8",
+  "prompts": {},
+  "sessions": {
+    "s_68a85eea47171d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55f9072a-7e24-480e-82f1-872247778ab0",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
