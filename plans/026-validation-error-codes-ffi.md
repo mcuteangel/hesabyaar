@@ -187,7 +187,7 @@ Each code maps to a standardized `error_*` string:
    python scripts/check_docs.py
    ```
 
-### Phase 1: Rust Core Error Codes & Refactor
+### Phase 1: Rust Core Error Codes & Refactor (DONE)
 1. Define `ValidationErrorCode` in `rust/hesabyar-core/src/validation.rs` (or submodule `validation/error.rs` to maintain line thresholds under 800 lines).
 2. Refactor `validation.rs` functions (`validate_transaction_fields`, `validate_accounts_and_references`, `validate_persons`, `validate_backup_payload`, etc.) to generate `ValidationErrorCode`.
 3. In `ValidationResult`, emit stable code strings (`code.as_code().to_string()`).
