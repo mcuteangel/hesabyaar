@@ -608,7 +608,8 @@ fun ReportsScreen(
     ConfirmDialog(
       title = "حذف تراکنش",
       message = "آیا از حذف این تراکنش اطمینان دارید؟",
-      confirmText = "حذف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onConfirm = {
         deletingTransaction?.let { tx ->
           transactionViewModel.deleteTransaction(tx)

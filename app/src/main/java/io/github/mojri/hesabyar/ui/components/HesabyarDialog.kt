@@ -61,6 +61,8 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
  * @param confirmButton Structured confirm button slot placed at the trailing edge.
  * @param dismissButton Structured dismiss button slot placed adjacent to confirm.
  * @param actions Optional fallback composable rendered as a bottom row when structured slots are not used.
+ *   Deprecated in favor of structured [confirmText]/[onConfirm] and [dismissText]/[onDismiss]
+ *   (or [confirmButton]/[dismissButton] slots).
  * @param content Scrollable body content of the dialog.
  */
 @Composable

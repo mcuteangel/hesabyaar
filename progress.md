@@ -6,8 +6,6 @@
 
 ## Active Task
 
-## Active Task
-
 None (Plan 027 / PR #562 in review and autofix).
 
 ## Goal
