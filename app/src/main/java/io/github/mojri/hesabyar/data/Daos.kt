@@ -14,7 +14,7 @@ interface CategoryDao {
   fun getAllCategories(): Flow<List<Category>>
 
   @Query("SELECT * FROM categories WHERE type = :type OR type = 'BOTH' ORDER BY isDefault DESC, name ASC")
-  fun getCategoriesByType(type: String): Flow<List<Category>>
+  fun getCategoriesByType(type: CategoryType): Flow<List<Category>>
 
   @Query("SELECT * FROM categories WHERE id = :id LIMIT 1")
   suspend fun getCategoryById(id: Long): Category?
