@@ -4,12 +4,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
@@ -17,6 +20,7 @@ import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
 import io.github.mojri.hesabyar.domain.usecase.SubmitManualTransactionUseCase
+import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Rule
@@ -201,5 +205,66 @@ class ManualTransactionDialogAccountEditTest {
 
     assertEquals("Submit must have been called once", 1, submitCount)
     submitButton.assertIsEnabled()
+  }
+
+  @Test
+  fun switchingFromTransferToExpenseClearsDestinationAccountId() {
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        transactionToEdit = transferOriginal,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    val expenseChip = composeRule.onNode(hasText("هزینه").and(isSelectable()))
+    expenseChip.performClick()
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("ذخیره تغییرات").performClick()
+    composeRule.waitUntil(timeoutMillis = 5_000) { captured.value != null }
+
+    val request = captured.value
+    assertNotNull(request)
+    assertEquals(TransactionType.EXPENSE.name, request?.selectedType)
+    assertEquals("destinationAccountId must be null when type is not TRANSFER", null, request?.destinationAccountId)
+  }
+
+  @Test
+  fun editingAmountManuallyUpdatesSubmittedAmount() {
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        transactionToEdit = original,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    val amountInput = composeRule.onNode(hasTestTag("manual_amount_input"))
+    amountInput.performTextClearance()
+    amountInput.performTextInput("8000")
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("ذخیره تغییرات").performClick()
+    composeRule.waitUntil(timeoutMillis = 5_000) { captured.value != null }
+
+    val request = captured.value
+    assertNotNull(request)
+    assertEquals(8000L, request?.amountDisplay)
+    assertEquals(CurrencyFormatter.toRial(8000L), request?.amountRial)
   }
 }

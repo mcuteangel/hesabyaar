@@ -225,8 +225,8 @@ internal class AddBankLoanFormState(
   var startDate by startDateState
   var showDatePicker by showDatePickerState
 
-  val countVal: Int
-    get() = count.toIntOrNull() ?: 0
+  val countVal: Int?
+    get() = count.toIntOrNull()
 
   val receivedRial: Long
     get() = DisplayAmountInput.toRialOrNull(received) ?: 0L
@@ -235,7 +235,10 @@ internal class AddBankLoanFormState(
     get() = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
 
   val canConfirm: Boolean
-    get() = bankName.trim().isNotBlank() && receivedRial > 0 && monthlyRial > 0 && countVal > 0
+    get() {
+      val count = countVal ?: 0
+      return bankName.trim().isNotBlank() && receivedRial > 0 && monthlyRial > 0 && count > 0
+    }
 }
 
 @Composable
@@ -299,7 +302,7 @@ private fun AddBankLoanDialog(
             state.loanName.trim(),
             state.receivedRial,
             state.monthlyRial,
-            state.countVal,
+            state.countVal ?: 0,
             state.startDate,
             state.description.trim()
           )
@@ -411,12 +414,17 @@ private fun invalidAmountText(text: String): String? {
 @VisibleForTesting
 internal fun isInvalidCount(text: String): Boolean {
   if (text.isBlank()) return false
-  val count = text.toIntOrNull() ?: 0
-  return count <= 0
+  val parsed = text.toIntOrNull()
+  return parsed == null || parsed <= 0
 }
 
 @Composable
 private fun invalidCountText(text: String): String? {
-  if (!isInvalidCount(text)) return null
-  return "تعداد اقساط باید بیشتر از صفر باشد"
+  if (text.isBlank()) return null
+  val parsed = text.toIntOrNull()
+  return when {
+    parsed == null -> "تعداد اقساط وارد شده نامعتبر است"
+    parsed <= 0 -> "تعداد اقساط باید بیشتر از صفر باشد"
+    else -> null
+  }
 }

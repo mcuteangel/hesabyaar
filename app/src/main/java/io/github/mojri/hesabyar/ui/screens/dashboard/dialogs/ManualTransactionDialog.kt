@@ -233,7 +233,7 @@ internal class ManualTransactionFormState(
       categories = categories,
       transactionToEdit = transactionToEdit,
       accountId = accountId,
-      destinationAccountId = destinationAccountId
+      destinationAccountId = if (selectedType == "TRANSFER") destinationAccountId else null
     )
   }
 }
@@ -295,6 +295,9 @@ private fun ManualTransactionFormBody(
     onTypeSelected = { type, categoryId ->
       formState.selectedType = type
       formState.selectedCategoryId = categoryId
+      if (type != "TRANSFER") {
+        formState.destinationAccountId = null
+      }
     }
   )
 
@@ -307,8 +310,10 @@ private fun ManualTransactionFormBody(
   TransactionAmountInput(
     amountValue = formState.amountValue,
     typeColor = typeColor,
-    onAmountChanged = { value, fromQuickFill ->
-      if (formState.isEditMode && fromQuickFill) formState.amountModified = true
+    onAmountChanged = { value, _ ->
+      if (formState.isEditMode && value.text != formState.amountValue.text) {
+        formState.amountModified = true
+      }
       formState.amountValue = value
     }
   )

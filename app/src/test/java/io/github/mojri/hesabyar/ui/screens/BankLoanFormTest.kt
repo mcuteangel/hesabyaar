@@ -289,10 +289,11 @@ class BankLoanFormTest {
   }
 
   @Test
-  fun isInvalidCountRejectsZeroOrNegative() {
+  fun isInvalidCountRejectsZeroOrNegativeOrOverflow() {
     assertFalse("Blank count does not show error", isInvalidCount(""))
     assertTrue("Zero count is invalid", isInvalidCount("0"))
     assertTrue("Negative count is invalid", isInvalidCount("-5"))
+    assertTrue("Overflow count is invalid", isInvalidCount("99999999999999999999"))
     assertFalse("Positive count is valid", isInvalidCount("12"))
   }
 
