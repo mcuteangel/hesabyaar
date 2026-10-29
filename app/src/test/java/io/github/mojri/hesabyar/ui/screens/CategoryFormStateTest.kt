@@ -53,7 +53,7 @@ class CategoryFormStateTest {
   }
 
   @Test
-  fun unknownSelectedAndInitialTypeFailsClosedUntilReselected() {
+  fun unknownSelectedAndInitialTypeAutoRecoversToExpense() {
     val state =
       CategoryFormState(
         isEditing = true,
@@ -62,14 +62,15 @@ class CategoryFormStateTest {
         selectedTypeState = mutableStateOf(CategoryType.UNKNOWN)
       )
 
-    assertFalse("Unknown type with unknown initial type must fail closed", state.isValid)
-    assertEquals(CategoryType.UNKNOWN, state.resolvedType)
-
-    // User explicitly reselects a valid type
-    state.selectedType = CategoryType.EXPENSE
-    assertTrue("Selecting a valid type enables save", state.isValid)
+    assertTrue("Corrupted category auto-recovers to EXPENSE and is valid to save", state.isValid)
     assertEquals(CategoryType.EXPENSE, state.resolvedType)
     assertEquals(CategoryType.EXPENSE, state.typeToSave)
+
+    // User can still explicitly select another valid type
+    state.selectedType = CategoryType.INCOME
+    assertTrue(state.isValid)
+    assertEquals(CategoryType.INCOME, state.resolvedType)
+    assertEquals(CategoryType.INCOME, state.typeToSave)
   }
 
   @Test

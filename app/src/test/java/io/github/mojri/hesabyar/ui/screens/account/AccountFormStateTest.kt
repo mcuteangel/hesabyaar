@@ -32,13 +32,23 @@ class AccountFormStateTest {
   }
 
   @Test
-  fun addModeWithBlankBalanceDefaultsToZeroAndAllowsSave() {
+  fun addModeWithBlankBalanceTriggersErrorAndDisablesSave() {
     val state = AccountFormState(initialAccount = null)
     state.name = "حساب جاری"
     state.initialBalance = ""
 
-    assertFalse("Blank balance must not trigger balance error", state.balanceError)
-    assertTrue("Non-blank name with blank balance must be savable", state.isSaveEnabled)
+    assertTrue("Blank balance must trigger balance error", state.balanceError)
+    assertFalse("Blank balance must not be savable", state.isSaveEnabled)
+  }
+
+  @Test
+  fun addModeWithDefaultZeroBalanceAllowsSave() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب جاری"
+    state.initialBalance = "0"
+
+    assertFalse("Zero balance must not trigger balance error", state.balanceError)
+    assertTrue("Zero balance must be savable", state.isSaveEnabled)
     assertEquals(0L, state.toFormData().initialBalance)
   }
 
@@ -106,7 +116,7 @@ class AccountFormStateTest {
   }
 
   @Test
-  fun editModeWithBlankBalancePreservesOriginalRialAndAllowsSave() {
+  fun editModeWithBlankBalanceTriggersErrorAndDisablesSave() {
     val original =
       AccountEntity(
         id = 10,
@@ -117,13 +127,8 @@ class AccountFormStateTest {
     val state = AccountFormState(initialAccount = original)
     state.initialBalance = ""
 
-    assertFalse("Blank balance in edit mode must not trigger balanceError", state.balanceError)
-    assertTrue("Clearing balance field in edit mode must still allow saving", state.isSaveEnabled)
-    assertEquals(
-      "Blank balance must fallback to original account balance",
-      750_000L,
-      state.toFormData().initialBalance
-    )
+    assertTrue("Blank balance in edit mode must trigger balanceError", state.balanceError)
+    assertFalse("Clearing balance field in edit mode must disable saving", state.isSaveEnabled)
   }
 
   @Test

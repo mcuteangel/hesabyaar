@@ -432,10 +432,10 @@ internal class CategoryFormState(
 
   val resolvedType: CategoryType
     get() =
-      if (selectedType != CategoryType.UNKNOWN) {
-        selectedType
-      } else {
-        initialType
+      when {
+        selectedType != CategoryType.UNKNOWN -> selectedType
+        initialType != CategoryType.UNKNOWN -> initialType
+        else -> CategoryType.EXPENSE
       }
 
   val typeToSave: CategoryType
@@ -470,21 +470,27 @@ internal class CategoryFormState(
     @Composable
     private fun rememberEdit(initialCategory: Category): CategoryFormState {
       val key = initialCategory.id
-      val nameState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.name) }
-      val keyState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.key) }
-      val selectedIconState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.icon) }
-      val selectedColorState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.color) }
-      val selectedTypeState =
-        rememberSaveable(key, initialCategory, stateSaver = CategoryTypeSaver) {
-          mutableStateOf(initialCategory.type)
+      val initialType =
+        if (initialCategory.type != CategoryType.UNKNOWN) {
+          initialCategory.type
+        } else {
+          CategoryType.EXPENSE
         }
-      val typeDropdownExpandedState = rememberSaveable(key, initialCategory) { mutableStateOf(false) }
+      val nameState = rememberSaveable(key) { mutableStateOf(initialCategory.name) }
+      val keyState = rememberSaveable(key) { mutableStateOf(initialCategory.key) }
+      val selectedIconState = rememberSaveable(key) { mutableStateOf(initialCategory.icon) }
+      val selectedColorState = rememberSaveable(key) { mutableStateOf(initialCategory.color) }
+      val selectedTypeState =
+        rememberSaveable(key, stateSaver = CategoryTypeSaver) {
+          mutableStateOf(initialType)
+        }
+      val typeDropdownExpandedState = rememberSaveable(key) { mutableStateOf(false) }
 
-      return androidx.compose.runtime.remember(key, initialCategory) {
+      return androidx.compose.runtime.remember(key) {
         CategoryFormState(
           isEditing = true,
           initialKey = initialCategory.key,
-          initialType = initialCategory.type,
+          initialType = initialType,
           isKeyEnabled = !initialCategory.isDefault,
           nameState = nameState,
           keyState = keyState,

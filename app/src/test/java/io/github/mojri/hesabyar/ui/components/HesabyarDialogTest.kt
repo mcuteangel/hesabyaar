@@ -170,6 +170,36 @@ class HesabyarDialogTest {
   }
 
   @Test
+  fun dialogRendersBothStructuredButtonsAndLegacyActionsWhenBothProvided() {
+    var confirmClicked = false
+    var actionClicked = false
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmButton = {
+          TextButton(onClick = { confirmClicked = true }) {
+            Text(CONFIRM_TEXT)
+          }
+        },
+        actions = {
+          TextButton(onClick = { actionClicked = true }) {
+            Text(ACTION_TEXT)
+          }
+        }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertIsDisplayed().performClick()
+    assertTrue(confirmClicked)
+    composeRule.onNodeWithText(ACTION_TEXT).assertIsDisplayed().performClick()
+    assertTrue(actionClicked)
+  }
+
+  @Test
   fun dialogPositionsConfirmButtonAtTrailingEdgeInRtl() {
     composeRule.setContent {
       CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {

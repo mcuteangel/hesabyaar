@@ -26,7 +26,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import io.github.mojri.hesabyar.R
-import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
@@ -230,10 +230,13 @@ private fun AddInstallmentDialog(
     confirmButton = {
       HesabyarButton(
         onClick = {
+          val hasLeadingMinus = amountText.startsWith("-")
           val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
           when {
-            title.isBlank() || amountDisplay <= 0L ->
+            title.isBlank() || amountText.isBlank() ->
               onValidationError("لطفا فیلدهای اولیه قسط را کامل کنید")
+            hasLeadingMinus || amountDisplay <= 0L ->
+              onValidationError("مبلغ قسط نامعتبر است")
             overflowsTomanConversion(amountDisplay) ->
               onValidationError("مبلغ وارد شده بیش از حد مجاز است")
             else -> {
@@ -295,7 +298,7 @@ private fun AddInstallmentDialogForm(
 
     HesabyarInputField(
       value = amountText,
-      onValueChange = { onAmountChange(it.filterDigits()) },
+      onValueChange = { onAmountChange(it.filterDigitsPreservingLeadingMinus()) },
       label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
     )
 

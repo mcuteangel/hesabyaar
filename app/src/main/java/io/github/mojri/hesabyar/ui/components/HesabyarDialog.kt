@@ -276,13 +276,21 @@ private fun HesabyarDialogActions(
       fallback = dismissButton
     )
 
-  if (resolvedConfirm != null || resolvedDismiss != null) {
+  val hasStructured = resolvedConfirm != null || resolvedDismiss != null
+  if (hasStructured || actions != null) {
     Spacer(modifier = Modifier.size(SpacingTokens.sm))
     Row(
       modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.End,
+      horizontalArrangement =
+        if (hasStructured) Arrangement.End else Arrangement.spacedBy(SpacingTokens.md),
       verticalAlignment = Alignment.CenterVertically
     ) {
+      if (actions != null) {
+        actions()
+        if (hasStructured) {
+          Spacer(modifier = Modifier.width(SpacingTokens.sm))
+        }
+      }
       if (resolvedDismiss != null) {
         resolvedDismiss()
         if (resolvedConfirm != null) {
@@ -292,14 +300,6 @@ private fun HesabyarDialogActions(
       if (resolvedConfirm != null) {
         resolvedConfirm()
       }
-    }
-  } else if (actions != null) {
-    Spacer(modifier = Modifier.size(SpacingTokens.sm))
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-    ) {
-      actions()
     }
   }
 }
