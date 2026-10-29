@@ -215,21 +215,21 @@ Each code maps to a standardized `error_*` string:
    - Replace string interpolation with `context.getString(R.string.backup_validation_error_format, state.errors.first())`.
 2. [x] Update unit tests in `BackupJsonValidatorTest.kt`, `BackupJsonValidatorContextTest.kt`, and `BackupImportCoordinatorTest.kt` to verify that localized Persian messages are returned and displayed.
 
-### Phase 5: Verification & Full Suite Checks
-1. Run full unit tests:
+### Phase 5: Verification & Full Suite Checks (DONE)
+1. [x] Run full unit tests:
    ```bash
    ./gradlew testDebugUnitTest --no-daemon
    ./gradlew testDebugUnitTestRust --no-daemon
    ```
-2. Run code style and static analysis:
+2. [x] Run code style and static analysis:
    ```bash
    ./gradlew ktlintFormat ktlintCheck detekt --no-daemon
    ```
-3. Run doc reference check:
+3. [x] Run doc reference check:
    ```bash
    python scripts/check_docs.py
    ```
-4. Verify Rust module size check:
+4. [x] Verify Rust module size check:
    ```bash
    bash scripts/check-rust-module-size.sh
    ```

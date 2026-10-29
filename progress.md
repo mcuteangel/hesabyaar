@@ -6,19 +6,24 @@
 
 ## Active Task
 
-Issue #586 — Return validation error codes across FFI and map to error_* keys in Kotlin (Plan 026)
+None (Plan 026 completed, ready for branch finishing / PR).
 
 ## Goal
 
-- [x] Await user approval for Plan 026 (`plans/026-validation-error-codes-ffi.md`).
-- [x] Phase 0: Baseline verification.
-- [x] Phase 1: Rust core `ValidationErrorCode` implementation & unit tests.
-- [x] Phase 2: UniFFI bindings regeneration (`:app:generateAndFixBindings`).
-- [x] Phase 3: Kotlin string resources and `BackupJsonValidator` error resolution.
-- [x] Phase 4: UI error formatting in `SettingsScreen.kt` and coordinator/context tests.
-- [ ] Phase 5: Verification & full test suite.
+- [ ] Awaiting next task assignment or PR merge.
 
 ## Completed
+
+- **Task:** Issue #586 — Return validation error codes across FFI and map to error_* keys in Kotlin (Plan 026)
+- **Status:** Completed and verified (branch `refactor/issue-586-validation-error-codes`)
+- **Completed Date:** 2026-10-29
+- **Deliverables:**
+    - [x] Phase 0: Baseline verification & plan initialization (`plans/archive/026-validation-error-codes-ffi.md`).
+    - [x] Phase 1: Rust core `ValidationErrorCode` implementation & unit tests in `rust/hesabyar-core/src/validation.rs`.
+    - [x] Phase 2: UniFFI bindings regeneration (`:app:generateAndFixBindings`) and JNI host tests.
+    - [x] Phase 3: Kotlin string resources mapping in `BackupJsonValidator.kt` and error resolution with context fallback.
+    - [x] Phase 4: UI error formatting in `SettingsScreen.kt` and unit tests in `BackupJsonValidatorTest.kt`, `BackupJsonValidatorContextTest.kt`, and `BackupImportCoordinatorTest.kt`.
+    - [x] Phase 5: Verification & full test suite (`testDebugUnitTest`, `testDebugUnitTestRust`, `cargo test`, `ktlintCheck`, `detekt`, `check_docs.py`, and `check-rust-module-size.sh` all passing with 0 failures/errors).
 
 - **Task:** Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 025)
 - **Status:** Completed and verified (branch `refactor/issue-71-category-type-end-to-end`, PR #580, archived as DONE)
