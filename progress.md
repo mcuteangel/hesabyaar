@@ -8,7 +8,7 @@
 
 ## Active Task
 
-None (Plan 026 / PR #562 in review and autofix).
+None (Plan 027 / PR #562 in review and autofix).
 
 ## Goal
 
@@ -16,7 +16,7 @@ None (Plan 026 / PR #562 in review and autofix).
 
 ## Completed
 
-- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 026)
+- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 027)
 - **Status:** Completed and verified (branch `feat/issue-350-dialog-policy`)
 - **Completed Date:** 2026-10-26
 - **Deliverables:**
@@ -29,6 +29,17 @@ None (Plan 026 / PR #562 in review and autofix).
     - [x] Standardized all dismiss buttons across pickers and dialogs to `ButtonVariant.Text` (`CustomTimePickerDialog`, `JalaliDatePickerDialog`, `ManualTransactionDialog`, `ReportsScreen`).
     - [x] Added unit tests in `HesabyarDialogTest.kt` (8 tests) and `ConfirmDialogTest.kt` (4 tests).
     - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python scripts/check_docs.py` reporting 0 broken references.
+
+- **Task:** Issue #586 — Return validation error codes across FFI and map to error_* keys in Kotlin (Plan 026)
+- **Status:** Completed and verified (branch `refactor/issue-586-validation-error-codes`)
+- **Completed Date:** 2026-10-29
+- **Deliverables:**
+    - [x] Phase 0: Baseline verification & plan initialization (`plans/archive/026-validation-error-codes-ffi.md`).
+    - [x] Phase 1: Rust core `ValidationErrorCode` implementation & unit tests in `rust/hesabyar-core/src/validation.rs`.
+    - [x] Phase 2: UniFFI bindings regeneration (`:app:generateAndFixBindings`) and JNI host tests.
+    - [x] Phase 3: Kotlin string resources mapping in `BackupJsonValidator.kt` and error resolution with context fallback.
+    - [x] Phase 4: UI error formatting in `SettingsScreen.kt` and unit tests in `BackupJsonValidatorTest.kt`, `BackupJsonValidatorContextTest.kt`, and `BackupImportCoordinatorTest.kt`.
+    - [x] Phase 5: Verification & full test suite (`testDebugUnitTest`, `testDebugUnitTestRust`, `cargo test`, `ktlintCheck`, `detekt`, `check_docs.py`, and `check-rust-module-size.sh` all passing with 0 failures/errors).
 
 - **Task:** Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 025)
 - **Status:** Completed and verified (branch `refactor/issue-71-category-type-end-to-end`, PR #580, archived as DONE)
