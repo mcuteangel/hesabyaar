@@ -2,6 +2,7 @@ package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
@@ -174,5 +175,31 @@ class ManualTransactionDialogAccountEditTest {
     val transferChip = composeRule.onNode(hasText("انتقال").and(isSelectable()))
     transferChip.assertIsDisplayed()
     transferChip.assertIsSelected()
+  }
+
+  @Test
+  fun submitExceptionResetsSubmittingStateAndKeepsDialogUsable() {
+    var submitCount = 0
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = {
+          submitCount++
+          throw IllegalStateException("Simulated submit failure")
+        },
+        categories = categories,
+        transactionToEdit = original,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    val submitButton = composeRule.onNodeWithText("ذخیره تغییرات")
+    submitButton.assertIsDisplayed()
+    submitButton.performClick()
+    composeRule.waitForIdle()
+
+    assertEquals("Submit must have been called once", 1, submitCount)
+    submitButton.assertIsEnabled()
   }
 }
