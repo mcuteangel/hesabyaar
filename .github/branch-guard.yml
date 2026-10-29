@@ -1,0 +1,103 @@
+# BranchGuard rules for Hesabyar.
+# Config is read from .github/branch-guard.yml on the default branch (main).
+# Start: these checks are NOT required yet — watch a few PRs first, then
+# mark the passing ones as required status checks in the ruleset.
+# Rules are limited to 20 per file; each produces a check run branch-guard/<name>.
+
+rules:
+  # Real pair, documented in the template header itself:
+  # "when a Rust FFI function's signature changes, update the matching line here too".
+  # Note: BranchGuard matches file paths, not function signatures.
+  # Direct UniFFI export files whose functions are wrapped in HesabyarCore.template.kt
+  # (parser/amount.rs exports parse_amount, whose logic powers parse_persian_amount wrapped via lib.rs):
+  - name: rust-ffi-template
+    description: "FFI changes must update the hand-maintained Kotlin wrapper template"
+    check_type: file_pair
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "rust/hesabyar-core/src/ffi/mod.rs"
+          - "rust/hesabyar-core/src/lib.rs"
+          - "rust/hesabyar-core/src/calendar.rs"
+          - "rust/hesabyar-core/src/currency.rs"
+          - "rust/hesabyar-core/src/parser/amount.rs"
+          - "rust/hesabyar-core/src/parser/money_detector.rs"
+          - "rust/hesabyar-core/src/parser/text_preprocessor.rs"
+    config:
+      companion: "app/buildSrc/template/HesabyarCore.template.kt"
+
+  # Real pair from scripts/bump-version.sh: it writes VERSION and prepends
+  # CHANGELOG.md together, and a core bump refreshes rust/Cargo.lock.
+  - name: version-changelog
+    description: "VERSION bumps must come with a CHANGELOG.md entry"
+    check_type: file_pair
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "VERSION"
+    config:
+      companion: "CHANGELOG.md"
+
+  - name: cargo-lock
+    description: "Cargo.toml changes must refresh rust/Cargo.lock (stale lock breaks --locked builds)"
+    check_type: file_pair
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "rust/Cargo.toml"
+          - "rust/hesabyar-core/Cargo.toml"
+          - "rust/uniffi-gen/Cargo.toml"
+    config:
+      companion: "rust/Cargo.lock"
+
+  # --- Candidates, deliberately commented out: verify before enabling ---
+  # Stale branches: BranchGuard's branch_age check measures merge_base_commit
+  # committer date (lawale/branch-guard/src/checks/branch-age.ts). If main has
+  # had no commits for >30 days, any newly cut branch immediately fails and
+  # rebasing cannot fix it until main advances. Kept as candidate for evaluation.
+  # - name: stale-branch
+  #   description: "Branch must not have diverged from main more than 30 days ago"
+  #   check_type: branch_age
+  #   on:
+  #     branches: [main]
+  #     paths:
+  #       include:
+  #         - "**/*"
+  #   config:
+  #     max_age_days: 30
+
+  # external_status needs the EXACT check-run names from a recent PR
+  # (not the workflow file names). Only require a heavy CI job when the
+  # files it covers actually changed, e.g. Rust lint only on rust/**.
+  # - name: rust-lint-conditional
+  #   description: "Rust changes must pass the Rust lint check"
+  #   check_type: external_status
+  #   on:
+  #     branches: [main]
+  #     paths:
+  #       include: ["rust/**"]
+  #   config:
+  #     required_checks: ["<EXACT CHECK NAME FROM A RECENT PR>"]
+  #     timeout_minutes: 30
+
+  # approval_gate is weak for a solo repo: GitHub does not let a PR author
+  # approve their own PR, so a rule requiring mcuteangel would only pass
+  # via auto_pass_sole_author (i.e. vacuously). Useful only if/when a
+  # second reviewer exists for a sensitive area, e.g. .github/workflows/**.
+
+  # What BranchGuard CANNOT do here (do not try to force it):
+  # - Coverage-on-Touch: it sees file paths only, not which lines a test covers.
+  # - Zizmor path:line pins: it sees files, not line numbers.
+  # - AST or signature-aware diffing: file_pair triggers on any file diff,
+  #   not just signature changes.
+  # - Semantic lockfile consistency checks: cargo-lock uses file_pair companion
+  #   matching; GitHub Actions CI does not currently enforce a workspace
+  #   command with `--locked`.
+  # - Measuring branch age independent of merge-base commit timestamp (branch_age
+  #   uses merge_base_commit committer date).
+  # - A generic "every changed Kotlin file needs a test" rule: file_pair
+  #   companions are fixed paths, not globs, so it cannot pair each source
+  #   file with its own test file.
