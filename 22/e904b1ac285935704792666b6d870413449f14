@@ -1,0 +1,29 @@
+app/src/test/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonValidatorContextTest.kt
+  s_68a85eea47171d::t_78681fe0a1e2f1 12
+  s_68a85eea47171d::t_1a1723cb898df3 128-156
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_68a85eea47171d::t_6ce10331412b8e 189-191
+app/src/test/java/io/github/mojri/hesabyar/ui/BackupImportCoordinatorTest.kt
+  s_68a85eea47171d::t_12ae86b46a2b21 67-76,78
+  s_68a85eea47171d::t_29952c4d9f7791 238-275
+plans/026-validation-error-codes-ffi.md
+  s_68a85eea47171d::t_44a95d20a9d342 213-216
+progress.md
+  s_68a85eea47171d::t_a6dd21b511a5f5 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "22e904b1ac285935704792666b6d870413449f14",
+  "prompts": {},
+  "sessions": {
+    "s_68a85eea47171d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55f9072a-7e24-480e-82f1-872247778ab0",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
