@@ -44,7 +44,8 @@ fun String.filterDigits(): String {
 fun String.toCleanLongOrNull(): Long? = filterDigits().toLongOrNull()
 
 /** Bidirectional control characters (Unicode Bidi_Control property). */
-private val BIDI_MARKS = setOf(
+private val BIDI_MARKS =
+  setOf(
   '\u061C',
   '\u200E',
   '\u200F',
