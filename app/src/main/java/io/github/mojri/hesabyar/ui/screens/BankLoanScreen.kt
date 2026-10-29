@@ -32,6 +32,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
@@ -295,7 +297,7 @@ internal fun BankLoanForm(
     HesabyarInputField(value = loanName, onValueChange = onLoanName, label = "نام وام")
     HesabyarInputField(
       value = received,
-      onValueChange = onReceived,
+      onValueChange = { onReceived(it.filterDigitsPreservingLeadingMinus()) },
       label = stringResource(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel),
       isError = isInvalidAmount(received),
       supportingText = invalidAmountText(received)?.let { text -> { Text(text) } },
@@ -303,7 +305,7 @@ internal fun BankLoanForm(
     )
     HesabyarInputField(
       value = monthly,
-      onValueChange = onMonthly,
+      onValueChange = { onMonthly(it.filterDigitsPreservingLeadingMinus()) },
       label = stringResource(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel),
       isError = isInvalidAmount(monthly),
       supportingText = invalidAmountText(monthly)?.let { text -> { Text(text) } },
@@ -311,7 +313,7 @@ internal fun BankLoanForm(
     )
     HesabyarInputField(
       value = count,
-      onValueChange = onCount,
+      onValueChange = { onCount(it.filterDigits()) },
       label = "تعداد اقساط",
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )

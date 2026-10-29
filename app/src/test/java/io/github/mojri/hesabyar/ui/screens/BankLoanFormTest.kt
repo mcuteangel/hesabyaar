@@ -1,6 +1,7 @@
 package io.github.mojri.hesabyar.ui.screens
 
 import android.content.Context
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,7 @@ import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
 import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -121,41 +123,135 @@ class BankLoanFormTest {
 
   @Test
   @Suppress("LongMethod")
-  fun monthlyFieldShowsErrorForInvalidInputAndClearsForValidInput() {
+  fun monthlyFieldFiltersNonDigitsAndClearsForValidInput() {
     val invalidErrorText = context.getString(R.string.balance_invalid_amount)
     val monthlyLabel = context.getString(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel)
+    val receivedState = mutableStateOf("100000")
+    val monthlyState = mutableStateOf("")
+    val countState = mutableStateOf("12")
 
+    setBankLoanFormContent(receivedState, monthlyState, countState)
+
+    val monthlyNode = composeRule.onNode(hasText(monthlyLabel).and(hasSetTextAction()))
+
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+
+    monthlyNode.performTextInput("5a0b0")
+    composeRule.waitForIdle()
+    assertEquals("Filtered state keeps digits only", "500", monthlyState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+
+    monthlyNode.performTextClearance()
+    monthlyNode.performTextInput("50000")
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+  }
+
+  @Test
+  fun persianAndArabicDigitsAreNormalizedInAmountFields() {
+    val invalidErrorText = context.getString(R.string.balance_invalid_amount)
+    val receivedLabel = context.getString(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel)
+    val monthlyLabel = context.getString(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel)
+    val receivedState = mutableStateOf("")
+    val monthlyState = mutableStateOf("")
+    val countState = mutableStateOf("12")
+
+    setBankLoanFormContent(receivedState, monthlyState, countState)
+
+    composeRule
+      .onNode(hasText(receivedLabel).and(hasSetTextAction()))
+      .performTextInput("۵۰۰۰۰۰")
+    composeRule.waitForIdle()
+    assertEquals("Persian digits normalize to ASCII", "500000", receivedState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+
+    composeRule
+      .onNode(hasText(monthlyLabel).and(hasSetTextAction()))
+      .performTextInput("٥٠٠٠٠")
+    composeRule.waitForIdle()
+    assertEquals("Arabic digits normalize to ASCII", "50000", monthlyState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
+  }
+
+  @Test
+  fun countFieldFiltersNonDigits() {
+    val receivedState = mutableStateOf("100000")
+    val monthlyState = mutableStateOf("50000")
+    val countState = mutableStateOf("")
+
+    setBankLoanFormContent(receivedState, monthlyState, countState)
+
+    val countNode = composeRule.onNode(hasText("تعداد اقساط").and(hasSetTextAction()))
+
+    countNode.performTextInput("1a2")
+    composeRule.waitForIdle()
+    assertEquals("Filtered count keeps digits only", "12", countState.value)
+
+    countNode.performTextClearance()
+    countNode.performTextInput("۱۲")
+    composeRule.waitForIdle()
+    assertEquals("Persian count digits normalize to ASCII", "12", countState.value)
+  }
+
+  @Test
+  fun negativeAmountsKeepMinusSignAndShowError() {
+    val invalidErrorText = context.getString(R.string.balance_invalid_amount)
+    val receivedLabel = context.getString(R.string.bank_loan_received_label, CurrencyFormatter.unitLabel)
+    val monthlyLabel = context.getString(R.string.bank_loan_monthly_label, CurrencyFormatter.unitLabel)
+    val receivedState = mutableStateOf("")
+    val monthlyState = mutableStateOf("")
+    val countState = mutableStateOf("")
+
+    setBankLoanFormContent(receivedState, monthlyState, countState)
+
+    val receivedNode = composeRule.onNode(hasText(receivedLabel).and(hasSetTextAction()))
+
+    receivedNode.performTextInput("-5000")
+    composeRule.waitForIdle()
+    assertEquals("Leading minus is preserved", "-5000", receivedState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(1)
+
+    composeRule
+      .onNode(hasText(monthlyLabel).and(hasSetTextAction()))
+      .performTextInput("\u22125000")
+    composeRule.waitForIdle()
+    assertEquals("Unicode minus normalizes to ASCII minus", "-5000", monthlyState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(2)
+
+    receivedNode.performTextClearance()
+    receivedNode.performTextInput(" -5000")
+    composeRule.waitForIdle()
+    assertEquals("Whitespace before minus is dropped, sign kept", "-5000", receivedState.value)
+    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(2)
+
+    composeRule
+      .onNode(hasText("تعداد اقساط").and(hasSetTextAction()))
+      .performTextInput("-12")
+    composeRule.waitForIdle()
+    assertEquals("Count drops the minus (positive-only)", "12", countState.value)
+  }
+
+  private fun setBankLoanFormContent(
+    receivedState: MutableState<String>,
+    monthlyState: MutableState<String>,
+    countState: MutableState<String>
+  ) {
     composeRule.setContent {
-      var received by remember { mutableStateOf("100000") }
-      var monthly by remember { mutableStateOf("") }
-
       BankLoanForm(
         bankName = "Melli",
         onBankName = {},
         loanName = "Resalat",
         onLoanName = {},
-        received = received,
-        onReceived = { received = it },
-        monthly = monthly,
-        onMonthly = { monthly = it },
-        count = "12",
-        onCount = {},
+        received = receivedState.value,
+        onReceived = { receivedState.value = it },
+        monthly = monthlyState.value,
+        onMonthly = { monthlyState.value = it },
+        count = countState.value,
+        onCount = { countState.value = it },
         description = "",
         onDescription = {},
         startDateLabel = "1403/01/01",
         onPickDate = {}
       )
     }
-
-    val monthlyNode = composeRule.onNode(hasText(monthlyLabel).and(hasSetTextAction()))
-
-    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
-
-    monthlyNode.performTextInput("abc")
-    composeRule.onNodeWithText(invalidErrorText).assertIsDisplayed()
-
-    monthlyNode.performTextClearance()
-    monthlyNode.performTextInput("50000")
-    composeRule.onAllNodesWithText(invalidErrorText).assertCountEquals(0)
   }
 }

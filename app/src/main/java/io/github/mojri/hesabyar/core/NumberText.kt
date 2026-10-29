@@ -42,3 +42,32 @@ fun String.filterDigits(): String {
  * Returns null when the text holds no digit or overflows [Long].
  */
 fun String.toCleanLongOrNull(): Long? = filterDigits().toLongOrNull()
+
+/** Bidirectional control characters (Unicode Bidi_Control property). */
+private val BIDI_MARKS =
+  setOf(
+    '\u061C',
+    '\u200E',
+    '\u200F',
+    '\u202A',
+    '\u202B',
+    '\u202C',
+    '\u202D',
+    '\u202E',
+    '\u2066',
+    '\u2067',
+    '\u2068',
+    '\u2069'
+  )
+
+/**
+ * Keeps accepted digits only, in ASCII form, preserving a leading minus
+ * sign (ASCII or Unicode) so validation can still reject negative input.
+ * Leading whitespace and bidirectional marks before the sign are dropped;
+ * a minus anywhere else is dropped with the other non-digit characters.
+ */
+fun String.filterDigitsPreservingLeadingMinus(): String {
+  val trimmed = dropWhile { it.isWhitespace() || it in BIDI_MARKS }
+  val sign = if (trimmed.startsWith("-") || trimmed.startsWith("\u2212")) "-" else ""
+  return sign + trimmed.filterDigits()
+}
