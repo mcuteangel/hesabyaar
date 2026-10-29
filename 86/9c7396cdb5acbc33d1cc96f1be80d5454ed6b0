@@ -1,0 +1,19 @@
+.github/branch-guard.yml
+  s_f61cb8add6a653::t_c55616a561d0e6 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "869c7396cdb5acbc33d1cc96f1be80d5454ed6b0",
+  "prompts": {},
+  "sessions": {
+    "s_f61cb8add6a653": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "abc69e33-59c6-45f0-bc4c-b073598d3a7e",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
