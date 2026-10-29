@@ -193,6 +193,16 @@ class InstallmentScreenAddDialogTest {
     composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
   }
 
+  @Test
+  fun numericOverflowStringIsRejectedAndKeepsDialogOpen() {
+    openAddDialog()
+    fillDialog("قسط ماشین", "99999999999999999999")
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertTrue("overflowing amounts must not be saved", repo.saved.isEmpty())
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+  }
+
   companion object {
     private const val DIALOG_TITLE = "ثبت قسط جدید"
     private const val CONFIRM_BUTTON = "ذخیره قسط"

@@ -317,4 +317,15 @@ class BankLoanFormTest {
 
     composeRule.onAllNodesWithText("تعداد اقساط باید بیشتر از صفر باشد").assertCountEquals(0)
   }
+
+  @Test
+  fun addBankLoanDialogRendersWithoutCrashingInsideHesabyarDialog() {
+    composeRule.setContent {
+      AddBankLoanDialog(
+        onDismiss = {},
+        onConfirm = { _, _, _, _, _, _, _ -> }
+      )
+    }
+    composeRule.onNodeWithText("ثبت وام بانکی").assertIsDisplayed()
+  }
 }

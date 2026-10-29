@@ -451,21 +451,32 @@ internal class CategoryFormState(
       }
 
     @Composable
-    private fun rememberAdd(): CategoryFormState =
-      androidx.compose.runtime.remember {
+    private fun rememberAdd(): CategoryFormState {
+      val nameState = rememberSaveable { mutableStateOf("") }
+      val keyState = rememberSaveable { mutableStateOf("") }
+      val selectedIconState = rememberSaveable { mutableStateOf("Paid") }
+      val selectedColorState = rememberSaveable { mutableStateOf(DEFAULT_CATEGORY_COLOR) }
+      val selectedTypeState =
+        rememberSaveable(stateSaver = CategoryTypeSaver) {
+          mutableStateOf(CategoryType.EXPENSE)
+        }
+      val typeDropdownExpandedState = rememberSaveable { mutableStateOf(false) }
+
+      return androidx.compose.runtime.remember {
         CategoryFormState(
           isEditing = false,
           initialKey = "",
           initialType = CategoryType.EXPENSE,
           isKeyEnabled = true,
-          nameState = mutableStateOf(""),
-          keyState = mutableStateOf(""),
-          selectedIconState = mutableStateOf("Paid"),
-          selectedColorState = mutableStateOf(DEFAULT_CATEGORY_COLOR),
-          selectedTypeState = mutableStateOf(CategoryType.EXPENSE),
-          typeDropdownExpandedState = mutableStateOf(false)
+          nameState = nameState,
+          keyState = keyState,
+          selectedIconState = selectedIconState,
+          selectedColorState = selectedColorState,
+          selectedTypeState = selectedTypeState,
+          typeDropdownExpandedState = typeDropdownExpandedState
         )
       }
+    }
 
     @Composable
     private fun rememberEdit(initialCategory: Category): CategoryFormState {

@@ -85,6 +85,19 @@ fun HesabyarDialog(
   actions: (@Composable RowScope.() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit
 ) {
+  val dialogWidthModifier =
+    if (!isFullScreen) {
+      Modifier.widthIn(max = Dimens.DialogMaxWidth)
+    } else {
+      Modifier
+    }
+  val dialogHeightModifier =
+    if (heightFraction != null) {
+      Modifier.fillMaxHeight(heightFraction)
+    } else {
+      Modifier
+    }
+
   Dialog(
     onDismissRequest = onDismissRequest,
     properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -92,20 +105,9 @@ fun HesabyarDialog(
     Surface(
       modifier =
         modifier
+          .then(dialogWidthModifier)
           .fillMaxWidth(widthFraction)
-          .then(
-            if (!isFullScreen) {
-              Modifier.widthIn(max = Dimens.DialogMaxWidth)
-            } else {
-              Modifier
-            }
-          ).then(
-            if (heightFraction != null) {
-              Modifier.fillMaxHeight(heightFraction)
-            } else {
-              Modifier
-            }
-          ),
+          .then(dialogHeightModifier),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = ElevationTokens.Level3

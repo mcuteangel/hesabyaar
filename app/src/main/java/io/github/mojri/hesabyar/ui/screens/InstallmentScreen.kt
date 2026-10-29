@@ -231,11 +231,16 @@ private fun AddInstallmentDialog(
       HesabyarButton(
         onClick = {
           val hasLeadingMinus = amountText.startsWith("-")
-          val amountDisplay = amountText.toCleanLongOrNull() ?: 0L
+          val parsedDisplay = amountText.toCleanLongOrNull()
+          val amountDisplay = parsedDisplay ?: 0L
           when {
             title.isBlank() || amountText.isBlank() ->
               onValidationError("لطفا فیلدهای اولیه قسط را کامل کنید")
-            hasLeadingMinus || amountDisplay <= 0L ->
+            hasLeadingMinus ->
+              onValidationError("مبلغ قسط نامعتبر است")
+            parsedDisplay == null ->
+              onValidationError("مبلغ وارد شده بیش از حد مجاز است")
+            amountDisplay <= 0L ->
               onValidationError("مبلغ قسط نامعتبر است")
             overflowsTomanConversion(amountDisplay) ->
               onValidationError("مبلغ وارد شده بیش از حد مجاز است")
