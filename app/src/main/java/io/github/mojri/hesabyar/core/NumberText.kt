@@ -38,10 +38,14 @@ fun String.filterDigits(): String {
 }
 
 /**
- * Parses the accepted digits into a [Long]. Other characters are ignored.
- * Returns null when the text holds no digit or overflows [Long].
+ * Parses the accepted digits into a [Long], preserving a leading minus
+ * sign (ASCII or Unicode, after leading whitespace and bidirectional
+ * marks) so a negative value yields a negative [Long]. A minus anywhere
+ * else is dropped with the other non-digit characters. Returns null when
+ * the text holds no digit, holds only a lone minus, or overflows [Long]
+ * (including negative overflow).
  */
-fun String.toCleanLongOrNull(): Long? = filterDigits().toLongOrNull()
+fun String.toCleanLongOrNull(): Long? = filterDigitsPreservingLeadingMinus().toLongOrNull()
 
 /** Bidirectional control characters (Unicode Bidi_Control property). */
 private val BIDI_MARKS =

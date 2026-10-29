@@ -61,4 +61,14 @@ class NumberTextTest {
     assertEquals("Empty stays empty", "", "".filterDigitsPreservingLeadingMinus())
     assertEquals("Lone minus stays minus", "-", "-".filterDigitsPreservingLeadingMinus())
   }
+
+  @Test
+  fun leadingMinusParsesAsNegative() {
+    assertEquals("ASCII minus parses negative", -5000L, "-5000".toCleanLongOrNull())
+    assertEquals("Unicode minus parses negative", -5000L, "\u22125000".toCleanLongOrNull())
+    assertEquals("Persian digits after minus parse negative", -5000L, "-۵۰۰۰".toCleanLongOrNull())
+    assertEquals("Mid-string minus dropped", 50L, "5-0".toCleanLongOrNull())
+    assertNull("Lone minus returns null", "-".toCleanLongOrNull())
+    assertNull("Negative overflow returns null", "-999999999999999999999999".toCleanLongOrNull())
+  }
 }
