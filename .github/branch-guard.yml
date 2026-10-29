@@ -8,7 +8,8 @@ rules:
   # Real pair, documented in the template header itself:
   # "when a Rust FFI function's signature changes, update the matching line here too".
   # Note: BranchGuard matches file paths, not function signatures.
-  # Direct UniFFI export files whose functions are wrapped in HesabyarCore.template.kt:
+  # Direct UniFFI export files whose functions are wrapped in HesabyarCore.template.kt
+  # (parser/amount.rs exports parse_amount, whose logic powers parse_persian_amount wrapped via lib.rs):
   - name: rust-ffi-template
     description: "FFI changes must update the hand-maintained Kotlin wrapper template"
     check_type: file_pair
