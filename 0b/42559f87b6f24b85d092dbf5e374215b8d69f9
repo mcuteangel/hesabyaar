@@ -1,0 +1,44 @@
+rust/hesabyar-core/src/validation.rs
+  s_68a85eea47171d::t_23fc31c73a7ecb 42,44,47,55,91,94,98-100,102,109,112,115,118,121,127
+  s_68a85eea47171d::t_bb4693c3d7668b 145,148,151,158,161,164,167,174,177,189,193,198
+  s_68a85eea47171d::t_a5fa3da7ba2c15 477,486,490,492,507-508,514,517,521,524,531,534,538,541
+  s_68a85eea47171d::t_a403fab7a753e9 711,723,725,741,743
+  s_68a85eea47171d::t_03e1bc13d08ea3 218-220,232,234,246,248,259,262,265,268-270,273-275,278,281-283,289,291,296,298-300,303,311,313,324,327,330,333,341,343
+  s_68a85eea47171d::t_ee3d878258d4c2 6-8
+  s_68a85eea47171d::t_7f84152c62de40 370,372,375,378,398,402,406-410,420-424,428-432,439,443-444,446-447
+rust/hesabyar-core/src/validation/error.rs
+  s_68a85eea47171d::t_348fb7f62d11b5 1-73,75-192
+rust/hesabyar-core/src/validation/tests.rs
+  s_68a85eea47171d::t_b25ab71d75dfe1 1868-1871,1979-1982,2020-2023
+  s_68a85eea47171d::t_96dfb80cf887f7 1633-1638,1641-1654,1710-1713
+  s_68a85eea47171d::t_fbd33eb11f0439 2189,2195,2201,2203
+  s_68a85eea47171d::t_7a5e0020e54168 135,148
+  s_68a85eea47171d::t_6864ddf05e3152 2095-2099,2132-2136
+  s_68a85eea47171d::t_72990de6611cad 237
+  s_68a85eea47171d::t_fd84734b751ca4 405-408
+  s_68a85eea47171d::t_6bd3b598f44267 718-721,776-779,815-818
+  s_68a85eea47171d::t_576cede1b731e4 650-653,675-678
+  s_68a85eea47171d::t_c011942967da96 941-945,986-990,1049,1108-1112
+  s_68a85eea47171d::t_cec88dae6e7d4a 1172-1175,1228
+  s_68a85eea47171d::t_06bbc1bafadd5b 1340-1343,1420,1469,1521,1572-1573
+progress.md
+  s_68a85eea47171d::t_cf0ec4aa7aa83e 15
+plans/026-validation-error-codes-ffi.md
+  s_68a85eea47171d::t_c02e3ef60a5211 190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0b42559f87b6f24b85d092dbf5e374215b8d69f9",
+  "prompts": {},
+  "sessions": {
+    "s_68a85eea47171d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55f9072a-7e24-480e-82f1-872247778ab0",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
