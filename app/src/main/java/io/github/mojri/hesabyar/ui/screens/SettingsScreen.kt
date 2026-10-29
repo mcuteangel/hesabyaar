@@ -186,7 +186,9 @@ fun SettingsScreen(
         backupViewModel.clearOperationState()
       }
       is BackupOperationState.ValidationFailed -> {
-        settingsViewModel.showMessage("خطا در اعتبارسنجی: ${state.errors.first()}")
+        settingsViewModel.showMessage(
+          context.getString(R.string.backup_validation_error_format, state.errors.first())
+        )
         backupViewModel.clearOperationState()
       }
       else -> {}

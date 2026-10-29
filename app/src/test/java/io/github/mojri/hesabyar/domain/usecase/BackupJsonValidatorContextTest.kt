@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -124,4 +125,33 @@ class BackupJsonValidatorContextTest {
     val fallback = validator.resolveValidationErrorCode("some_unrecognized_code")
     assertEquals(app.getString(R.string.error_unknown), fallback)
   }
+
+  @Test
+  fun contextWiredValidatorResolvesValidationErrorsViaValidateBackup() =
+    runTest {
+      val app = RuntimeEnvironment.getApplication()
+      val validator = BackupJsonValidator(application = app)
+
+      val result =
+        validator.validateBackup(
+          BackupPayload(
+            version = 0,
+            accounts = emptyList()
+          )
+        )
+
+      assertTrue("expected Invalid, got $result", result is BackupValidationResult.Invalid)
+      val errors = (result as BackupValidationResult.Invalid).errors
+      assertTrue(
+        "errors must contain localized version invalid message, got: $errors",
+        errors.any {
+          it == app.getString(R.string.error_backup_version_invalid) ||
+            it == app.getString(R.string.backup_validation_version_invalid)
+        }
+      )
+      assertFalse(
+        "no message may leak the resource-id sentinel or raw error code, got: $errors",
+        errors.any { it.startsWith("<string-res-") || it.startsWith("error_") }
+      )
+    }
 }

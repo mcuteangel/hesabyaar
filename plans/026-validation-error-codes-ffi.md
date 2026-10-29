@@ -210,10 +210,10 @@ Each code maps to a standardized `error_*` string:
    - Map each code string to its `@StringRes` ID, defaulting to `R.string.error_unknown` if unrecognized.
    - In `validateBackup`, resolve `rustResult.errors` before constructing `BackupValidationResult.Invalid`.
 
-### Phase 4: UI & Context Wiring
-1. In `app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt:188-191`:
-   - Replace string interpolation with `stringResource(R.string.backup_validation_error_format, state.errors.first())` (or equivalent context resolution).
-2. Update unit tests in `BackupJsonValidatorTest.kt`, `BackupJsonValidatorContextTest.kt`, and `BackupImportCoordinatorTest.kt` to verify that localized Persian messages are returned and displayed.
+### Phase 4: UI & Context Wiring (DONE)
+1. [x] In `app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt:188-191`:
+   - Replace string interpolation with `context.getString(R.string.backup_validation_error_format, state.errors.first())`.
+2. [x] Update unit tests in `BackupJsonValidatorTest.kt`, `BackupJsonValidatorContextTest.kt`, and `BackupImportCoordinatorTest.kt` to verify that localized Persian messages are returned and displayed.
 
 ### Phase 5: Verification & Full Suite Checks
 1. Run full unit tests:
