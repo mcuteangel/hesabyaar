@@ -46,19 +46,19 @@ fun String.toCleanLongOrNull(): Long? = filterDigits().toLongOrNull()
 /** Bidirectional control characters (Unicode Bidi_Control property). */
 private val BIDI_MARKS =
   setOf(
-  '\u061C',
-  '\u200E',
-  '\u200F',
-  '\u202A',
-  '\u202B',
-  '\u202C',
-  '\u202D',
-  '\u202E',
-  '\u2066',
-  '\u2067',
-  '\u2068',
-  '\u2069'
-)
+    '\u061C',
+    '\u200E',
+    '\u200F',
+    '\u202A',
+    '\u202B',
+    '\u202C',
+    '\u202D',
+    '\u202E',
+    '\u2066',
+    '\u2067',
+    '\u2068',
+    '\u2069'
+  )
 
 /**
  * Keeps accepted digits only, in ASCII form, preserving a leading minus
