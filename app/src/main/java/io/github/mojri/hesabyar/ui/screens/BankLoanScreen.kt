@@ -184,7 +184,7 @@ private fun bankLoanDetailRows(loan: BankLoan) {
   }
 }
 
-private class AddBankLoanFormState(
+internal class AddBankLoanFormState(
   val bankNameState: androidx.compose.runtime.MutableState<String>,
   val loanNameState: androidx.compose.runtime.MutableState<String>,
   val receivedState: androidx.compose.runtime.MutableState<String>,
@@ -194,6 +194,26 @@ private class AddBankLoanFormState(
   val startDateState: androidx.compose.runtime.MutableState<Long>,
   val showDatePickerState: androidx.compose.runtime.MutableState<Boolean>
 ) {
+  constructor(
+    bankName: String = "",
+    loanName: String = "",
+    received: String = "",
+    monthly: String = "",
+    count: String = "",
+    description: String = "",
+    startDate: Long = System.currentTimeMillis(),
+    showDatePicker: Boolean = false
+  ) : this(
+    bankNameState = mutableStateOf(bankName),
+    loanNameState = mutableStateOf(loanName),
+    receivedState = mutableStateOf(received),
+    monthlyState = mutableStateOf(monthly),
+    countState = mutableStateOf(count),
+    descriptionState = mutableStateOf(description),
+    startDateState = mutableStateOf(startDate),
+    showDatePickerState = mutableStateOf(showDatePicker)
+  )
+
   var bankName by bankNameState
   var loanName by loanNameState
   var received by receivedState

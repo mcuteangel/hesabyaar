@@ -254,4 +254,37 @@ class BankLoanFormTest {
       )
     }
   }
+
+  @Test
+  fun addBankLoanFormStateValidationRejectsBlankBankOrZeroAmounts() {
+    val state = AddBankLoanFormState()
+    assertFalse("Empty state cannot confirm", state.canConfirm)
+
+    state.bankName = "ملی"
+    assertFalse("Zero received amount cannot confirm", state.canConfirm)
+
+    state.received = "100000"
+    assertFalse("Zero monthly amount cannot confirm", state.canConfirm)
+
+    state.monthly = "10000"
+    assertFalse("Zero count cannot confirm", state.canConfirm)
+
+    state.count = "10"
+    assertTrue("Valid state must be confirmable", state.canConfirm)
+    assertEquals(10, state.countVal)
+    assertEquals(1_000_000L, state.receivedRial)
+    assertEquals(100_000L, state.monthlyRial)
+  }
+
+  @Test
+  fun addBankLoanFormStateWhitespaceBankNameIsRejected() {
+    val state =
+      AddBankLoanFormState(
+        bankName = "   ",
+        received = "50000",
+        monthly = "5000",
+        count = "12"
+      )
+    assertFalse("Whitespace bank name must not be confirmable", state.canConfirm)
+  }
 }
