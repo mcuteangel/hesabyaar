@@ -3,6 +3,9 @@
 // `validation/mod.rs`, but the split keeps the production file path stable.
 #![allow(clippy::self_named_module_files)]
 
+pub mod error;
+pub use error::ValidationErrorCode;
+
 use crate::models::*;
 
 // WARNING: Must match Kotlin AccountType enum exactly.
@@ -36,12 +39,12 @@ impl Default for ValidationResult {
 /// and [validate_accounts_and_references], so they are not duplicated (or
 /// forgotten) when `validate_backup_payload` runs both paths.
 #[inline(always)]
-fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
+fn validate_transaction_fields(tx: &Transaction) -> Result<(), ValidationErrorCode> {
     if tx.amount <= 0 {
-        return Err("Transaction amount must be positive".into());
+        return Err(ValidationErrorCode::TransactionAmountInvalid);
     }
     if tx.date <= 0 {
-        return Err("Transaction date must be positive".into());
+        return Err(ValidationErrorCode::TransactionDateInvalid);
     }
     // Note: empty descriptions and non-positive category_id are tolerated here
     // (instead of rejected) so that backups exported by older versions of the
@@ -49,7 +52,7 @@ fn validate_transaction_fields(tx: &Transaction) -> Result<(), String> {
     // to 1 — can still be restored. A negative category_id is still rejected as
     // it can never reference a valid category.
     if tx.category_id < 0 {
-        return Err("Transaction category_id must not be negative".into());
+        return Err(ValidationErrorCode::TransactionCategoryInvalid);
     }
     Ok(())
 }
@@ -85,46 +88,43 @@ fn check_transfer_structure(tx: &Transaction) -> Option<TransferIssue> {
 
 /// Validate a single transaction.
 ///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+/// Returns `Ok(())` if valid, or `Err(code)` describing the first violation.
 #[inline(always)]
 pub fn validate_transaction(tx: &Transaction) -> Result<(), String> {
-    validate_transaction_fields(tx)?;
+    validate_transaction_fields(tx).map_err(|c| c.as_code().to_string())?;
     // The five non-Transfer types are accepted unconditionally; Transfer
     // requires a valid destination account.
     if let Some(issue) = check_transfer_structure(tx) {
-        let msg = match issue {
-            TransferIssue::MissingDestination => "Transfer must have a destination_account_id",
-            TransferIssue::SameSourceAndDestination => "Transfer source and destination accounts must differ",
+        let code = match issue {
+            TransferIssue::MissingDestination => ValidationErrorCode::TransferNoDestination,
+            TransferIssue::SameSourceAndDestination => ValidationErrorCode::TransferSameSourceDestination,
         };
-        return Err(msg.into());
+        return Err(code.as_code().to_string());
     }
     Ok(())
 }
 
 /// Validate a single loan.
 ///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+/// Returns `Ok(())` if valid, or `Err(code)` describing the first violation.
 pub fn validate_loan(loan: &Loan) -> Result<(), String> {
     if loan.person_name.is_empty() {
-        return Err("Loan person_name must not be empty".into());
+        return Err(ValidationErrorCode::LoanPersonNameBlank.as_code().to_string());
     }
     if loan.date <= 0 {
-        return Err("Loan date must be positive".into());
+        return Err(ValidationErrorCode::LoanDateInvalid.as_code().to_string());
     }
     if loan.original_amount <= 0 {
-        return Err("Loan original_amount must be positive".into());
+        return Err(ValidationErrorCode::LoanOriginalAmountInvalid.as_code().to_string());
     }
     if loan.remaining_amount < 0 {
-        return Err("Loan remaining_amount must be non-negative".into());
+        return Err(ValidationErrorCode::LoanRemainingAmountInvalid.as_code().to_string());
     }
     // Note: remaining_amount may exceed original_amount for backups created by
     // older app versions (e.g. after partial manual edits). Tolerated on import
     // rather than hard-rejected so those backups can still be restored.
     if loan.loan_type != "DEBTOR" && loan.loan_type != "CREDITOR" {
-        return Err(format!(
-            "Loan type must be DEBTOR or CREDITOR, got '{}'",
-            loan.loan_type
-        ));
+        return Err(ValidationErrorCode::LoanTypeInvalid.as_code().to_string());
     }
     Ok(())
 }
@@ -142,39 +142,39 @@ pub fn validate_loan_payment_date(
     new_payment_date: i64,
 ) -> Result<(), String> {
     if new_payment_date <= 0 {
-        return Err("Loan payment date must be positive".into());
+        return Err(ValidationErrorCode::PaymentDateInvalid.as_code().to_string());
     }
     if new_payment_date < loan_creation_date {
-        return Err("Loan payment date is before the loan creation date".into());
+        return Err(ValidationErrorCode::PaymentDateBeforeCreation.as_code().to_string());
     }
     if existing_payment_dates.iter().any(|d| *d > new_payment_date) {
-        return Err("Loan payment date is before an existing payment date".into());
+        return Err(ValidationErrorCode::PaymentDateBeforeExisting.as_code().to_string());
     }
     Ok(())
 }
 
 /// Validate a single installment.
 ///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+/// Returns `Ok(())` if valid, or `Err(code)` describing the first violation.
 pub fn validate_installment(inst: &Installment) -> Result<(), String> {
     if inst.title.is_empty() {
-        return Err("Installment title must not be empty".into());
+        return Err(ValidationErrorCode::InstallmentTitleBlank.as_code().to_string());
     }
     if inst.amount <= 0 {
-        return Err("Installment amount must be positive".into());
+        return Err(ValidationErrorCode::InstallmentAmountInvalid.as_code().to_string());
     }
     if inst.due_date <= 0 {
-        return Err("Installment due_date must be positive".into());
+        return Err(ValidationErrorCode::InstallmentDueDateInvalid.as_code().to_string());
     }
     Ok(())
 }
 
 /// Validate a single ParsedResult (AI parser output).
 ///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+/// Returns `Ok(())` if valid, or `Err(code)` describing the first violation.
 pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
     if result.amount <= 0 {
-        return Err("ParsedResult amount must be positive".into());
+        return Err(ValidationErrorCode::ParsedAmountInvalid.as_code().to_string());
     }
     // All six TransactionType variants are valid.
     match result.tx_type {
@@ -186,16 +186,16 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
         | TransactionType::Transfer => {}
     }
     if result.category.is_empty() {
-        return Err("ParsedResult category must not be empty".into());
+        return Err(ValidationErrorCode::ParsedCategoryEmpty.as_code().to_string());
     }
     if let Some(hour) = result.hour {
         if !(0..=23).contains(&hour) {
-            return Err(format!("ParsedResult hour must be 0-23, got {}", hour));
+            return Err(ValidationErrorCode::ParsedHourInvalid.as_code().to_string());
         }
     }
     if let Some(minute) = result.minute {
         if !(0..=59).contains(&minute) {
-            return Err(format!("ParsedResult minute must be 0-59, got {}", minute));
+            return Err(ValidationErrorCode::ParsedMinuteInvalid.as_code().to_string());
         }
     }
     Ok(())
@@ -215,9 +215,9 @@ pub fn validate_parsed_result(result: &ParsedResult) -> Result<(), String> {
 #[inline]
 pub fn validate_transaction_batch(transactions: &[Transaction]) -> ValidationResult {
     let mut errors = Vec::new();
-    for (i, tx) in transactions.iter().enumerate() {
-        if let Err(e) = validate_transaction_fields(tx) {
-            errors.push(format!("Transaction[{}]: {}", i, e));
+    for tx in transactions {
+        if let Err(code) = validate_transaction_fields(tx) {
+            errors.push(code.as_code().to_string());
         }
     }
     ValidationResult {
@@ -229,9 +229,9 @@ pub fn validate_transaction_batch(transactions: &[Transaction]) -> ValidationRes
 /// Validate a batch of loans. Collects all errors.
 pub fn validate_loan_batch(loans: &[Loan]) -> ValidationResult {
     let mut errors = Vec::new();
-    for (i, loan) in loans.iter().enumerate() {
+    for loan in loans {
         if let Err(e) = validate_loan(loan) {
-            errors.push(format!("Loan[{}]: {}", i, e));
+            errors.push(e);
         }
     }
     ValidationResult {
@@ -243,9 +243,9 @@ pub fn validate_loan_batch(loans: &[Loan]) -> ValidationResult {
 /// Validate a batch of installments. Collects all errors.
 pub fn validate_installment_batch(installments: &[Installment]) -> ValidationResult {
     let mut errors = Vec::new();
-    for (i, inst) in installments.iter().enumerate() {
+    for inst in installments {
         if let Err(e) = validate_installment(inst) {
-            errors.push(format!("Installment[{}]: {}", i, e));
+            errors.push(e);
         }
     }
     ValidationResult {
@@ -256,45 +256,51 @@ pub fn validate_installment_batch(installments: &[Installment]) -> ValidationRes
 
 /// Validate a single bank loan.
 ///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+/// Returns `Ok(())` if valid, or `Err(code)` describing the first violation.
 pub fn validate_bank_loan(bl: &BankLoan) -> Result<(), String> {
     if bl.bank_name.trim().is_empty() {
-        return Err("BankLoan bank_name must not be empty".into());
+        return Err(ValidationErrorCode::BankLoanNameBlank.as_code().to_string());
     }
     if bl.received_amount <= 0 {
-        return Err("BankLoan received_amount must be positive".into());
+        return Err(ValidationErrorCode::BankLoanReceivedAmountInvalid.as_code().to_string());
     }
     if bl.monthly_installment_amount <= 0 {
-        return Err("BankLoan monthly_installment_amount must be positive".into());
+        return Err(ValidationErrorCode::BankLoanMonthlyInstallmentAmountInvalid
+            .as_code()
+            .to_string());
     }
     if bl.number_of_installments <= 0 {
-        return Err("BankLoan number_of_installments must be positive".into());
+        return Err(ValidationErrorCode::BankLoanInstallmentCountInvalid
+            .as_code()
+            .to_string());
     }
     if bl.start_date <= 0 {
-        return Err("BankLoan start_date must be positive".into());
+        return Err(ValidationErrorCode::BankLoanStartDateInvalid.as_code().to_string());
     }
     if bl.total_repayable_amount <= 0 {
-        return Err("BankLoan total_repayable_amount must be positive".into());
+        return Err(ValidationErrorCode::BankLoanTotalRepayableAmountInvalid
+            .as_code()
+            .to_string());
     }
     // Repayment/interest relationships, using checked arithmetic to reject overflow.
     let expected_repayable = bl
         .monthly_installment_amount
         .checked_mul(bl.number_of_installments as i64)
-        .ok_or("BankLoan repayable amount overflows (monthly_installment_amount * number_of_installments)")?;
+        .ok_or_else(|| ValidationErrorCode::BankLoanRepayableOverflow.as_code().to_string())?;
     if bl.total_repayable_amount != expected_repayable {
-        return Err(
-            "BankLoan total_repayable_amount must equal monthly_installment_amount * number_of_installments".into(),
-        );
+        return Err(ValidationErrorCode::BankLoanRepayableMismatch.as_code().to_string());
     }
     let expected_interest = bl
         .total_repayable_amount
         .checked_sub(bl.received_amount)
-        .ok_or("BankLoan interest calculation overflows")?;
+        .ok_or_else(|| ValidationErrorCode::BankLoanInterestOverflow.as_code().to_string())?;
     if expected_interest < 0 {
-        return Err("BankLoan total_repayable_amount must not be less than received_amount".into());
+        return Err(ValidationErrorCode::BankLoanRepayableBelowReceived
+            .as_code()
+            .to_string());
     }
     if bl.total_interest != expected_interest {
-        return Err("BankLoan total_interest must equal total_repayable_amount - received_amount".into());
+        return Err(ValidationErrorCode::BankLoanInterestMismatch.as_code().to_string());
     }
     Ok(())
 }
@@ -302,9 +308,9 @@ pub fn validate_bank_loan(bl: &BankLoan) -> Result<(), String> {
 /// Validate a batch of bank loans. Collects all errors.
 pub fn validate_bank_loan_batch(bank_loans: &[BankLoan]) -> ValidationResult {
     let mut errors = Vec::new();
-    for (i, bl) in bank_loans.iter().enumerate() {
+    for bl in bank_loans {
         if let Err(e) = validate_bank_loan(bl) {
-            errors.push(format!("BankLoan[{}]: {}", i, e));
+            errors.push(e);
         }
     }
     ValidationResult {
@@ -315,16 +321,16 @@ pub fn validate_bank_loan_batch(bank_loans: &[BankLoan]) -> ValidationResult {
 
 /// Validate a single payment history entry.
 ///
-/// Returns `Ok(())` if valid, or `Err(message)` describing the first violation.
+/// Returns `Ok(())` if valid, or `Err(code)` describing the first violation.
 pub fn validate_payment_history(ph: &PaymentHistory) -> Result<(), String> {
     if ph.amount <= 0 {
-        return Err("PaymentHistory amount must be positive".into());
+        return Err(ValidationErrorCode::PaymentAmountInvalid.as_code().to_string());
     }
     if ph.date <= 0 {
-        return Err("PaymentHistory date must be positive".into());
+        return Err(ValidationErrorCode::PaymentDateInvalid.as_code().to_string());
     }
     if ph.loan_id <= 0 {
-        return Err("PaymentHistory loan_id must be positive".into());
+        return Err(ValidationErrorCode::PaymentLoanIdInvalid.as_code().to_string());
     }
     Ok(())
 }
@@ -332,9 +338,9 @@ pub fn validate_payment_history(ph: &PaymentHistory) -> Result<(), String> {
 /// Validate a batch of payment histories. Collects all errors.
 pub fn validate_payment_history_batch(payment_histories: &[PaymentHistory]) -> ValidationResult {
     let mut errors = Vec::new();
-    for (i, ph) in payment_histories.iter().enumerate() {
+    for ph in payment_histories {
         if let Err(e) = validate_payment_history(ph) {
-            errors.push(format!("PaymentHistory[{}]: {}", i, e));
+            errors.push(e);
         }
     }
     ValidationResult {
@@ -361,15 +367,15 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
 
     // --- Account structural validation ---
     let mut seen_ids: std::collections::HashSet<i64> = std::collections::HashSet::with_capacity(payload.accounts.len());
-    for (i, acc) in payload.accounts.iter().enumerate() {
+    for acc in &payload.accounts {
         if acc.name.trim().is_empty() {
-            errors.push(format!("Account[{}] has empty name", i));
+            errors.push(ValidationErrorCode::AccountNameBlank.as_code().to_string());
         }
         if !seen_ids.insert(acc.id) {
-            errors.push(format!("Duplicate account id {}", acc.id));
+            errors.push(ValidationErrorCode::AccountDuplicateId.as_code().to_string());
         }
         if !VALID_ACCOUNT_TYPES.contains(&acc.account_type.as_str()) {
-            errors.push(format!("Account[{}] has invalid type '{}'", i, acc.account_type));
+            errors.push(ValidationErrorCode::AccountInvalidType.as_code().to_string());
         }
     }
 
@@ -389,21 +395,19 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
 
         let mut transfer_errors: Vec<String> = Vec::new();
 
-        for (i, tx) in payload.transactions.iter().enumerate() {
+        for tx in &payload.transactions {
             if let Some(ref ids) = account_ids {
                 // Modern backup: validate against declared accounts.
                 if !ids.contains(&tx.account_id) {
-                    errors.push(format!(
-                        "Transaction[{}] references non-existent source account {}",
-                        i, tx.account_id
-                    ));
+                    errors.push(ValidationErrorCode::TransactionInvalidAccount.as_code().to_string());
                 }
                 if let Some(dest_id) = tx.destination_account_id {
                     if !ids.contains(&dest_id) {
-                        errors.push(format!(
-                            "Transaction[{}] references non-existent destination account {}",
-                            i, dest_id
-                        ));
+                        errors.push(
+                            ValidationErrorCode::TransactionInvalidDestinationAccount
+                                .as_code()
+                                .to_string(),
+                        );
                     }
                 }
             } else {
@@ -413,36 +417,34 @@ pub fn validate_accounts_and_references(payload: &BackupPayload) -> Vec<String> 
                 // arbitrary IDs here prevents orphaned balances from tampered
                 // old backups.
                 if tx.account_id != DEFAULT_ACCOUNT_ID {
-                    errors.push(format!(
-                        "Transaction[{}] references non-legacy account {} (accounts list is empty; expected {})",
-                        i, tx.account_id, DEFAULT_ACCOUNT_ID
-                    ));
+                    errors.push(
+                        ValidationErrorCode::TransactionInvalidLegacyAccount
+                            .as_code()
+                            .to_string(),
+                    );
                 }
                 if let Some(dest_id) = tx.destination_account_id {
                     if dest_id != DEFAULT_ACCOUNT_ID {
-                        errors.push(format!(
-                            "Transaction[{}] references non-legacy destination account {} (accounts list is empty; expected {})",
-                            i, dest_id, DEFAULT_ACCOUNT_ID
-                        ));
+                        errors.push(
+                            ValidationErrorCode::TransactionInvalidLegacyDestinationAccount
+                                .as_code()
+                                .to_string(),
+                        );
                     }
                 }
             }
 
             // Transfer structure uses the shared check_transfer_structure
             // helper so these invariants cannot drift from validate_transaction
-            // (the fail-fast FFI path). Each caller formats its own message.
+            // (the fail-fast FFI path).
             // Errors are buffered and appended after the account-ref loop to
             // preserve the ordering expected by validate_backup (errors.first()).
             if let Some(issue) = check_transfer_structure(tx) {
-                transfer_errors.push(format!(
-                    "Transaction[{}] {}",
-                    i,
-                    match issue {
-                        TransferIssue::MissingDestination => "is a Transfer but has no destination_account_id",
-                        TransferIssue::SameSourceAndDestination =>
-                            "Transfer source and destination accounts must differ",
-                    }
-                ));
+                let code = match issue {
+                    TransferIssue::MissingDestination => ValidationErrorCode::TransferNoDestination,
+                    TransferIssue::SameSourceAndDestination => ValidationErrorCode::TransferSameSourceDestination,
+                };
+                transfer_errors.push(code.as_code().to_string());
             }
         }
 
@@ -472,7 +474,7 @@ pub fn validate_persons(payload: &BackupPayload) -> Vec<String> {
         let mut person_id_counts: std::collections::HashMap<i64, usize> =
             std::collections::HashMap::with_capacity(payload.persons.len());
 
-        for (i, p) in payload.persons.iter().enumerate() {
+        for p in &payload.persons {
             // Mirror Kotlin `p.name.isBlank()` (Character.isWhitespace || isSpaceChar) —
             // see `is_java_whitespace`. `str::trim` uses Unicode White_Space, which
             // would diverge, so check every char explicitly.
@@ -481,13 +483,13 @@ pub fn validate_persons(payload: &BackupPayload) -> Vec<String> {
                     is_java_whitespace(c) || matches!(c, '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}')
                 });
             if name_is_blank {
-                errors.push(format!("Person[{}] has a blank name", i));
+                errors.push(ValidationErrorCode::PersonNameBlank.as_code().to_string());
             }
             let key = normalize_person_name(&p.name);
             if key.is_empty() {
-                errors.push(format!("Person[{}] has a blank normalizedName", i));
+                errors.push(ValidationErrorCode::PersonNormalizedBlank.as_code().to_string());
             } else if !seen_person_keys.insert(key) {
-                errors.push(format!("Person[{}] has a duplicate normalizedName", i));
+                errors.push(ValidationErrorCode::PersonDuplicate.as_code().to_string());
             }
             *person_id_counts.entry(p.id).or_insert(0) += 1;
         }
@@ -502,41 +504,41 @@ pub fn validate_persons(payload: &BackupPayload) -> Vec<String> {
             .collect();
         // Sort so the reported errors are deterministic across runs.
         duplicate_person_ids.sort_unstable();
-        for id in duplicate_person_ids {
-            errors.push(format!("Person has a duplicate id {}", id));
+        for _id in duplicate_person_ids {
+            errors.push(ValidationErrorCode::PersonDuplicateId.as_code().to_string());
         }
 
         // Cross-reference: positive person_id must point to a declared person.
         // Zero is a legacy default tolerated in all cases.
         let person_ids: std::collections::HashSet<_> = payload.persons.iter().map(|p| p.id).collect();
-        for (i, loan) in payload.loans.iter().enumerate() {
+        for loan in &payload.loans {
             if let Some(pid) = loan.person_id {
                 if pid > 0 && !person_ids.contains(&pid) {
-                    errors.push(format!("Loan[{}] references non-existent person {}", i, pid));
+                    errors.push(ValidationErrorCode::LoanInvalidPerson.as_code().to_string());
                 }
             }
         }
-        for (i, tx) in payload.transactions.iter().enumerate() {
+        for tx in &payload.transactions {
             if let Some(pid) = tx.person_id {
                 if pid > 0 && !person_ids.contains(&pid) {
-                    errors.push(format!("Transaction[{}] references non-existent person {}", i, pid));
+                    errors.push(ValidationErrorCode::TransactionInvalidPerson.as_code().to_string());
                 }
             }
         }
     } else {
         // Fast path for legacy or person-free backups: no persons declared, so
         // any positive person_id in loans or transactions is an orphan.
-        for (i, loan) in payload.loans.iter().enumerate() {
+        for loan in &payload.loans {
             if let Some(pid) = loan.person_id {
                 if pid > 0 {
-                    errors.push(format!("Loan[{}] references non-existent person {}", i, pid));
+                    errors.push(ValidationErrorCode::LoanInvalidPerson.as_code().to_string());
                 }
             }
         }
-        for (i, tx) in payload.transactions.iter().enumerate() {
+        for tx in &payload.transactions {
             if let Some(pid) = tx.person_id {
                 if pid > 0 {
-                    errors.push(format!("Transaction[{}] references non-existent person {}", i, pid));
+                    errors.push(ValidationErrorCode::TransactionInvalidPerson.as_code().to_string());
                 }
             }
         }
@@ -706,7 +708,7 @@ fn is_java_whitespace(c: char) -> bool {
 pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     let mut errors = Vec::new();
     if payload.version < 1 {
-        errors.push("Invalid backup version".into());
+        errors.push(ValidationErrorCode::BackupVersionInvalid.as_code().to_string());
     }
 
     // Account validation + transaction account reference checks.
@@ -718,12 +720,9 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     // validate_transaction, so treating it as missing would break old backups.
     if !payload.categories.is_empty() {
         let category_ids: std::collections::HashSet<_> = payload.categories.iter().map(|c| c.id).collect();
-        for (i, tx) in payload.transactions.iter().enumerate() {
+        for tx in &payload.transactions {
             if tx.category_id > 0 && !category_ids.contains(&tx.category_id) {
-                errors.push(format!(
-                    "Transaction[{}] references non-existent category {}",
-                    i, tx.category_id
-                ));
+                errors.push(ValidationErrorCode::TransactionInvalidCategory.as_code().to_string());
             }
         }
     }
@@ -739,12 +738,9 @@ pub fn validate_backup_payload(payload: &BackupPayload) -> ValidationResult {
     // Zero is a legacy default tolerated in all cases.
     if !payload.payment_histories.is_empty() {
         let loan_ids: std::collections::HashSet<_> = payload.loans.iter().map(|l| l.id).collect();
-        for (i, ph) in payload.payment_histories.iter().enumerate() {
+        for ph in &payload.payment_histories {
             if ph.loan_id > 0 && !loan_ids.contains(&ph.loan_id) {
-                errors.push(format!(
-                    "PaymentHistory[{}] references non-existent loan {}",
-                    i, ph.loan_id
-                ));
+                errors.push(ValidationErrorCode::PaymentInvalidLoan.as_code().to_string());
             }
         }
     }
