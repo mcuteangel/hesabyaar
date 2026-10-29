@@ -6,11 +6,17 @@
 
 ## Active Task
 
-None (Plan 025 completed and archived as DONE, PR #580 open).
+Issue #586 — Return validation error codes across FFI and map to error_* keys in Kotlin (Plan 026)
 
 ## Goal
 
-- [ ] Awaiting merge of PR #580 or next task assignment.
+- [x] Await user approval for Plan 026 (`plans/026-validation-error-codes-ffi.md`).
+- [x] Phase 0: Baseline verification.
+- [ ] Phase 1: Rust core `ValidationErrorCode` implementation & unit tests.
+- [ ] Phase 2: UniFFI bindings regeneration (`:app:generateAndFixBindings`).
+- [ ] Phase 3: Kotlin string resources and `BackupJsonValidator` error resolution.
+- [ ] Phase 4: UI error formatting in `SettingsScreen.kt`.
+- [ ] Phase 5: Verification & full test suite.
 
 ## Completed
 
