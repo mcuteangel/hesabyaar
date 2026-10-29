@@ -186,8 +186,11 @@ fun SettingsScreen(
         backupViewModel.clearOperationState()
       }
       is BackupOperationState.ValidationFailed -> {
+        val errorMsg =
+          state.errors.firstOrNull()
+            ?: context.getString(R.string.error_unknown)
         settingsViewModel.showMessage(
-          context.getString(R.string.backup_validation_error_format, state.errors.first())
+          context.getString(R.string.backup_validation_error_format, errorMsg)
         )
         backupViewModel.clearOperationState()
       }

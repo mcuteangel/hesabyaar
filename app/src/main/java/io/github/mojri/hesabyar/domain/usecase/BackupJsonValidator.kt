@@ -59,7 +59,8 @@ class BackupJsonValidator(
 
   private var warnedMissingContext = false
 
-  fun resolveValidationErrorCode(code: String): String = message(validationErrorCodeToStringRes(code))
+  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+  internal fun resolveValidationErrorCode(code: String): String = message(validationErrorCodeToStringRes(code))
 
   suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
     withContext(dispatcher) {

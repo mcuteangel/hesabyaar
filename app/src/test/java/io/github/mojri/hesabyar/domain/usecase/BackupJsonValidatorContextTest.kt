@@ -144,10 +144,7 @@ class BackupJsonValidatorContextTest {
       val errors = (result as BackupValidationResult.Invalid).errors
       assertTrue(
         "errors must contain localized version invalid message, got: $errors",
-        errors.any {
-          it == app.getString(R.string.error_backup_version_invalid) ||
-            it == app.getString(R.string.backup_validation_version_invalid)
-        }
+        errors.any { it == app.getString(R.string.error_backup_version_invalid) }
       )
       assertFalse(
         "no message may leak the resource-id sentinel or raw error code, got: $errors",

@@ -1118,6 +1118,70 @@ fn test_backup_transfer_same_source_dest_not_duplicated() {
     );
 }
 
+#[test]
+fn test_validation_error_code_all_variants_coverage() {
+    let variants = [
+        ValidationErrorCode::BackupVersionInvalid,
+        ValidationErrorCode::AccountNameBlank,
+        ValidationErrorCode::AccountDuplicateId,
+        ValidationErrorCode::AccountInvalidType,
+        ValidationErrorCode::TransactionInvalidAccount,
+        ValidationErrorCode::TransactionInvalidDestinationAccount,
+        ValidationErrorCode::TransactionInvalidLegacyAccount,
+        ValidationErrorCode::TransactionInvalidLegacyDestinationAccount,
+        ValidationErrorCode::TransferNoDestination,
+        ValidationErrorCode::TransferSameSourceDestination,
+        ValidationErrorCode::TransactionAmountInvalid,
+        ValidationErrorCode::TransactionDateInvalid,
+        ValidationErrorCode::TransactionCategoryInvalid,
+        ValidationErrorCode::TransactionInvalidCategory,
+        ValidationErrorCode::LoanPersonNameBlank,
+        ValidationErrorCode::LoanDateInvalid,
+        ValidationErrorCode::LoanOriginalAmountInvalid,
+        ValidationErrorCode::LoanRemainingAmountInvalid,
+        ValidationErrorCode::LoanTypeInvalid,
+        ValidationErrorCode::LoanInvalidPerson,
+        ValidationErrorCode::TransactionInvalidPerson,
+        ValidationErrorCode::InstallmentTitleBlank,
+        ValidationErrorCode::InstallmentAmountInvalid,
+        ValidationErrorCode::InstallmentDueDateInvalid,
+        ValidationErrorCode::BankLoanNameBlank,
+        ValidationErrorCode::BankLoanReceivedAmountInvalid,
+        ValidationErrorCode::BankLoanMonthlyInstallmentAmountInvalid,
+        ValidationErrorCode::BankLoanInstallmentCountInvalid,
+        ValidationErrorCode::BankLoanStartDateInvalid,
+        ValidationErrorCode::BankLoanTotalRepayableAmountInvalid,
+        ValidationErrorCode::BankLoanRepayableOverflow,
+        ValidationErrorCode::BankLoanRepayableMismatch,
+        ValidationErrorCode::BankLoanInterestOverflow,
+        ValidationErrorCode::BankLoanRepayableBelowReceived,
+        ValidationErrorCode::BankLoanInterestMismatch,
+        ValidationErrorCode::PaymentAmountInvalid,
+        ValidationErrorCode::PaymentDateInvalid,
+        ValidationErrorCode::PaymentLoanIdInvalid,
+        ValidationErrorCode::PaymentInvalidLoan,
+        ValidationErrorCode::PersonNameBlank,
+        ValidationErrorCode::PersonNormalizedBlank,
+        ValidationErrorCode::PersonDuplicate,
+        ValidationErrorCode::PersonDuplicateId,
+        ValidationErrorCode::PaymentDateBeforeCreation,
+        ValidationErrorCode::PaymentDateBeforeExisting,
+        ValidationErrorCode::ParsedAmountInvalid,
+        ValidationErrorCode::ParsedCategoryEmpty,
+        ValidationErrorCode::ParsedHourInvalid,
+        ValidationErrorCode::ParsedMinuteInvalid,
+    ];
+
+    for code in variants {
+        let s = code.as_code();
+        assert!(s.starts_with("error_"));
+        assert!(!code.default_message().is_empty());
+        assert_eq!(format!("{}", code), s);
+        let as_string: String = code.into();
+        assert_eq!(as_string, s);
+    }
+}
+
 // =====================================================================
 // Transaction account reference validation
 // =====================================================================

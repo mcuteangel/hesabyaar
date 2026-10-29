@@ -1,10 +1,10 @@
 # Plan 026: Return Validation Error Codes Across FFI and Map to error_* Keys in Kotlin
 
 - **Issue:** #586
-- **PR:** —
+- **PR:** #591
 - **Created:** 2026-10-29
 - **Author:** Claude Code
-- **Status:** IN PROGRESS
+- **Status:** DONE
 
 ## 1. Problem Statement
 
@@ -37,17 +37,17 @@ This violates:
 
 ## 2. Goals & Acceptance Criteria
 
-- [ ] **Criterion 1 (No Raw Rust Strings in UI):**
+- [x] **Criterion 1 (No Raw Rust Strings in UI):**
   - No raw English error message from the Rust core reaches any UI screen, snackbar, or dialog.
-- [ ] **Criterion 2 (Stable Error Codes across FFI):**
+- [x] **Criterion 2 (Stable Error Codes across FFI):**
   - `ValidationResult.errors` returned by `validate_backup_payload` contains stable code strings (e.g. `error_tx_amount_invalid`, `error_backup_version_invalid`).
   - Rust retains an internal `ValidationErrorCode` enum with `.as_code()` and `.default_message()` for developer logging and Rust unit testing.
-- [ ] **Criterion 3 (strings.xml Completeness):**
+- [x] **Criterion 3 (strings.xml Completeness):**
   - Every error code emitted by the Rust core has a matching entry in `app/src/main/res/values/strings.xml` prefixed with `error_*` (per `docs/LOCALIZATION.md`).
   - Unknown or unexpected codes gracefully fall back to `error_unknown` (`"خطای ناشناخته"`).
-- [ ] **Criterion 4 (Persian Text on Backup-Import Validation Failure):**
+- [x] **Criterion 4 (Persian Text on Backup-Import Validation Failure):**
   - Triggering an invalid backup restore on `SettingsScreen` displays a fully localized Persian message (e.g. `"خطا در اعتبارسنجی: نسخه پشتیبان نامعتبر است"`).
-- [ ] **Criterion 5 (Clean Build, Rust Module Sizes, and Static Analysis):**
+- [x] **Criterion 5 (Clean Build, Rust Module Sizes, and Static Analysis):**
   - `cargo test --manifest-path rust/Cargo.toml` passes with 0 failures.
   - `bash scripts/check-rust-module-size.sh` passes without violating 800 lines / 25 functions.
   - `./gradlew testDebugUnitTest testDebugUnitTestRust --no-daemon` passes with 0 failures.
