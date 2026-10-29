@@ -248,6 +248,15 @@ jobs:
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Run Gravity on Debug APK
+        if: ${{ success() && secrets.GRAVITY_TOKEN != '' }}
+        continue-on-error: true
+        run: npx --yes @gravityci/cli "app/build/outputs/apk/debug/*.apk"
+        env:
+          GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN }}
+          GRAVITY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Fail if Coveralls token missing on trusted runs
         # Derives from the verify step's outcome so the trusted-run condition
         # lives in exactly one place; !cancelled() keeps it reporting after
