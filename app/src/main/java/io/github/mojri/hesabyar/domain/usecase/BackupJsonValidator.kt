@@ -20,8 +20,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val TAG = "BackupJsonValidator"
-
 /**
  * Validates parsed backup payloads (Rust-first with a Kotlin fallback, matching
  * the parser's strategy). Field-level checks live in per-collection private
@@ -61,6 +59,9 @@ class BackupJsonValidator(
 
   private var warnedMissingContext = false
 
+  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+  internal fun resolveValidationErrorCode(code: String): String = message(validationErrorCodeToStringRes(code))
+
   suspend fun validateBackup(backup: BackupPayload): BackupValidationResult =
     withContext(dispatcher) {
       if (RustBridge.isAvailable) {
@@ -70,7 +71,8 @@ class BackupJsonValidator(
           if (rustResult.isValid) {
             BackupValidationResult.Valid
           } else {
-            BackupValidationResult.Invalid(rustResult.errors)
+            val resolvedErrors = rustResult.errors.map { resolveValidationErrorCode(it) }
+            BackupValidationResult.Invalid(resolvedErrors)
           }
         } catch (e: IllegalArgumentException) {
           // Mapping to Rust payload failed (e.g. from mapAccounts/mapCategories);
@@ -232,18 +234,81 @@ class BackupJsonValidator(
     }
   }
 
-  private fun BackupPayload.toRustPayload(): io.github.mojri.hesabyar.rust.BackupPayload =
-    io.github.mojri.hesabyar.rust.BackupPayload(
-      version = version,
-      timestamp = timestamp,
-      appVersion = appVersion,
-      transactions = RustMappers.mapTransactions(transactions),
-      loans = RustMappers.mapLoans(loans),
-      installments = RustMappers.mapInstallments(installments),
-      paymentHistories = RustMappers.mapPaymentHistories(paymentHistories),
-      bankLoans = RustMappers.mapBankLoans(bankLoans),
-      categories = RustMappers.mapCategories(categories),
-      accounts = RustMappers.mapAccounts(accounts),
-      persons = RustMappers.mapPersons(persons)
-    )
+  companion object {
+    private const val TAG = "BackupJsonValidator"
+
+    private val ERROR_CODE_MAP: Map<String, Int> =
+      mapOf(
+        "error_backup_version_invalid" to R.string.error_backup_version_invalid,
+        "error_account_name_blank" to R.string.error_account_name_blank,
+        "error_account_duplicate_id" to R.string.error_account_duplicate_id,
+        "error_account_invalid_type" to R.string.error_account_invalid_type,
+        "error_transaction_invalid_account" to R.string.error_transaction_invalid_account,
+        "error_transaction_invalid_destination_account" to R.string.error_transaction_invalid_destination_account,
+        "error_transaction_invalid_legacy_account" to R.string.error_transaction_invalid_legacy_account,
+        "error_transaction_invalid_legacy_destination_account" to
+          R.string.error_transaction_invalid_legacy_destination_account,
+        "error_transfer_no_destination" to R.string.error_transfer_no_destination,
+        "error_transfer_same_source_destination" to R.string.error_transfer_same_source_destination,
+        "error_tx_amount_invalid" to R.string.error_tx_amount_invalid,
+        "error_tx_date_invalid" to R.string.error_tx_date_invalid,
+        "error_tx_category_invalid" to R.string.error_tx_category_invalid,
+        "error_transaction_invalid_category" to R.string.error_transaction_invalid_category,
+        "error_loan_person_name_blank" to R.string.error_loan_person_name_blank,
+        "error_loan_date_invalid" to R.string.error_loan_date_invalid,
+        "error_loan_original_amount_invalid" to R.string.error_loan_original_amount_invalid,
+        "error_loan_remaining_amount_invalid" to R.string.error_loan_remaining_amount_invalid,
+        "error_loan_type_invalid" to R.string.error_loan_type_invalid,
+        "error_loan_invalid_person" to R.string.error_loan_invalid_person,
+        "error_transaction_invalid_person" to
+          R.string.error_transaction_invalid_person,
+        "error_installment_title_blank" to R.string.error_installment_title_blank,
+        "error_installment_amount_invalid" to R.string.error_installment_amount_invalid,
+        "error_installment_due_date_invalid" to R.string.error_installment_due_date_invalid,
+        "error_bank_loan_name_blank" to R.string.error_bank_loan_name_blank,
+        "error_bank_loan_received_amount_invalid" to R.string.error_bank_loan_received_amount_invalid,
+        "error_bank_loan_monthly_installment_amount_invalid" to
+          R.string.error_bank_loan_monthly_installment_amount_invalid,
+        "error_bank_loan_installment_count_invalid" to R.string.error_bank_loan_installment_count_invalid,
+        "error_bank_loan_start_date_invalid" to R.string.error_bank_loan_start_date_invalid,
+        "error_bank_loan_total_repayable_amount_invalid" to R.string.error_bank_loan_total_repayable_amount_invalid,
+        "error_bank_loan_repayable_overflow" to R.string.error_bank_loan_repayable_overflow,
+        "error_bank_loan_repayable_mismatch" to R.string.error_bank_loan_repayable_mismatch,
+        "error_bank_loan_interest_overflow" to R.string.error_bank_loan_interest_overflow,
+        "error_bank_loan_repayable_below_received" to R.string.error_bank_loan_repayable_below_received,
+        "error_bank_loan_interest_mismatch" to R.string.error_bank_loan_interest_mismatch,
+        "error_payment_amount_invalid" to R.string.error_payment_amount_invalid,
+        "error_payment_date_invalid" to R.string.error_payment_date_invalid,
+        "error_payment_loan_id_invalid" to R.string.error_payment_loan_id_invalid,
+        "error_payment_invalid_loan" to R.string.error_payment_invalid_loan,
+        "error_person_name_blank" to R.string.error_person_name_blank,
+        "error_person_normalized_blank" to R.string.error_person_normalized_blank,
+        "error_person_duplicate" to R.string.error_person_duplicate,
+        "error_person_duplicate_id" to R.string.error_person_duplicate_id,
+        "error_payment_date_before_creation" to R.string.error_payment_date_before_creation,
+        "error_payment_date_before_existing" to R.string.error_payment_date_before_existing,
+        "error_parsed_amount_invalid" to R.string.error_parsed_amount_invalid,
+        "error_parsed_category_empty" to R.string.error_parsed_category_empty,
+        "error_parsed_hour_invalid" to R.string.error_parsed_hour_invalid,
+        "error_parsed_minute_invalid" to R.string.error_parsed_minute_invalid
+      )
+
+    @StringRes
+    fun validationErrorCodeToStringRes(code: String): Int = ERROR_CODE_MAP[code] ?: R.string.error_unknown
+  }
 }
+
+private fun BackupPayload.toRustPayload(): io.github.mojri.hesabyar.rust.BackupPayload =
+  io.github.mojri.hesabyar.rust.BackupPayload(
+    version = version,
+    timestamp = timestamp,
+    appVersion = appVersion,
+    transactions = RustMappers.mapTransactions(transactions),
+    loans = RustMappers.mapLoans(loans),
+    installments = RustMappers.mapInstallments(installments),
+    paymentHistories = RustMappers.mapPaymentHistories(paymentHistories),
+    bankLoans = RustMappers.mapBankLoans(bankLoans),
+    categories = RustMappers.mapCategories(categories),
+    accounts = RustMappers.mapAccounts(accounts),
+    persons = RustMappers.mapPersons(persons)
+  )
