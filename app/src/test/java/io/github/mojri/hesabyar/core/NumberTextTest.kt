@@ -55,7 +55,7 @@ class NumberTextTest {
     assertEquals("Persian digits after minus", "-5000", "-۵۰۰۰".filterDigitsPreservingLeadingMinus())
     assertEquals("Mid-string minus dropped", "50", "5-0".filterDigitsPreservingLeadingMinus())
     assertEquals("ALM before minus kept", "-5000", "\u061C-5000".filterDigitsPreservingLeadingMinus())
-    assertEquals("ALM before minus with Persian digits", "-5000", "\u061C-۵۰۰۰".filterDigitsPreservingLeadingMinus())
+    assertEquals("ALM + Persian digits", "-5000", "\u061C-۵۰۰۰".filterDigitsPreservingLeadingMinus())
     assertEquals("LRM before minus kept", "-5000", "\u200E-5000".filterDigitsPreservingLeadingMinus())
     assertEquals("ALM before Unicode minus", "-5000", "\u061C\u22125000".filterDigitsPreservingLeadingMinus())
     assertEquals("Empty stays empty", "", "".filterDigitsPreservingLeadingMinus())
