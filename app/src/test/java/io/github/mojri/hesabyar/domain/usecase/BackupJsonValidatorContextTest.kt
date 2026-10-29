@@ -9,6 +9,7 @@ import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -110,5 +111,17 @@ class BackupJsonValidatorContextTest {
       "no message may leak the resource-id sentinel, got: $errors",
       errors.any { it.startsWith("<string-res-") }
     )
+  }
+
+  @Test
+  fun contextWiredValidatorResolvesValidationErrorCode() {
+    val app = RuntimeEnvironment.getApplication()
+    val validator = BackupJsonValidator(application = app)
+
+    val resolved = validator.resolveValidationErrorCode("error_tx_amount_invalid")
+    assertEquals(app.getString(R.string.error_tx_amount_invalid), resolved)
+
+    val fallback = validator.resolveValidationErrorCode("some_unrecognized_code")
+    assertEquals(app.getString(R.string.error_unknown), fallback)
   }
 }

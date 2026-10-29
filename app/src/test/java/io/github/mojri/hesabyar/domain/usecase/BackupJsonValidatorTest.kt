@@ -1,5 +1,6 @@
 package io.github.mojri.hesabyar.domain.usecase
 
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.BackupPayload
@@ -13,6 +14,7 @@ import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.data.PaymentHistory
 import io.github.mojri.hesabyar.data.Transaction
 import io.github.mojri.hesabyar.data.TransactionType
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -334,4 +336,34 @@ class BackupJsonValidatorTest {
         description = ""
       )
     )
+
+  // ---------------------------------------------------------------------------
+  // Validation Error Code Mapping & Resolution
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun mapsKnownValidationErrorCodeToStringRes() {
+    assertEquals(
+      R.string.error_backup_version_invalid,
+      BackupJsonValidator.validationErrorCodeToStringRes("error_backup_version_invalid")
+    )
+    assertEquals(
+      R.string.error_tx_amount_invalid,
+      BackupJsonValidator.validationErrorCodeToStringRes("error_tx_amount_invalid")
+    )
+  }
+
+  @Test
+  fun mapsUnknownValidationErrorCodeToErrorUnknown() {
+    assertEquals(
+      R.string.error_unknown,
+      BackupJsonValidator.validationErrorCodeToStringRes("unrecognized_code_123")
+    )
+  }
+
+  @Test
+  fun resolvesValidationErrorCodeWithoutContextAsSentinel() {
+    val sentinel = validator.resolveValidationErrorCode("error_tx_amount_invalid")
+    assertEquals("<string-res-${R.string.error_tx_amount_invalid}>", sentinel)
+  }
 }

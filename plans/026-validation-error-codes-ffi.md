@@ -201,11 +201,11 @@ Each code maps to a standardized `error_*` string:
    ```
 2. [x] Verify UniFFI checksum and generated wrappers. (Ran `./gradlew --no-daemon testDebugUnitTestRust` successfully; 0 failures).
 
-### Phase 3: Kotlin String Resources & Resolution
-1. In `app/src/main/res/values/strings.xml`:
+### Phase 3: Kotlin String Resources & Resolution (DONE)
+1. [x] In `app/src/main/res/values/strings.xml`:
    - Add/standardize `error_*` string resources matching all error codes.
    - Add `backup_validation_error_format` (`"خطا در اعتبارسنجی: %1$s"`).
-2. In `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonValidator.kt`:
+2. [x] In `app/src/main/java/io/github/mojri/hesabyar/domain/usecase/BackupJsonValidator.kt`:
    - Implement `resolveValidationErrorCode(code: String): String`.
    - Map each code string to its `@StringRes` ID, defaulting to `R.string.error_unknown` if unrecognized.
    - In `validateBackup`, resolve `rustResult.errors` before constructing `BackupValidationResult.Invalid`.

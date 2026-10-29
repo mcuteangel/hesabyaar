@@ -14,7 +14,7 @@ Issue #586 — Return validation error codes across FFI and map to error_* keys 
 - [x] Phase 0: Baseline verification.
 - [x] Phase 1: Rust core `ValidationErrorCode` implementation & unit tests.
 - [x] Phase 2: UniFFI bindings regeneration (`:app:generateAndFixBindings`).
-- [ ] Phase 3: Kotlin string resources and `BackupJsonValidator` error resolution.
+- [x] Phase 3: Kotlin string resources and `BackupJsonValidator` error resolution.
 - [ ] Phase 4: UI error formatting in `SettingsScreen.kt`.
 - [ ] Phase 5: Verification & full test suite.
 
