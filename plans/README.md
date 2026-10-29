@@ -43,7 +43,7 @@ Planned at commit `44dd519`, 2026-07-23.
 | 022  | [A11y] `HesabyarTopBar` for Persons & `PersonDetailSheet`, `heading()` semantics, and emoji removal (`plans/archive/022-topbar-heading-semantics-and-emoji-cleanup.md`, issue #361) | P2 | S | — | DONE (branch `feat/issue-361-topbar-heading-semantics`, PR #540) |
 | 023  | [Tech-debt] Consolidate `AiResultCard`, extract `MarkdownText`, and single-screen budget advice (`plans/archive/023-consolidate-ai-result-card-and-markdown-text.md`, issue #356) | P2 | M | 005 | DONE |
 | 024  | Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (`plans/archive/024-dead-code-removal-loan-and-transaction-components.md`, issue #340, PR #569) | P1 | M | — | DONE (verified on branch `refactor/issue-340-dead-code-removal`, PR #569) |
-| 025  | Refactor Category Data Layer to use CategoryType End-to-End (`plans/025-category-type-end-to-end.md`, issue #71) | P3 | M | — | IN PROGRESS (branch `refactor/issue-71-category-type-end-to-end`) |
+| 025  | Refactor Category Data Layer to use CategoryType End-to-End (`plans/archive/025-category-type-end-to-end.md`, issue #71, PR #580) | P3 | M | — | DONE (verified on branch `refactor/issue-71-category-type-end-to-end`, PR #580) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

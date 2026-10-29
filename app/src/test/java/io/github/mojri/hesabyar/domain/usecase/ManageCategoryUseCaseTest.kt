@@ -13,30 +13,34 @@ class ManageCategoryUseCaseTest {
   private val fake = FakeRepository()
   private val useCase = ManageCategoryUseCase(fake)
 
+  private suspend fun seedStandardCategories() {
+    useCase.addCategory(
+      name = "خوراک",
+      key = "food",
+      icon = "ic_food",
+      color = 0xFF0000L,
+      type = CategoryType.EXPENSE
+    )
+    useCase.addCategory(
+      name = "حقوق",
+      key = "salary",
+      icon = "ic_salary",
+      color = 0x00FF00L,
+      type = CategoryType.INCOME
+    )
+    useCase.addCategory(
+      name = "عمومی",
+      key = "general",
+      icon = "ic_general",
+      color = 0x0000FFL,
+      type = CategoryType.BOTH
+    )
+  }
+
   @Test
   fun getCategoriesByTypeFiltersExpenseAndBoth() =
     runTest {
-      useCase.addCategory(
-        name = "خوراک",
-        key = "food",
-        icon = "ic_food",
-        color = 0xFF0000L,
-        type = CategoryType.EXPENSE
-      )
-      useCase.addCategory(
-        name = "حقوق",
-        key = "salary",
-        icon = "ic_salary",
-        color = 0x00FF00L,
-        type = CategoryType.INCOME
-      )
-      useCase.addCategory(
-        name = "عمومی",
-        key = "general",
-        icon = "ic_general",
-        color = 0x0000FFL,
-        type = CategoryType.BOTH
-      )
+      seedStandardCategories()
 
       val expenseCategories = useCase.getCategoriesByType(CategoryType.EXPENSE).first()
       assertEquals("Should return EXPENSE and BOTH categories", 2, expenseCategories.size)
@@ -48,33 +52,25 @@ class ManageCategoryUseCaseTest {
   @Test
   fun getCategoriesByTypeFiltersIncomeAndBoth() =
     runTest {
-      useCase.addCategory(
-        name = "خوراک",
-        key = "food",
-        icon = "ic_food",
-        color = 0xFF0000L,
-        type = CategoryType.EXPENSE
-      )
-      useCase.addCategory(
-        name = "حقوق",
-        key = "salary",
-        icon = "ic_salary",
-        color = 0x00FF00L,
-        type = CategoryType.INCOME
-      )
-      useCase.addCategory(
-        name = "عمومی",
-        key = "general",
-        icon = "ic_general",
-        color = 0x0000FFL,
-        type = CategoryType.BOTH
-      )
+      seedStandardCategories()
 
       val incomeCategories = useCase.getCategoriesByType(CategoryType.INCOME).first()
       assertEquals("Should return INCOME and BOTH categories", 2, incomeCategories.size)
       assertTrue("Contains INCOME category", incomeCategories.any { it.key == "salary" })
       assertTrue("Contains BOTH category", incomeCategories.any { it.key == "general" })
       assertTrue("Does not contain EXPENSE category", incomeCategories.none { it.key == "food" })
+    }
+
+  @Test
+  fun getCategoriesByTypeFiltersBothOnly() =
+    runTest {
+      seedStandardCategories()
+
+      val bothCategories = useCase.getCategoriesByType(CategoryType.BOTH).first()
+      assertEquals("Should return only BOTH categories", 1, bothCategories.size)
+      assertTrue("Contains BOTH category", bothCategories.any { it.key == "general" })
+      assertTrue("Does not contain EXPENSE category", bothCategories.none { it.key == "food" })
+      assertTrue("Does not contain INCOME category", bothCategories.none { it.key == "salary" })
     }
 
   @Test

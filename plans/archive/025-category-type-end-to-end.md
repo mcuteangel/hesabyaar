@@ -1,10 +1,10 @@
 # Plan 025: Refactor Category Data Layer to use CategoryType End-to-End
 
 - **Issue:** #71
-- **PR:** —
+- **PR:** #580
 - **Created:** 2026-10-28
 - **Author:** Claude Code
-- **Status:** COMPLETED
+- **Status:** DONE (Branch `refactor/issue-71-category-type-end-to-end`, PR #580)
 
 ## 1. Problem Statement
 
@@ -132,7 +132,7 @@ This raw `String` boundary introduces several issues:
 
 # 2. Targeted test execution
 ./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.domain.usecase.ManageCategoryUseCaseTest" --no-daemon
-./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.RepositoryLogicTest" --no-daemon
+./gradlew testDebugUnitTest --tests "io.github.mojri.hesabyar.data.CategoryRepositoryLogicTest" --no-daemon
 
 # 3. Full unit test suite
 ./gradlew testDebugUnitTest --no-daemon
@@ -143,7 +143,7 @@ python scripts/check_docs.py
 
 ### Required Evidence
 - Raw console output of `ktlintCheck` and `detekt` (0 errors).
-- Raw test output with test case names from `ManageCategoryUseCaseTest` and `RepositoryLogicTest`.
+- Raw test output with test case names from `ManageCategoryUseCaseTest` and `CategoryRepositoryLogicTest`.
 - `git diff` showing the replacement of `String` with `CategoryType` across the 4 production files and 3 test fake files.
 
 ## 5. Risks, Dependencies & STOP Conditions

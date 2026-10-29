@@ -95,5 +95,11 @@ class CategoryRepositoryLogicTest {
       assertTrue("Must contain INCOME category", incomeResult.any { it.key == "salary" })
       assertTrue("Must contain BOTH category", incomeResult.any { it.key == "general" })
       assertFalse("Must not contain EXPENSE category", incomeResult.any { it.key == "food" })
+
+      val bothResult = repository.getCategoriesByType(CategoryType.BOTH).first()
+      assertEquals("BOTH filter must return only BOTH categories", 1, bothResult.size)
+      assertTrue("Must contain BOTH category", bothResult.any { it.key == "general" })
+      assertFalse("Must not contain EXPENSE category", bothResult.any { it.key == "food" })
+      assertFalse("Must not contain INCOME category", bothResult.any { it.key == "salary" })
     }
 }

@@ -6,16 +6,16 @@
 
 ## Active Task
 
-None (Plan 025 completed, ready for PR).
+None (Plan 025 completed and archived as DONE, PR #580 open).
 
 ## Goal
 
-- [ ] Awaiting next task assignment or PR creation.
+- [ ] Awaiting merge of PR #580 or next task assignment.
 
 ## Completed
 
 - **Task:** Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 025)
-- **Status:** Completed and verified (branch `refactor/issue-71-category-type-end-to-end`)
+- **Status:** Completed and verified (branch `refactor/issue-71-category-type-end-to-end`, PR #580, archived as DONE)
 - **Completed Date:** 2026-10-28
 - **Deliverables:**
     - [x] Phase 0: Baseline verification & branch setup (`refactor/issue-71-category-type-end-to-end`).
