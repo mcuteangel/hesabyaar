@@ -1,0 +1,36 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/InstallmentScreenAddDialogTest.kt
+  s_9d0f88e244df98::t_bcff9297213bd6 186-195
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/InstallmentScreen.kt
+  s_9d0f88e244df98::t_e927bd6fe3b9bd 233,236,238-239
+  s_9d0f88e244df98::t_16e32201820dd6 301
+  s_9d0f88e244df98::t_02557878e33363 29
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/CategoryFormStateTest.kt
+  s_9d0f88e244df98::t_e2e2f42324dcaf 56,65,68-73
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/CategoryManagementScreen.kt
+  s_9d0f88e244df98::t_48f0d72307bdcb 435-438,473-482,484-485,487,489,493
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarDialogTest.kt
+  s_9d0f88e244df98::t_0a116b65a8f9d8 173-201
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/account/AccountFormStateTest.kt
+  s_9d0f88e244df98::t_744a8a77f184ba 35,40-51
+  s_9d0f88e244df98::t_b71955d7f814c3 119,130-131
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_9d0f88e244df98::t_a32353d0ded1c1 725,738,752,756,760,764,768,772,776,780,784,788
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarDialog.kt
+  s_9d0f88e244df98::t_9308cd3a0a1f89 279-280,284-285,288-293
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bc66483cc95e4677ddce123c4e45fa362056bde4",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
