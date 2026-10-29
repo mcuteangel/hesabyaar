@@ -318,6 +318,10 @@ class AddPersonLoanDialogTest {
     amountNode.performTextClearance()
     amountNode.performTextInput(" -5000")
     composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput("\u061C-5000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
   }
 
   private companion object {
