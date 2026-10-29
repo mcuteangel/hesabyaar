@@ -1,4 +1,4 @@
-# Plan 025: [UX / Consistency] Unified Dialog Policy, Standard Button Slots, and Raw AlertDialog Migration
+# Plan 026: [UX / Consistency] Unified Dialog Policy, Standard Button Slots, and Raw AlertDialog Migration
 
 - **Issue:** #350
 - **PR:** —

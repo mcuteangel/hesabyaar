@@ -6,15 +6,17 @@
 
 ## Active Task
 
-- None currently active.
+## Active Task
+
+None (Plan 026 / PR #562 in review and autofix).
 
 ## Goal
 
-- None.
+- [ ] Awaiting CI completion and merge of PR #562.
 
 ## Completed
 
-- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 025)
+- **Task:** Issue #350 — [UX / Consistency] Unified dialog policy, standard button slots, and raw AlertDialog migration (Plan 026)
 - **Status:** Completed and verified (branch `feat/issue-350-dialog-policy`)
 - **Completed Date:** 2026-10-26
 - **Deliverables:**
@@ -27,6 +29,16 @@
     - [x] Standardized all dismiss buttons across pickers and dialogs to `ButtonVariant.Text` (`CustomTimePickerDialog`, `JalaliDatePickerDialog`, `ManualTransactionDialog`, `ReportsScreen`).
     - [x] Added unit tests in `HesabyarDialogTest.kt` (8 tests) and `ConfirmDialogTest.kt` (4 tests).
     - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python scripts/check_docs.py` reporting 0 broken references.
+
+- **Task:** Issue #71 — Refactor Category Data Layer to use CategoryType End-to-End (Plan 025)
+- **Status:** Completed and verified (branch `refactor/issue-71-category-type-end-to-end`, PR #580, archived as DONE)
+- **Completed Date:** 2026-10-28
+- **Deliverables:**
+    - [x] Phase 0: Baseline verification & branch setup (`refactor/issue-71-category-type-end-to-end`).
+    - [x] Phase 1: Data layer refactoring (`CategoryDao`, `CategoryOps`, `CategoryDelegate`) to accept `CategoryType` end-to-end.
+    - [x] Phase 2: Domain layer update (`ManageCategoryUseCase.getCategoriesByType` forwards `CategoryType` directly without string conversion).
+    - [x] Phase 3: Test fakes and test suite updates (`ui/FakeRepository`, `domain/usecase/FakeRepository`, `InstallmentViewModelTest`, `ManageCategoryUseCaseTest`, and `CategoryRepositoryLogicTest`).
+    - [x] Phase 4: Verification and static analysis (`ktlintCheck`, `detekt`, `testDebugUnitTest` — 0 errors, 0 failures, `check_docs.py` — clean).
 
 - **Task:** Issue #340 — [Tech-debt] Dead code removal: LoanManagementScreen, LoanViewModel, LoanItem, InstallmentItem, and TransactionItem (Plan 024)
 - **Status:** Completed and verified (branch `refactor/issue-340-dead-code-removal`)
