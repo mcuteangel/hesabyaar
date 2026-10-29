@@ -662,16 +662,18 @@ private fun AccountDialogFields(state: AccountFormState) {
     dropdownExpanded = state.typeDropdownExpanded,
     onDropdownExpandedChange = { state.typeDropdownExpanded = it }
   )
-  AccountDialogBankDetailsFields(
-    bankName = state.bankName,
-    onBankNameChange = { state.bankName = it },
-    cardNumber = state.cardNumber,
-    onCardNumberChange = { state.cardNumber = it },
-    accountNumber = state.accountNumber,
-    onAccountNumberChange = { state.accountNumber = it },
-    iban = state.iban,
-    onIbanChange = { state.iban = it }
-  )
+  if (state.selectedType == AccountType.BANK) {
+    AccountDialogBankDetailsFields(
+      bankName = state.bankName,
+      onBankNameChange = { state.bankName = it },
+      cardNumber = state.cardNumber,
+      onCardNumberChange = { state.cardNumber = it },
+      accountNumber = state.accountNumber,
+      onAccountNumberChange = { state.accountNumber = it },
+      iban = state.iban,
+      onIbanChange = { state.iban = it }
+    )
+  }
   AccountOpeningBalanceField(
     initialBalance = state.initialBalance,
     onBalanceChange = { state.initialBalance = it },
@@ -727,17 +729,19 @@ internal class AccountFormState(
   val isSaveEnabled: Boolean
     get() = name.isNotBlank() && !balanceError
 
-  fun toFormData(): AccountFormData =
-    AccountFormData(
+  fun toFormData(): AccountFormData {
+    val isBank = selectedType == AccountType.BANK
+    return AccountFormData(
       name = name.trim(),
       type = selectedType,
-      bankName = bankName.trim().ifBlank { null },
-      cardNumber = cardNumber.trim().ifBlank { null },
-      accountNumber = accountNumber.trim().ifBlank { null },
-      iban = iban.trim().ifBlank { null },
+      bankName = if (isBank) bankName.trim().ifBlank { null } else null,
+      cardNumber = if (isBank) cardNumber.trim().ifBlank { null } else null,
+      accountNumber = if (isBank) accountNumber.trim().ifBlank { null } else null,
+      iban = if (isBank) iban.trim().ifBlank { null } else null,
       initialBalance = parsedBalance ?: 0L,
       color = selectedColor
     )
+  }
 }
 
 @Composable

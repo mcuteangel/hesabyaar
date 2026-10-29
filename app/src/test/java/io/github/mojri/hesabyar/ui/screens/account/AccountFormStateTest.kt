@@ -163,4 +163,68 @@ class AccountFormStateTest {
     assertTrue("Malformed balance in edit mode must set balanceError", state.balanceError)
     assertFalse("Malformed balance in edit mode must disable save", state.isSaveEnabled)
   }
+
+  @Test
+  fun bankAccountTypePreservesBankDetails() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب سپه"
+    state.selectedType = AccountType.BANK
+    state.bankName = "سپه"
+    state.cardNumber = "589210..."
+    state.accountNumber = "12345"
+    state.iban = "IR123..."
+    state.initialBalance = "0"
+
+    val data = state.toFormData()
+    assertEquals("سپه", data.bankName)
+    assertEquals("589210...", data.cardNumber)
+    assertEquals("12345", data.accountNumber)
+    assertEquals("IR123...", data.iban)
+  }
+
+  @Test
+  fun nonBankAccountTypeClearsBankDetailsInFormData() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "کیف پول جیبی"
+    state.selectedType = AccountType.CASH_WALLET
+    state.bankName = "بانک نامربوط"
+    state.cardNumber = "6037..."
+    state.accountNumber = "999"
+    state.iban = "IR999..."
+    state.initialBalance = "0"
+
+    val data = state.toFormData()
+    assertEquals(AccountType.CASH_WALLET, data.type)
+    assertEquals(null, data.bankName)
+    assertEquals(null, data.cardNumber)
+    assertEquals(null, data.accountNumber)
+    assertEquals(null, data.iban)
+  }
+
+  @Test
+  fun switchingFromBankToCashWalletNullsExistingBankDetails() {
+    val existingBank =
+      AccountEntity(
+        id = 5,
+        name = "حساب قدیمی",
+        type = AccountType.BANK,
+        bankName = "ملی",
+        cardNumber = "603799...",
+        accountNumber = "0100...",
+        iban = "IR100...",
+        initialBalance = 500_000L
+      )
+    val state = AccountFormState(initialAccount = existingBank)
+    assertEquals(AccountType.BANK, state.selectedType)
+
+    // User switches type to CASH_WALLET
+    state.selectedType = AccountType.CASH_WALLET
+    val data = state.toFormData()
+
+    assertEquals(AccountType.CASH_WALLET, data.type)
+    assertEquals("Bank name must be cleared for cash wallet", null, data.bankName)
+    assertEquals("Card number must be cleared for cash wallet", null, data.cardNumber)
+    assertEquals("Account number must be cleared for cash wallet", null, data.accountNumber)
+    assertEquals("IBAN must be cleared for cash wallet", null, data.iban)
+  }
 }

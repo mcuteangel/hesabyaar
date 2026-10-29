@@ -591,7 +591,7 @@ private fun CategoryDialogContent(
 
     CategoryPreviewCard(
       name = state.name,
-      selectedType = state.selectedType,
+      selectedType = state.typeToSave,
       selectedIcon = state.selectedIcon,
       selectedColor = state.selectedColor
     )
