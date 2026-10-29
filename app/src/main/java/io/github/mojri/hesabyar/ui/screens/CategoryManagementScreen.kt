@@ -416,17 +416,17 @@ private class CategoryFormState(
   var typeDropdownExpanded by typeDropdownExpandedState
 
   val isValid: Boolean
-    get() = name.isNotBlank() && finalKey.isNotBlank() && resolvedType != CategoryType.UNKNOWN
+    get() = name.trim().isNotBlank() && finalKey.isNotBlank() && resolvedType != CategoryType.UNKNOWN
 
   val finalKey: String
-    get() =
-      if (isEditing && !isKeyEnabled) {
-        initialKey.ifBlank { name.trim().replace("\\s+".toRegex(), "") }
+    get() {
+      val derivedNameKey = name.trim().replace("\\s+".toRegex(), "")
+      return if (isEditing && !isKeyEnabled) {
+        initialKey.ifBlank { derivedNameKey }
       } else {
-        key.trim().ifBlank {
-          name.trim().replace("\\s+".toRegex(), "")
-        }
+        key.trim().ifBlank { derivedNameKey }
       }
+    }
 
   private val resolvedType: CategoryType
     get() =
