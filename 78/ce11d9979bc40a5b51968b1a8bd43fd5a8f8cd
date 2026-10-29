@@ -1,0 +1,23 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/ReportsScreen.kt
+  s_9d0f88e244df98::t_40cb196680f9ea 611-612
+plans/archive/027-unified-dialog-policy-and-raw-alertdialog-migration.md
+  s_9d0f88e244df98::t_d0ea2f7fadc4ef 1
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarDialog.kt
+  s_9d0f88e244df98::t_b385976e3129bc 64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "78ce11d9979bc40a5b51968b1a8bd43fd5a8f8cd",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
