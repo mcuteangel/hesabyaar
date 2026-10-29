@@ -194,12 +194,12 @@ Each code maps to a standardized `error_*` string:
 4. Update Rust unit tests in `rust/hesabyar-core/src/validation/tests.rs` to assert on error codes.
 5. Run `cargo test --manifest-path rust/Cargo.toml` and `bash scripts/check-rust-module-size.sh`.
 
-### Phase 2: UniFFI Binding Generation & Verification
-1. Regenerate Kotlin bindings:
+### Phase 2: UniFFI Binding Generation & Verification (DONE)
+1. [x] Regenerate Kotlin bindings:
    ```bash
    ./gradlew --no-daemon :app:generateAndFixBindings
    ```
-2. Verify UniFFI checksum and generated wrappers.
+2. [x] Verify UniFFI checksum and generated wrappers. (Ran `./gradlew --no-daemon testDebugUnitTestRust` successfully; 0 failures).
 
 ### Phase 3: Kotlin String Resources & Resolution
 1. In `app/src/main/res/values/strings.xml`:
