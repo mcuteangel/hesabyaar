@@ -1,0 +1,21 @@
+plans/026-validation-error-codes-ffi.md
+  s_68a85eea47171d::t_6b7fc154636867 197-198,202
+progress.md
+  s_68a85eea47171d::t_1884258c105393 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8a819e6d51394e6ddf2b9da811f6500cce093691",
+  "prompts": {},
+  "sessions": {
+    "s_68a85eea47171d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55f9072a-7e24-480e-82f1-872247778ab0",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
