@@ -4,6 +4,7 @@ import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.BackupPayload
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.data.Category
+import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.data.Loan
@@ -70,7 +71,7 @@ internal open class FakeRepository : HesabyarRepositoryInterface {
     end: Long
   ): Flow<List<Transaction>> = flowOf(emptyList())
 
-  override fun getCategoriesByType(type: String): Flow<List<Category>> = flowOf(emptyList())
+  override fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = flowOf(emptyList())
 
   override suspend fun getCategoryById(id: Long): Category? = null
 

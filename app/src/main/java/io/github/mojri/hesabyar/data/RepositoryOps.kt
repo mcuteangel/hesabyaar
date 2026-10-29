@@ -45,7 +45,7 @@ interface TransactionOps {
 interface CategoryOps {
   val allCategories: Flow<List<Category>>
 
-  fun getCategoriesByType(type: String): Flow<List<Category>>
+  fun getCategoriesByType(type: CategoryType): Flow<List<Category>>
 
   suspend fun getCategoryById(id: Long): Category?
 
