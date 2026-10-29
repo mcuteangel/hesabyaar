@@ -227,7 +227,7 @@ class BankLoanFormTest {
       .onNode(hasText("تعداد اقساط").and(hasSetTextAction()))
       .performTextInput("-12")
     composeRule.waitForIdle()
-    assertEquals("Negative count keeps its sign", "-12", countState.value)
+    assertEquals("Count drops the minus (positive-only)", "12", countState.value)
   }
 
   private fun setBankLoanFormContent(

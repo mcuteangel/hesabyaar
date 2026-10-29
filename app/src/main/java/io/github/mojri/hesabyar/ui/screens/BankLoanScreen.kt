@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.core.filterDigits
 import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.data.BankLoan
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
@@ -312,7 +313,7 @@ internal fun BankLoanForm(
     )
     HesabyarInputField(
       value = count,
-      onValueChange = { onCount(it.filterDigitsPreservingLeadingMinus()) },
+      onValueChange = { onCount(it.filterDigits()) },
       label = "تعداد اقساط",
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
