@@ -405,14 +405,15 @@ private class CategoryFormState(
   keyState: MutableState<String>,
   selectedIconState: MutableState<String>,
   selectedColorState: MutableState<Long>,
-  selectedTypeState: MutableState<CategoryType>
+  selectedTypeState: MutableState<CategoryType>,
+  typeDropdownExpandedState: MutableState<Boolean> = mutableStateOf(false)
 ) {
   var name by nameState
   var key by keyState
   var selectedIcon by selectedIconState
   var selectedColor by selectedColorState
   var selectedType by selectedTypeState
-  var typeDropdownExpanded by mutableStateOf(false)
+  var typeDropdownExpanded by typeDropdownExpandedState
 
   val isValid: Boolean
     get() = name.isNotBlank() && finalKey.isNotBlank() && resolvedType != CategoryType.UNKNOWN
@@ -436,13 +437,14 @@ private class CategoryFormState(
       }
 
   val typeToSave: CategoryType
-    get() {
-      val resolved = resolvedType
-      if (resolved == CategoryType.UNKNOWN) {
-        throw IllegalStateException("Unknown category type cannot be saved")
+    get() =
+      if (resolvedType != CategoryType.UNKNOWN) {
+        resolvedType
+      } else if (initialType != CategoryType.UNKNOWN) {
+        initialType
+      } else {
+        CategoryType.EXPENSE
       }
-      return resolved
-    }
 }
 
 @Composable
@@ -458,8 +460,10 @@ private fun rememberCategoryFormState(initialCategory: Category?): CategoryFormS
     rememberSaveable(categoryKey, stateSaver = CategoryTypeSaver) {
       mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE)
     }
+  val typeDropdownExpandedState =
+    rememberSaveable(categoryKey) { mutableStateOf(false) }
 
-  return remember(initialCategory) {
+  return remember(categoryKey) {
     CategoryFormState(
       isEditing = isEditing,
       initialKey = initialCategory?.key.orEmpty(),
@@ -469,7 +473,8 @@ private fun rememberCategoryFormState(initialCategory: Category?): CategoryFormS
       keyState = keyState,
       selectedIconState = selectedIconState,
       selectedColorState = selectedColorState,
-      selectedTypeState = selectedTypeState
+      selectedTypeState = selectedTypeState,
+      typeDropdownExpandedState = typeDropdownExpandedState
     )
   }
 }
