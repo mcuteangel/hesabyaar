@@ -10,7 +10,7 @@ internal class CategoryDelegate(
 ) : CategoryOps {
   override val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
 
-  override fun getCategoriesByType(type: String): Flow<List<Category>> = categoryDao.getCategoriesByType(type)
+  override fun getCategoriesByType(type: CategoryType): Flow<List<Category>> = categoryDao.getCategoriesByType(type)
 
   override suspend fun getCategoryById(id: Long): Category? = categoryDao.getCategoryById(id)
 
