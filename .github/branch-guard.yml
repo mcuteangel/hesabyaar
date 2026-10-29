@@ -1,0 +1,85 @@
+# BranchGuard rules for Hesabyar.
+# Config is read from .github/branch-guard.yml on the default branch (main).
+# Start: these checks are NOT required yet — watch a few PRs first, then
+# mark the passing ones as required status checks in the ruleset.
+# Rules are limited to 20 per file; each produces a check run branch-guard/<name>.
+
+rules:
+  # Real pair, documented in the template header itself:
+  # "when a Rust FFI function's signature changes, update the matching line here too".
+  - name: rust-ffi-template
+    description: "FFI changes must update the hand-maintained Kotlin wrapper template"
+    check_type: file_pair
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "rust/hesabyar-core/src/ffi/mod.rs"
+    config:
+      companion: "app/buildSrc/template/HesabyarCore.template.kt"
+
+  # Real pair from scripts/bump-version.sh: it writes VERSION and prepends
+  # CHANGELOG.md together, and a core bump refreshes rust/Cargo.lock.
+  - name: version-changelog
+    description: "VERSION bumps must come with a CHANGELOG.md entry"
+    check_type: file_pair
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "VERSION"
+    config:
+      companion: "CHANGELOG.md"
+
+  - name: cargo-lock
+    description: "Cargo.toml changes must refresh rust/Cargo.lock (stale lock breaks --locked builds)"
+    check_type: file_pair
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "rust/Cargo.toml"
+          - "rust/hesabyar-core/Cargo.toml"
+    config:
+      companion: "rust/Cargo.lock"
+
+  # Stale branches: forces a rebase instead of merging months-old work.
+  # Tune the number first — night-guard branches are fresh, so 30 days
+  # should not bite normal PRs, but long-lived drafts will fail.
+  - name: stale-branch
+    description: "Branch must not have diverged from main more than 30 days ago"
+    check_type: branch_age
+    on:
+      branches: [main]
+      paths:
+        include:
+          - "**/*"
+    config:
+      max_age_days: 30
+
+  # --- Candidates, deliberately commented out: verify before enabling ---
+  # external_status needs the EXACT check-run names from a recent PR
+  # (not the workflow file names). Only require a heavy CI job when the
+  # files it covers actually changed, e.g. Rust lint only on rust/**.
+  # - name: rust-lint-conditional
+  #   description: "Rust changes must pass the Rust lint check"
+  #   check_type: external_status
+  #   on:
+  #     branches: [main]
+  #     paths:
+  #       include: ["rust/**"]
+  #   config:
+  #     required_checks: ["<EXACT CHECK NAME FROM A RECENT PR>"]
+  #     timeout_minutes: 30
+
+  # approval_gate is weak for a solo repo: GitHub does not let a PR author
+  # approve their own PR, so a rule requiring mcuteangel would only pass
+  # via auto_pass_sole_author (i.e. vacuously). Useful only if/when a
+  # second reviewer exists for a sensitive area, e.g. .github/workflows/**.
+
+  # What BranchGuard CANNOT do here (do not try to force it):
+  # - Coverage-on-Touch: it sees file paths only, not which lines a test covers.
+  # - Zizmor path:line pins: it sees files, not line numbers.
+  # - A generic "every changed Kotlin file needs a test" rule: file_pair
+  #   companions are fixed paths, not globs, so it cannot pair each source
+  #   file with its own test file.
