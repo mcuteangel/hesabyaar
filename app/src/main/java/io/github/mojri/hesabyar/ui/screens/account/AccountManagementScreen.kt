@@ -673,6 +673,12 @@ private fun AccountDialogFields(state: AccountFormState) {
       iban = state.iban,
       onIbanChange = { state.iban = it }
     )
+  } else if (state.hasExistingBankDetails && state.initialAccount?.type == AccountType.BANK) {
+    Text(
+      text = "توجه: با تغییر نوع حساب از بانکی، اطلاعات بانکی ذخیره‌شده پاک خواهد شد.",
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.error
+    )
   }
   AccountOpeningBalanceField(
     initialBalance = state.initialBalance,
@@ -691,7 +697,7 @@ private fun AccountDialogFields(state: AccountFormState) {
 }
 
 internal class AccountFormState(
-  initialAccount: AccountEntity? = null,
+  val initialAccount: AccountEntity? = null,
   nameState: MutableState<String> = mutableStateOf(initialAccount?.name.orEmpty()),
   selectedTypeState: MutableState<AccountType> = mutableStateOf(initialAccount?.type ?: AccountType.BANK),
   bankNameState: MutableState<String> = mutableStateOf(initialAccount?.bankName.orEmpty()),
@@ -714,6 +720,13 @@ internal class AccountFormState(
   var initialBalance by initialBalanceState
   var selectedColor by selectedColorState
   var typeDropdownExpanded by typeDropdownExpandedState
+
+  val hasExistingBankDetails: Boolean
+    get() =
+      !initialAccount?.bankName.isNullOrBlank() ||
+        !initialAccount?.cardNumber.isNullOrBlank() ||
+        !initialAccount?.accountNumber.isNullOrBlank() ||
+        !initialAccount?.iban.isNullOrBlank()
 
   val parsedBalance: Long?
     get() =

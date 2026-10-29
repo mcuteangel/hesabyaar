@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AssistChip
@@ -329,7 +331,8 @@ private fun AddBankLoanDialog(
       description = state.description,
       onDescription = { state.description = it },
       startDateLabel = "تاریخ شروع: ${jDate.year}/${jDate.month}/${jDate.day}",
-      onPickDate = { state.showDatePicker = true }
+      onPickDate = { state.showDatePicker = true },
+      modifier = Modifier.verticalScroll(rememberScrollState())
     )
   }
 }
@@ -379,6 +382,8 @@ internal fun BankLoanForm(
       value = count,
       onValueChange = { onCount(it.filterDigits()) },
       label = "تعداد اقساط",
+      isError = isInvalidCount(count),
+      supportingText = invalidCountText(count)?.let { text -> { Text(text) } },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(value = description, onValueChange = onDescription, label = "توضیحات")
@@ -401,4 +406,17 @@ internal fun isInvalidAmount(text: String): Boolean {
 private fun invalidAmountText(text: String): String? {
   if (!isInvalidAmount(text)) return null
   return stringResource(R.string.balance_invalid_amount)
+}
+
+@VisibleForTesting
+internal fun isInvalidCount(text: String): Boolean {
+  if (text.isBlank()) return false
+  val count = text.toIntOrNull() ?: 0
+  return count <= 0
+}
+
+@Composable
+private fun invalidCountText(text: String): String? {
+  if (!isInvalidCount(text)) return null
+  return "تعداد اقساط باید بیشتر از صفر باشد"
 }

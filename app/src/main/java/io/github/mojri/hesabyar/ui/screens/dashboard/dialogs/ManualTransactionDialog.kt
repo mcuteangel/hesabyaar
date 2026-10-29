@@ -218,6 +218,8 @@ internal class ManualTransactionFormState(
 
   fun buildRequest(): SubmitManualTransactionUseCase.SubmitManualTransactionRequest {
     val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
+    val accountId =
+      requireNotNull(sourceAccountId) { "sourceAccountId must be validated before building request" }
     return SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
       amountDisplay = finalAmountDisplay,
       selectedType = selectedType,
@@ -230,7 +232,7 @@ internal class ManualTransactionFormState(
       customDate = customDate,
       categories = categories,
       transactionToEdit = transactionToEdit,
-      accountId = sourceAccountId ?: 0L,
+      accountId = accountId,
       destinationAccountId = destinationAccountId
     )
   }

@@ -227,4 +227,28 @@ class AccountFormStateTest {
     assertEquals("Account number must be cleared for cash wallet", null, data.accountNumber)
     assertEquals("IBAN must be cleared for cash wallet", null, data.iban)
   }
+
+  @Test
+  fun hasExistingBankDetailsDetectsExistingDetailsOnBankEntity() {
+    val existingBank =
+      AccountEntity(
+        id = 5,
+        name = "حساب قدیمی",
+        type = AccountType.BANK,
+        bankName = "ملی",
+        initialBalance = 500_000L
+      )
+    val state = AccountFormState(initialAccount = existingBank)
+    assertTrue("Must detect existing bank details", state.hasExistingBankDetails)
+
+    val plainAccount =
+      AccountEntity(
+        id = 6,
+        name = "کیف پول",
+        type = AccountType.CASH_WALLET,
+        initialBalance = 100_000L
+      )
+    val statePlain = AccountFormState(initialAccount = plainAccount)
+    assertFalse("Must be false when no bank details exist", statePlain.hasExistingBankDetails)
+  }
 }

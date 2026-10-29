@@ -287,4 +287,33 @@ class BankLoanFormTest {
       )
     assertFalse("Whitespace bank name must not be confirmable", state.canConfirm)
   }
+
+  @Test
+  fun isInvalidCountRejectsZeroOrNegative() {
+    assertFalse("Blank count does not show error", isInvalidCount(""))
+    assertTrue("Zero count is invalid", isInvalidCount("0"))
+    assertTrue("Negative count is invalid", isInvalidCount("-5"))
+    assertFalse("Positive count is valid", isInvalidCount("12"))
+  }
+
+  @Test
+  fun countFieldShowsErrorWhenZero() {
+    val receivedState = mutableStateOf("100000")
+    val monthlyState = mutableStateOf("50000")
+    val countState = mutableStateOf("")
+
+    setBankLoanFormContent(receivedState, monthlyState, countState)
+
+    val countNode = composeRule.onNode(hasText("تعداد اقساط").and(hasSetTextAction()))
+    countNode.performTextInput("0")
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("تعداد اقساط باید بیشتر از صفر باشد").assertIsDisplayed()
+
+    countNode.performTextClearance()
+    countNode.performTextInput("12")
+    composeRule.waitForIdle()
+
+    composeRule.onAllNodesWithText("تعداد اقساط باید بیشتر از صفر باشد").assertCountEquals(0)
+  }
 }
