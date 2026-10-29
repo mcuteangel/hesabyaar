@@ -43,8 +43,7 @@ internal fun AddPersonLoanDialog(
 ) {
   var amountText by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
-  val normalized = amountText.replace('\u2212', '-')
-  val hasLeadingMinus = normalized.startsWith("-")
+  val hasLeadingMinus = amountText.startsWith("-")
   val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
   val isValidAmount = !hasLeadingMinus && parsedAmount >= 1L && !overflowsTomanConversion(parsedAmount)
   val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
