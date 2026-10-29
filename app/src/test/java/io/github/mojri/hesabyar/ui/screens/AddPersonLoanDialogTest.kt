@@ -9,10 +9,12 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.CurrencyUnit
+import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -242,6 +244,84 @@ class AddPersonLoanDialogTest {
     composeRule.waitForIdle()
 
     assertTrue("Dismissal allowed once the write completes", dismissed)
+  }
+
+  @Test
+  fun overflowBoundaryDisablesConfirmInTomanMode() {
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = NAME_ALI,
+        onConfirm = { _, _ -> },
+        onDismiss = {}
+      )
+    }
+
+    val amountNode =
+      composeRule.onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
+
+    amountNode.performTextInput((DisplayAmountInput.maxDisplayAmount() + 1).toString())
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput(DisplayAmountInput.maxDisplayAmount().toString())
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled()
+  }
+
+  @Test
+  fun arabicDigitsAndMixedGarbageNormalizeBeforeConfirm() {
+    var confirmedRial: Long? = null
+
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = NAME_ALI,
+        onConfirm = { amount, _ -> confirmedRial = amount },
+        onDismiss = {}
+      )
+    }
+
+    val amountNode =
+      composeRule.onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
+
+    amountNode.performTextInput("٥٠٠٠٠")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled().performClick()
+    assertEquals("Arabic digits convert to Rial", 500_000L, confirmedRial)
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput("1a2b3")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsEnabled().performClick()
+    assertEquals("Mixed garbage filters to digits before conversion", 1_230L, confirmedRial)
+  }
+
+  @Test
+  fun negativeAmountsDisableConfirm() {
+    composeRule.setContent {
+      AddPersonLoanDialog(
+        type = LoanType.DEBTOR,
+        personName = NAME_ALI,
+        onConfirm = { _, _ -> },
+        onDismiss = {}
+      )
+    }
+
+    val amountNode =
+      composeRule.onNode(hasText(amountInputLabel()).and(hasSetTextAction()))
+
+    amountNode.performTextInput("-5000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput("\u22125000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput(" -5000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
+
+    amountNode.performTextClearance()
+    amountNode.performTextInput("\u061C-5000")
+    composeRule.onNodeWithText(BTN_SUBMIT).assertIsNotEnabled()
   }
 
   private companion object {
