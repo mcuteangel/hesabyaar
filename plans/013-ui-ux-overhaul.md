@@ -223,7 +223,7 @@ Change: add `KeyboardType.Number` to the **two amount fields**
 (Installment + AddPersonLoanDialog). The two `LoanManagementScreen`
 amount fields this plan originally targeted (`LoanFormFields`,
 `RepaymentFormFields`) are dead code — zero call sites (issue #340).
-Do not touch them. Parse with the normalizing helper: `InstallmentScreen.kt:259` parses with plain `toLongOrNull()`, which returns null for Persian digits, so a valid Persian-digit amount becomes 0 and the save is rejected. Use `toCleanLongOrNull()` / `filterDigits()` (`core/NumberText.kt`) for the Installment field, as `AddPersonLoanDialog` already does. Amount fields stay
+Do not touch them. Parse with the normalizing helper: `InstallmentScreen.kt:259` parses with plain `toLongOrNull()`, which returns null for Persian digits, so a valid Persian-digit amount becomes 0 and the save is rejected. Use `toCleanLongOrNull()` for parsing and `filterDigitsPreservingLeadingMinus()` (`core/NumberText.kt`) for the Installment field's `onValueChange` filter, as `AddPersonLoanDialog` already does. `toCleanLongOrNull()` parses through `filterDigitsPreservingLeadingMinus()`, so a leading minus (ASCII or Unicode, after whitespace/Bidi marks) yields a negative `Long` and a minus elsewhere is dropped; a pasted negative amount like `-5000` is rejected rather than silently becoming positive 5000 (fixes #582). `filterDigits()` itself remains sign-blind. Amount fields stay
 RTL-safe: amounts right-align today; keep that behavior, only change
 the keyboard.
 
@@ -1148,7 +1148,7 @@ executing — some may have closed since):
 - #445 — installment amount rejects Persian digits (closed 2026-10-15).
   Scope clarified: its Persian-digit parsing fix is already assigned to
   Step 1.3 of this plan (the Installment amount field must parse via
-  `toCleanLongOrNull()` / `filterDigits()`), so do not treat that fix as
+  `toCleanLongOrNull()` / `filterDigitsPreservingLeadingMinus()`), so do not treat that fix as
   out of scope; this entry stays only as the cross-reference.
   https://github.com/mcuteangel/hesabyaar/issues/445
 
