@@ -673,9 +673,15 @@ private fun AccountDialogFields(state: AccountFormState) {
       iban = state.iban,
       onIbanChange = { state.iban = it }
     )
-  } else if (state.hasExistingBankDetails && state.initialAccount?.type == AccountType.BANK) {
+  } else if (state.willClearBankDetails) {
+    val warningText =
+      if (state.initialAccount?.type == AccountType.BANK) {
+        "توجه: با تغییر نوع حساب از بانکی، اطلاعات بانکی ذخیره‌شده پاک خواهد شد."
+      } else {
+        "توجه: برای نوع حساب غیربانکی، اطلاعات بانکی ذخیره‌شده قبلی پاک خواهد شد."
+      }
     Text(
-      text = "توجه: با تغییر نوع حساب از بانکی، اطلاعات بانکی ذخیره‌شده پاک خواهد شد.",
+      text = warningText,
       style = MaterialTheme.typography.bodySmall,
       color = MaterialTheme.colorScheme.error
     )
@@ -727,6 +733,9 @@ internal class AccountFormState(
         !initialAccount?.cardNumber.isNullOrBlank() ||
         !initialAccount?.accountNumber.isNullOrBlank() ||
         !initialAccount?.iban.isNullOrBlank()
+
+  val willClearBankDetails: Boolean
+    get() = selectedType != AccountType.BANK && hasExistingBankDetails
 
   val parsedBalance: Long?
     get() =

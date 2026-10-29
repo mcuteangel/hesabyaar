@@ -251,4 +251,35 @@ class AccountFormStateTest {
     val statePlain = AccountFormState(initialAccount = plainAccount)
     assertFalse("Must be false when no bank details exist", statePlain.hasExistingBankDetails)
   }
+
+  @Test
+  fun willClearBankDetailsWarnsOnBankSwitchOrLegacyDetails() {
+    val existingBank =
+      AccountEntity(
+        id = 5,
+        name = "حساب بانکی",
+        type = AccountType.BANK,
+        bankName = "ملی",
+        initialBalance = 500_000L
+      )
+    val stateBank = AccountFormState(initialAccount = existingBank)
+    assertFalse("BANK account does not clear bank details", stateBank.willClearBankDetails)
+
+    stateBank.selectedType = AccountType.CASH_WALLET
+    assertTrue("Switching BANK to CASH_WALLET flags bank details clearance", stateBank.willClearBankDetails)
+
+    val legacyCashAccount =
+      AccountEntity(
+        id = 7,
+        name = "کیف پول قدیمی",
+        type = AccountType.CASH_WALLET,
+        bankName = "تجارت",
+        initialBalance = 100_000L
+      )
+    val stateLegacy = AccountFormState(initialAccount = legacyCashAccount)
+    assertTrue("Non-bank account with legacy bank details flags clearance", stateLegacy.willClearBankDetails)
+
+    stateLegacy.selectedType = AccountType.BANK
+    assertFalse("Switching legacy account back to BANK preserves bank details", stateLegacy.willClearBankDetails)
+  }
 }
