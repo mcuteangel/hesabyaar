@@ -132,7 +132,7 @@ fn test_transfer_missing_destination_rejected() {
     };
     // destination_account_id defaults to None via make_tx
     let err = validate_transaction(&tx).unwrap_err();
-    assert!(err.contains("destination_account_id"));
+    assert_eq!(err, ValidationErrorCode::TransferNoDestination.as_code());
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn test_transfer_same_source_and_destination_rejected() {
         ..make_tx(50000, "transfer", 1)
     };
     let err = validate_transaction(&tx).unwrap_err();
-    assert!(err.contains("differ"));
+    assert_eq!(err, ValidationErrorCode::TransferSameSourceDestination.as_code());
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn test_loan_remaining_exceeds_original_allowed() {
 #[test]
 fn test_loan_invalid_type_rejected() {
     let err = validate_loan(&make_loan(5000000, 3000000, "INVALID")).unwrap_err();
-    assert!(err.contains("DEBTOR"));
+    assert_eq!(err, ValidationErrorCode::LoanTypeInvalid.as_code());
 }
 
 // =====================================================================
@@ -402,7 +402,10 @@ fn test_batch_single_error() {
     let result = validate_transaction_batch(&txs);
     assert!(!result.is_valid);
     assert_eq!(result.errors.len(), 1);
-    assert!(result.errors[0].contains("Transaction[0]"));
+    assert_eq!(
+        result.errors[0],
+        ValidationErrorCode::TransactionAmountInvalid.as_code()
+    );
 }
 
 // =====================================================================
@@ -644,7 +647,10 @@ fn test_backup_payment_history_loan_cross_reference() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::PaymentInvalidLoan.as_code()));
 }
 
 #[test]
@@ -666,7 +672,10 @@ fn test_backup_payment_history_loan_cross_reference_rejects_orphan_when_no_loans
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("non-existent loan")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::PaymentInvalidLoan.as_code()));
 }
 
 // =====================================================================
@@ -706,7 +715,10 @@ fn test_backup_rejects_empty_account_name() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("empty name")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::AccountNameBlank.as_code()));
 }
 
 #[test]
@@ -761,7 +773,10 @@ fn test_backup_rejects_duplicate_account_ids() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("Duplicate account id")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::AccountDuplicateId.as_code()));
 }
 
 #[test]
@@ -797,7 +812,10 @@ fn test_backup_rejects_invalid_account_type() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("invalid type")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::AccountInvalidType.as_code()));
 }
 
 #[test]
@@ -920,7 +938,11 @@ fn test_backup_rejects_transfer_without_destination_via_fail_fast_ffi() {
         ..Default::default()
     };
     let err = crate::validate_backup(&payload).unwrap_err().to_string();
-    assert!(err.contains("destination_account_id"), "got: {}", err);
+    assert!(
+        err.contains(ValidationErrorCode::TransferNoDestination.as_code()),
+        "got: {}",
+        err
+    );
 }
 
 #[test]
@@ -961,7 +983,11 @@ fn test_backup_rejects_transfer_with_same_source_and_destination_via_fail_fast_f
         ..Default::default()
     };
     let err = crate::validate_backup(&payload).unwrap_err().to_string();
-    assert!(err.contains("must differ"), "got: {}", err);
+    assert!(
+        err.contains(ValidationErrorCode::TransferSameSourceDestination.as_code()),
+        "got: {}",
+        err
+    );
 }
 
 #[test]
@@ -1020,7 +1046,7 @@ fn test_backup_transfer_missing_destination_not_duplicated() {
     let transfer_errors: Vec<&String> = result
         .errors
         .iter()
-        .filter(|e| e.contains("destination_account_id"))
+        .filter(|e| *e == ValidationErrorCode::TransferNoDestination.as_code())
         .collect();
     assert_eq!(
         transfer_errors.len(),
@@ -1079,13 +1105,81 @@ fn test_backup_transfer_same_source_dest_not_duplicated() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    let transfer_errors: Vec<&String> = result.errors.iter().filter(|e| e.contains("must differ")).collect();
+    let transfer_errors: Vec<&String> = result
+        .errors
+        .iter()
+        .filter(|e| *e == ValidationErrorCode::TransferSameSourceDestination.as_code())
+        .collect();
     assert_eq!(
         transfer_errors.len(),
         1,
         "expected exactly one must-differ error, got: {:?}",
         result.errors
     );
+}
+
+#[test]
+fn test_validation_error_code_all_variants_coverage() {
+    let variants = [
+        ValidationErrorCode::BackupVersionInvalid,
+        ValidationErrorCode::AccountNameBlank,
+        ValidationErrorCode::AccountDuplicateId,
+        ValidationErrorCode::AccountInvalidType,
+        ValidationErrorCode::TransactionInvalidAccount,
+        ValidationErrorCode::TransactionInvalidDestinationAccount,
+        ValidationErrorCode::TransactionInvalidLegacyAccount,
+        ValidationErrorCode::TransactionInvalidLegacyDestinationAccount,
+        ValidationErrorCode::TransferNoDestination,
+        ValidationErrorCode::TransferSameSourceDestination,
+        ValidationErrorCode::TransactionAmountInvalid,
+        ValidationErrorCode::TransactionDateInvalid,
+        ValidationErrorCode::TransactionCategoryInvalid,
+        ValidationErrorCode::TransactionInvalidCategory,
+        ValidationErrorCode::LoanPersonNameBlank,
+        ValidationErrorCode::LoanDateInvalid,
+        ValidationErrorCode::LoanOriginalAmountInvalid,
+        ValidationErrorCode::LoanRemainingAmountInvalid,
+        ValidationErrorCode::LoanTypeInvalid,
+        ValidationErrorCode::LoanInvalidPerson,
+        ValidationErrorCode::TransactionInvalidPerson,
+        ValidationErrorCode::InstallmentTitleBlank,
+        ValidationErrorCode::InstallmentAmountInvalid,
+        ValidationErrorCode::InstallmentDueDateInvalid,
+        ValidationErrorCode::BankLoanNameBlank,
+        ValidationErrorCode::BankLoanReceivedAmountInvalid,
+        ValidationErrorCode::BankLoanMonthlyInstallmentAmountInvalid,
+        ValidationErrorCode::BankLoanInstallmentCountInvalid,
+        ValidationErrorCode::BankLoanStartDateInvalid,
+        ValidationErrorCode::BankLoanTotalRepayableAmountInvalid,
+        ValidationErrorCode::BankLoanRepayableOverflow,
+        ValidationErrorCode::BankLoanRepayableMismatch,
+        ValidationErrorCode::BankLoanInterestOverflow,
+        ValidationErrorCode::BankLoanRepayableBelowReceived,
+        ValidationErrorCode::BankLoanInterestMismatch,
+        ValidationErrorCode::PaymentAmountInvalid,
+        ValidationErrorCode::PaymentDateInvalid,
+        ValidationErrorCode::PaymentLoanIdInvalid,
+        ValidationErrorCode::PaymentInvalidLoan,
+        ValidationErrorCode::PersonNameBlank,
+        ValidationErrorCode::PersonNormalizedBlank,
+        ValidationErrorCode::PersonDuplicate,
+        ValidationErrorCode::PersonDuplicateId,
+        ValidationErrorCode::PaymentDateBeforeCreation,
+        ValidationErrorCode::PaymentDateBeforeExisting,
+        ValidationErrorCode::ParsedAmountInvalid,
+        ValidationErrorCode::ParsedCategoryEmpty,
+        ValidationErrorCode::ParsedHourInvalid,
+        ValidationErrorCode::ParsedMinuteInvalid,
+    ];
+
+    for code in variants {
+        let s = code.as_code();
+        assert!(s.starts_with("error_"));
+        assert!(!code.default_message().is_empty());
+        assert_eq!(format!("{}", code), s);
+        let as_string: String = code.into();
+        assert_eq!(as_string, s);
+    }
 }
 
 // =====================================================================
@@ -1139,7 +1233,10 @@ fn test_backup_rejects_tx_with_nonexistent_source_account() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("non-existent source account")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::TransactionInvalidAccount.as_code()));
 }
 
 #[test]
@@ -1192,7 +1289,7 @@ fn test_backup_rejects_tx_with_nonexistent_destination_account() {
     assert!(result
         .errors
         .iter()
-        .any(|e| e.contains("non-existent destination account")));
+        .any(|e| e == ValidationErrorCode::TransactionInvalidDestinationAccount.as_code()));
 }
 
 #[test]
@@ -1304,7 +1401,10 @@ fn test_backup_rejects_non_legacy_account_id_when_accounts_empty() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    assert!(result.errors.iter().any(|e| e.contains("non-legacy account")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e == ValidationErrorCode::TransactionInvalidLegacyAccount.as_code()));
 }
 
 #[test]
@@ -1381,7 +1481,7 @@ fn test_backup_rejects_non_legacy_dest_account_when_accounts_empty() {
     assert!(result
         .errors
         .iter()
-        .any(|e| e.contains("non-legacy destination account")));
+        .any(|e| e == ValidationErrorCode::TransactionInvalidLegacyDestinationAccount.as_code()));
 }
 
 #[test]
@@ -1430,7 +1530,7 @@ fn test_backup_rejects_non_existent_source_account_in_modern_backup() {
         result
             .errors
             .iter()
-            .any(|e| e.contains("non-existent source account 999")),
+            .any(|e| e == ValidationErrorCode::TransactionInvalidAccount.as_code()),
         "expected non-existent source account error: {:?}",
         result.errors
     );
@@ -1482,7 +1582,7 @@ fn test_backup_rejects_non_existent_destination_account_in_modern_backup() {
         result
             .errors
             .iter()
-            .any(|e| e.contains("non-existent destination account 888")),
+            .any(|e| e == ValidationErrorCode::TransactionInvalidDestinationAccount.as_code()),
         "expected non-existent destination account error: {:?}",
         result.errors
     );
@@ -1533,8 +1633,8 @@ fn test_backup_orders_account_ref_errors_before_transfer_structure_errors() {
     };
     let errors = validate_accounts_and_references(&payload);
     assert_eq!(errors.len(), 2);
-    assert!(errors[0].contains("non-existent source account 777"));
-    assert!(errors[1].contains("is a Transfer but has no destination_account_id"));
+    assert_eq!(errors[0], ValidationErrorCode::TransactionInvalidAccount.as_code());
+    assert_eq!(errors[1], ValidationErrorCode::TransferNoDestination.as_code());
 }
 
 #[test]
@@ -1593,15 +1693,29 @@ fn test_validate_backup_rejects_blank_and_duplicate_persons() {
     };
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
-    let joined = result.errors.join(" | ");
-    assert!(joined.contains("blank name"), "expected blank name error: {joined}");
     assert!(
-        joined.contains("blank normalizedName"),
-        "expected blank normalizedName error: {joined}"
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::PersonNameBlank.as_code()),
+        "expected blank name error: {:?}",
+        result.errors
     );
     assert!(
-        joined.contains("duplicate normalizedName"),
-        "expected duplicate normalizedName error: {joined}"
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::PersonNormalizedBlank.as_code()),
+        "expected blank normalizedName error: {:?}",
+        result.errors
+    );
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::PersonDuplicate.as_code()),
+        "expected duplicate normalizedName error: {:?}",
+        result.errors
     );
 }
 
@@ -1657,7 +1771,10 @@ fn test_validate_backup_rejects_duplicate_person_ids() {
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
     assert!(
-        result.errors.iter().any(|e| e.contains("duplicate id 7")),
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::PersonDuplicateId.as_code()),
         "expected duplicate id error: {:?}",
         result.errors
     );
@@ -1812,7 +1929,10 @@ fn test_validate_backup_rejects_zero_width_only_person_name() {
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
     assert!(
-        result.errors.iter().any(|e| e.contains("blank normalizedName")),
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::PersonNormalizedBlank.as_code()),
         "a zero-width-only name must normalize to empty: {:?}",
         result.errors
     );
@@ -1920,7 +2040,10 @@ fn test_validate_backup_person_reference_rejects_orphan_loan_person_id() {
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
     assert!(
-        result.errors.iter().any(|e| e.contains("non-existent person")),
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::LoanInvalidPerson.as_code()),
         "expected orphan person_id error on loan, got: {:?}",
         result.errors
     );
@@ -1958,7 +2081,10 @@ fn test_validate_backup_person_reference_rejects_orphan_transaction_person_id() 
     let result = validate_backup_payload(&payload);
     assert!(!result.is_valid);
     assert!(
-        result.errors.iter().any(|e| e.contains("non-existent person")),
+        result
+            .errors
+            .iter()
+            .any(|e| e == ValidationErrorCode::TransactionInvalidPerson.as_code()),
         "expected orphan person_id error on transaction, got: {:?}",
         result.errors
     );
@@ -2030,7 +2156,11 @@ fn test_validate_backup_validates_persons_in_fail_fast_ffi_path() {
         ..Default::default()
     };
     let err = crate::validate_backup(&payload).unwrap_err().to_string();
-    assert!(err.contains("blank name"), "got: {}", err);
+    assert!(
+        err.contains(ValidationErrorCode::PersonNameBlank.as_code()),
+        "got: {}",
+        err
+    );
 }
 
 #[test]
@@ -2063,7 +2193,11 @@ fn test_validate_backup_fail_fast_rejects_orphan_person_reference() {
         ..Default::default()
     };
     let err = crate::validate_backup(&payload).unwrap_err().to_string();
-    assert!(err.contains("non-existent person"), "got: {}", err);
+    assert!(
+        err.contains(ValidationErrorCode::LoanInvalidPerson.as_code()),
+        "got: {}",
+        err
+    );
 }
 
 #[test]
@@ -2116,19 +2250,19 @@ fn loan_payment_date_accepts_equal_dates() {
 #[test]
 fn loan_payment_date_rejects_before_creation_date() {
     let err = validate_loan_payment_date(1000, &[], 999).unwrap_err();
-    assert!(err.contains("before the loan creation date"), "got: {}", err);
+    assert_eq!(err, ValidationErrorCode::PaymentDateBeforeCreation.as_code());
 }
 
 #[test]
 fn loan_payment_date_rejects_before_existing_payment() {
     let err = validate_loan_payment_date(1000, &[2000], 1500).unwrap_err();
-    assert!(err.contains("before an existing payment date"), "got: {}", err);
+    assert_eq!(err, ValidationErrorCode::PaymentDateBeforeExisting.as_code());
 }
 
 #[test]
 fn loan_payment_date_rejects_non_positive_date() {
     let err = validate_loan_payment_date(1000, &[], 0).unwrap_err();
-    assert!(err.contains("must be positive"), "got: {}", err);
+    assert_eq!(err, ValidationErrorCode::PaymentDateInvalid.as_code());
     let err = validate_loan_payment_date(1000, &[], -5).unwrap_err();
-    assert!(err.contains("must be positive"), "got: {}", err);
+    assert_eq!(err, ValidationErrorCode::PaymentDateInvalid.as_code());
 }
