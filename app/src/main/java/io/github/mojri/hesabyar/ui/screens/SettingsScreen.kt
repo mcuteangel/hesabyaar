@@ -66,6 +66,7 @@ import io.github.mojri.hesabyar.ui.components.ImportPassphraseDialog
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -642,6 +643,7 @@ fun SecuritySection(
       onClearFailed = { error ->
         isPinSet = PinStorage.isPinSet(context)
         pendingDisable = false
+        showVerifyPinDialog = false
         settingsViewModel.showMessage(error)
       }
     )
@@ -742,6 +744,7 @@ private fun RestoreModeOption(
   }
 }
 
+@Suppress("TooGenericExceptionCaught")
 private object SecurityDialogs {
   private const val PIN_LENGTH = 6
 
@@ -749,6 +752,8 @@ private object SecurityDialogs {
     try {
       withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
       true
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: GeneralSecurityException) {
       AppLogger.e("SettingsScreen", "Security exception clearing PIN", e)
       false
@@ -757,6 +762,9 @@ private object SecurityDialogs {
       false
     } catch (e: SecurityException) {
       AppLogger.e("SettingsScreen", "Permission exception clearing PIN", e)
+      false
+    } catch (e: Exception) {
+      AppLogger.e("SettingsScreen", "Unexpected exception clearing PIN", e)
       false
     }
 
@@ -771,14 +779,10 @@ private object SecurityDialogs {
     val verified =
       try {
         withContext(Dispatchers.IO) { PinStorage.verifyPin(context, pin) }
-      } catch (e: GeneralSecurityException) {
-        AppLogger.e("SettingsScreen", "Security exception verifying PIN", e)
-        null
-      } catch (e: IOException) {
-        AppLogger.e("SettingsScreen", "IO exception verifying PIN", e)
-        null
-      } catch (e: SecurityException) {
-        AppLogger.e("SettingsScreen", "Permission exception verifying PIN", e)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        AppLogger.e("SettingsScreen", "Exception verifying PIN", e)
         null
       }
 
@@ -786,9 +790,16 @@ private object SecurityDialogs {
       null -> onVerifyError("خطا در بررسی رمز عبور")
       false -> onInvalidPin("رمز عبور اشتباه است")
       true -> {
-        if (safeClearPin(context)) {
-          onSuccess()
-        } else {
+        try {
+          if (safeClearPin(context)) {
+            onSuccess()
+          } else {
+            onClearFailed("خطا در غیرفعالسازی قفل برنامه")
+          }
+        } catch (e: CancellationException) {
+          throw e
+        } catch (e: Exception) {
+          AppLogger.e("SettingsScreen", "Unexpected exception during safeClearPin", e)
           onClearFailed("خطا در غیرفعالسازی قفل برنامه")
         }
       }
@@ -806,6 +817,7 @@ private object SecurityDialogs {
     var currentPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf<String?>(null) }
     var verifying by remember { mutableStateOf(false) }
+    val parentOnClearFailed = onClearFailed
 
     HesabyarDialog(
       onDismissRequest = { if (!verifying) onDismiss() },
@@ -823,8 +835,8 @@ private object SecurityDialogs {
               onSuccess = onPinVerifiedAndCleared,
               onClearFailed = { error ->
                 pinError = error
-                if (onClearFailed != null) {
-                  onClearFailed(error)
+                if (parentOnClearFailed != null) {
+                  parentOnClearFailed(error)
                 } else {
                   onDismiss()
                 }
@@ -832,6 +844,11 @@ private object SecurityDialogs {
               onInvalidPin = { pinError = it },
               onVerifyError = { pinError = it }
             )
+          } catch (e: CancellationException) {
+            throw e
+          } catch (e: Exception) {
+            AppLogger.e("SettingsScreen", "Unexpected exception in VerifyPinDialog", e)
+            pinError = "خطا در بررسی رمز عبور"
           } finally {
             verifying = false
           }

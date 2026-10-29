@@ -337,12 +337,14 @@ private fun AccountManagementDialogs(
   when (dialogState) {
     AccountDialogState.None -> {}
     is AccountDialogState.Add ->
-      AccountDialog(
-        initialAccount = null,
-        onDismiss = onDismiss,
-        onSave = onSaveAccount,
-        isSaving = isSavingAccount
-      )
+      key(ADD_FORM_DIALOG_ID) {
+        AccountDialog(
+          initialAccount = null,
+          onDismiss = onDismiss,
+          onSave = onSaveAccount,
+          isSaving = isSavingAccount
+        )
+      }
     is AccountDialogState.Edit ->
       key(dialogState.account.id) {
         AccountDialog(
@@ -746,20 +748,44 @@ private fun rememberAccountFormState(initialAccount: AccountEntity?): AccountFor
     remember(accountIdKey, originalRial) {
       originalRial?.let { DisplayAmountInput.toDisplayText(it) } ?: "0"
     }
-  val nameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.name.orEmpty()) }
+  val nameState =
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.name.orEmpty())
+    }
   val selectedTypeState =
-    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
-  val bankNameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.bankName.orEmpty()) }
-  val cardNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
-  val accountNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
-  val ibanState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.iban.orEmpty()) }
-  val initialBalanceState = rememberSaveable(accountIdKey) { mutableStateOf(prefilledBalance) }
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.type ?: AccountType.BANK)
+    }
+  val bankNameState =
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.bankName.orEmpty())
+    }
+  val cardNumberState =
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.cardNumber.orEmpty())
+    }
+  val accountNumberState =
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.accountNumber.orEmpty())
+    }
+  val ibanState =
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.iban.orEmpty())
+    }
+  val initialBalanceState =
+    rememberSaveable(accountIdKey, originalRial, initialAccount) {
+      mutableStateOf(prefilledBalance)
+    }
   val selectedColorState =
-    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR)
+    }
   val typeDropdownExpandedState =
-    rememberSaveable(accountIdKey) { mutableStateOf(false) }
+    rememberSaveable(accountIdKey, initialAccount) {
+      mutableStateOf(false)
+    }
 
-  return remember(accountIdKey, originalRial) {
+  return remember(accountIdKey, originalRial, initialAccount) {
     AccountFormState(
       initialAccount = initialAccount,
       nameState = nameState,

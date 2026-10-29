@@ -77,6 +77,8 @@ private val CATEGORY_ICONS =
     "CleaningServices" to Icons.Filled.CleaningServices
   )
 
+private const val DEFAULT_CATEGORY_COLOR = 0xFF4CAF50L
+
 private val CATEGORY_COLORS =
   listOf(
     0xFF4CAF50L,
@@ -396,16 +398,16 @@ private val CategoryTypeSaver: Saver<CategoryType, String> =
     }
   )
 
-private class CategoryFormState(
-  val isEditing: Boolean,
+internal class CategoryFormState(
+  val isEditing: Boolean = false,
   val initialKey: String = "",
   val initialType: CategoryType = CategoryType.EXPENSE,
   val isKeyEnabled: Boolean = true,
-  nameState: MutableState<String>,
-  keyState: MutableState<String>,
-  selectedIconState: MutableState<String>,
-  selectedColorState: MutableState<Long>,
-  selectedTypeState: MutableState<CategoryType>,
+  nameState: MutableState<String> = mutableStateOf(""),
+  keyState: MutableState<String> = mutableStateOf(""),
+  selectedIconState: MutableState<String> = mutableStateOf("Paid"),
+  selectedColorState: MutableState<Long> = mutableStateOf(DEFAULT_CATEGORY_COLOR),
+  selectedTypeState: MutableState<CategoryType> = mutableStateOf(initialType),
   typeDropdownExpandedState: MutableState<Boolean> = mutableStateOf(false)
 ) {
   var name by nameState
@@ -416,7 +418,7 @@ private class CategoryFormState(
   var typeDropdownExpanded by typeDropdownExpandedState
 
   val isValid: Boolean
-    get() = name.trim().isNotBlank() && finalKey.isNotBlank() && resolvedType != CategoryType.UNKNOWN
+    get() = name.trim().isNotBlank() && finalKey.isNotBlank() && typeToSave != CategoryType.UNKNOWN
 
   val finalKey: String
     get() {
@@ -428,7 +430,7 @@ private class CategoryFormState(
       }
     }
 
-  private val resolvedType: CategoryType
+  val resolvedType: CategoryType
     get() =
       if (selectedType != CategoryType.UNKNOWN) {
         selectedType
@@ -437,45 +439,62 @@ private class CategoryFormState(
       }
 
   val typeToSave: CategoryType
-    get() =
-      if (resolvedType != CategoryType.UNKNOWN) {
-        resolvedType
-      } else if (initialType != CategoryType.UNKNOWN) {
-        initialType
+    get() = resolvedType
+
+  companion object {
+    @Composable
+    fun remember(initialCategory: Category?): CategoryFormState =
+      if (initialCategory != null) {
+        rememberEdit(initialCategory)
       } else {
-        CategoryType.EXPENSE
+        rememberAdd()
       }
-}
 
-@Composable
-private fun rememberCategoryFormState(initialCategory: Category?): CategoryFormState {
-  val isEditing = initialCategory != null
-  val isKeyEnabled = !isEditing || initialCategory?.isDefault != true
-  val categoryKey = initialCategory?.id ?: -1L
-  val nameState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.name.orEmpty()) }
-  val keyState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.key.orEmpty()) }
-  val selectedIconState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.icon ?: "Paid") }
-  val selectedColorState = rememberSaveable(categoryKey) { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
-  val selectedTypeState =
-    rememberSaveable(categoryKey, stateSaver = CategoryTypeSaver) {
-      mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE)
+    @Composable
+    private fun rememberAdd(): CategoryFormState =
+      androidx.compose.runtime.remember {
+        CategoryFormState(
+          isEditing = false,
+          initialKey = "",
+          initialType = CategoryType.EXPENSE,
+          isKeyEnabled = true,
+          nameState = mutableStateOf(""),
+          keyState = mutableStateOf(""),
+          selectedIconState = mutableStateOf("Paid"),
+          selectedColorState = mutableStateOf(DEFAULT_CATEGORY_COLOR),
+          selectedTypeState = mutableStateOf(CategoryType.EXPENSE),
+          typeDropdownExpandedState = mutableStateOf(false)
+        )
+      }
+
+    @Composable
+    private fun rememberEdit(initialCategory: Category): CategoryFormState {
+      val key = initialCategory.id
+      val nameState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.name) }
+      val keyState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.key) }
+      val selectedIconState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.icon) }
+      val selectedColorState = rememberSaveable(key, initialCategory) { mutableStateOf(initialCategory.color) }
+      val selectedTypeState =
+        rememberSaveable(key, initialCategory, stateSaver = CategoryTypeSaver) {
+          mutableStateOf(initialCategory.type)
+        }
+      val typeDropdownExpandedState = rememberSaveable(key, initialCategory) { mutableStateOf(false) }
+
+      return androidx.compose.runtime.remember(key, initialCategory) {
+        CategoryFormState(
+          isEditing = true,
+          initialKey = initialCategory.key,
+          initialType = initialCategory.type,
+          isKeyEnabled = !initialCategory.isDefault,
+          nameState = nameState,
+          keyState = keyState,
+          selectedIconState = selectedIconState,
+          selectedColorState = selectedColorState,
+          selectedTypeState = selectedTypeState,
+          typeDropdownExpandedState = typeDropdownExpandedState
+        )
+      }
     }
-  val typeDropdownExpandedState =
-    rememberSaveable(categoryKey) { mutableStateOf(false) }
-
-  return remember(categoryKey) {
-    CategoryFormState(
-      isEditing = isEditing,
-      initialKey = initialCategory?.key.orEmpty(),
-      initialType = initialCategory?.type ?: CategoryType.EXPENSE,
-      isKeyEnabled = isKeyEnabled,
-      nameState = nameState,
-      keyState = keyState,
-      selectedIconState = selectedIconState,
-      selectedColorState = selectedColorState,
-      selectedTypeState = selectedTypeState,
-      typeDropdownExpandedState = typeDropdownExpandedState
-    )
   }
 }
 
@@ -486,7 +505,7 @@ private fun CategoryDialog(
   onSave: (name: String, key: String, icon: String, color: Long, type: CategoryType) -> Unit
 ) {
   val isEditing = initialCategory != null
-  val state = rememberCategoryFormState(initialCategory)
+  val state = CategoryFormState.remember(initialCategory)
 
   HesabyarDialog(
     onDismissRequest = onDismiss,
