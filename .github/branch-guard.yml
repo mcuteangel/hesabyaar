@@ -7,6 +7,8 @@
 rules:
   # Real pair, documented in the template header itself:
   # "when a Rust FFI function's signature changes, update the matching line here too".
+  # Note: BranchGuard matches file paths, not function signatures.
+  # Primary UniFFI export entry points: ffi/mod.rs and lib.rs (offline sentence parser).
   - name: rust-ffi-template
     description: "FFI changes must update the hand-maintained Kotlin wrapper template"
     check_type: file_pair
@@ -15,6 +17,7 @@ rules:
       paths:
         include:
           - "rust/hesabyar-core/src/ffi/mod.rs"
+          - "rust/hesabyar-core/src/lib.rs"
     config:
       companion: "app/buildSrc/template/HesabyarCore.template.kt"
 
@@ -40,24 +43,26 @@ rules:
         include:
           - "rust/Cargo.toml"
           - "rust/hesabyar-core/Cargo.toml"
+          - "rust/uniffi-gen/Cargo.toml"
     config:
       companion: "rust/Cargo.lock"
 
-  # Stale branches: forces a rebase instead of merging months-old work.
-  # Tune the number first — night-guard branches are fresh, so 30 days
-  # should not bite normal PRs, but long-lived drafts will fail.
-  - name: stale-branch
-    description: "Branch must not have diverged from main more than 30 days ago"
-    check_type: branch_age
-    on:
-      branches: [main]
-      paths:
-        include:
-          - "**/*"
-    config:
-      max_age_days: 30
-
   # --- Candidates, deliberately commented out: verify before enabling ---
+  # Stale branches: BranchGuard's branch_age check measures merge_base_commit
+  # committer date (lawale/branch-guard/src/checks/branch-age.ts). If main has
+  # had no commits for >30 days, any newly cut branch immediately fails and
+  # rebasing cannot fix it until main advances. Kept as candidate for evaluation.
+  # - name: stale-branch
+  #   description: "Branch must not have diverged from main more than 30 days ago"
+  #   check_type: branch_age
+  #   on:
+  #     branches: [main]
+  #     paths:
+  #       include:
+  #         - "**/*"
+  #   config:
+  #     max_age_days: 30
+
   # external_status needs the EXACT check-run names from a recent PR
   # (not the workflow file names). Only require a heavy CI job when the
   # files it covers actually changed, e.g. Rust lint only on rust/**.
@@ -80,6 +85,12 @@ rules:
   # What BranchGuard CANNOT do here (do not try to force it):
   # - Coverage-on-Touch: it sees file paths only, not which lines a test covers.
   # - Zizmor path:line pins: it sees files, not line numbers.
+  # - AST or signature-aware diffing: file_pair triggers on any file diff,
+  #   not just signature changes.
+  # - Semantic lockfile consistency checks: cargo-lock uses file_pair companion
+  #   matching; strict `--locked` build verification is enforced by GitHub Actions CI.
+  # - Measuring branch age independent of merge-base commit timestamp (branch_age
+  #   uses merge_base_commit committer date).
   # - A generic "every changed Kotlin file needs a test" rule: file_pair
   #   companions are fixed paths, not globs, so it cannot pair each source
   #   file with its own test file.
