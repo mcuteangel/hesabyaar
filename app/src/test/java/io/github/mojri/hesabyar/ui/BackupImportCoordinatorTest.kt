@@ -64,16 +64,18 @@ class BackupImportCoordinatorTest {
 
   private fun buildCoordinator(): CoordinatorFixture {
     val fakeRepo = FakeRepository()
+    val coordinator =
+      BackupImportCoordinator(
+        application = context,
+        manageBackupUseCase = ManageBackupUseCase(fakeRepo, testDispatcher, application = context),
+        scope = CoroutineScope(testDispatcher),
+        operationState = operationState,
+        passphraseDialogState = passphraseDialogState,
+        isCryptoInProgress = isCryptoInProgress
+      )
+    coordinator.ioDispatcher = testDispatcher
     return CoordinatorFixture(
-      coordinator =
-        BackupImportCoordinator(
-          application = context,
-          manageBackupUseCase = ManageBackupUseCase(fakeRepo, testDispatcher),
-          scope = CoroutineScope(testDispatcher),
-          operationState = operationState,
-          passphraseDialogState = passphraseDialogState,
-          isCryptoInProgress = isCryptoInProgress
-        ),
+      coordinator = coordinator,
       fakeRepo = fakeRepo
     )
   }
@@ -231,6 +233,44 @@ class BackupImportCoordinatorTest {
       assertTrue(
         "State must remain Idle when pendingRestoreBackup is null, got ${operationState.value}",
         operationState.value is BackupOperationState.Idle
+      )
+    }
+
+  @Test
+  fun validateAndStageImportSetsValidationFailedStateWithLocalizedErrors() =
+    runTest {
+      val fixture = buildCoordinator()
+      val coordinator = fixture.coordinator
+
+      val invalidJson =
+        """
+        {
+          "version": 0,
+          "appVersion": "1.0",
+          "timestamp": 123456789,
+          "accounts": [],
+          "categories": [],
+          "transactions": [],
+          "loans": [],
+          "installments": [],
+          "paymentHistories": [],
+          "bankLoans": []
+        }
+        """.trimIndent()
+
+      coordinator.validateAndStageImport(ByteArrayInputStream(invalidJson.toByteArray()))
+      advanceUntilIdle()
+
+      assertTrue(
+        "Expected ValidationFailed state, got ${operationState.value}",
+        operationState.value is BackupOperationState.ValidationFailed
+      )
+      val state = operationState.value as BackupOperationState.ValidationFailed
+      assertTrue("Errors list must not be empty", state.errors.isNotEmpty())
+      val firstError = state.errors.first()
+      assertFalse(
+        "Error message must not be a raw error code or sentinel: $firstError",
+        firstError.startsWith("error_") || firstError.startsWith("<string-res-")
       )
     }
 }
