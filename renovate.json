@@ -1,6 +1,24 @@
 {
-    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": [
-        "config:recommended"
-    ]
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["armeabi-v7a:arm64-v8a"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "groupName": "gradle dependencies"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "groupName": "cargo dependencies"
+    }
+  ]
 }
