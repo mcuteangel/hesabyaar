@@ -87,6 +87,7 @@ fun HesabyarDialog(
   actions: (@Composable RowScope.() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit
 ) {
+  val effectiveWidthFraction = if (isFullScreen) 1f else widthFraction
   val dialogWidthModifier =
     if (!isFullScreen) {
       Modifier.widthIn(max = Dimens.DialogMaxWidth)
@@ -94,7 +95,9 @@ fun HesabyarDialog(
       Modifier
     }
   val dialogHeightModifier =
-    if (heightFraction != null) {
+    if (isFullScreen) {
+      Modifier.fillMaxHeight(heightFraction ?: 1f)
+    } else if (heightFraction != null) {
       Modifier.fillMaxHeight(heightFraction)
     } else {
       Modifier
@@ -108,7 +111,7 @@ fun HesabyarDialog(
       modifier =
         modifier
           .then(dialogWidthModifier)
-          .fillMaxWidth(widthFraction)
+          .fillMaxWidth(effectiveWidthFraction)
           .then(dialogHeightModifier),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,
@@ -215,41 +218,49 @@ private fun resolveConfirmButton(
   loading: Boolean,
   color: Color?,
   fallback: (@Composable () -> Unit)?
-): (@Composable () -> Unit)? {
-  if (text.isNullOrBlank() || onConfirm == null) return fallback
-  return {
-    HesabyarButton(
-      onClick = onConfirm,
-      text = text,
-      variant = ButtonVariant.Filled,
-      enabled = enabled,
-      loading = loading,
-      colors =
-        color?.let {
-          ButtonDefaults.buttonColors(
-            containerColor = it,
-            contentColor = contentColorFor(it)
-          )
-        }
-    )
+): (@Composable () -> Unit)? =
+  when {
+    fallback != null -> fallback
+    text.isNullOrBlank() || onConfirm == null -> null
+    else -> {
+      {
+        HesabyarButton(
+          onClick = onConfirm,
+          text = text,
+          variant = ButtonVariant.Filled,
+          enabled = enabled,
+          loading = loading,
+          colors =
+            color?.let {
+              ButtonDefaults.buttonColors(
+                containerColor = it,
+                contentColor = contentColorFor(it)
+              )
+            }
+        )
+      }
+    }
   }
-}
 
 @Composable
 private fun resolveDismissButton(
   text: String?,
   onDismiss: (() -> Unit)?,
   fallback: (@Composable () -> Unit)?
-): (@Composable () -> Unit)? {
-  if (text.isNullOrBlank() || onDismiss == null) return fallback
-  return {
-    HesabyarButton(
-      onClick = onDismiss,
-      text = text,
-      variant = ButtonVariant.Text
-    )
+): (@Composable () -> Unit)? =
+  when {
+    fallback != null -> fallback
+    text.isNullOrBlank() || onDismiss == null -> null
+    else -> {
+      {
+        HesabyarButton(
+          onClick = onDismiss,
+          text = text,
+          variant = ButtonVariant.Text
+        )
+      }
+    }
   }
-}
 
 @Composable
 private fun HesabyarDialogActions(

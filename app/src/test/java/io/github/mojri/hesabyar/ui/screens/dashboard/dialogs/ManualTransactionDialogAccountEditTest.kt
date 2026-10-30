@@ -267,4 +267,32 @@ class ManualTransactionDialogAccountEditTest {
     assertEquals(8000L, request?.amountDisplay)
     assertEquals(CurrencyFormatter.toRial(8000L), request?.amountRial)
   }
+
+  @Test
+  fun submittingZeroOrClearedAmountInEditModeBlocksSubmission() {
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        transactionToEdit = original,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    val amountInput = composeRule.onNode(hasTestTag("manual_amount_input"))
+    amountInput.performTextClearance()
+    amountInput.performTextInput("0")
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("ذخیره تغییرات").performClick()
+    composeRule.waitForIdle()
+
+    org.junit.Assert.assertNull(captured.value)
+  }
 }

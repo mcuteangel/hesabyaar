@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -61,15 +60,7 @@ internal fun ManualTransactionDialog(
     title = if (formState.isEditMode) "ویرایش تراکنش" else "ثبت دستی تراکنش جدید",
     onDismissRequest = { if (!formState.isSubmitting) onDismiss() },
     widthFraction = 0.92f,
-    actions = {
-      HesabyarButton(
-        onClick = onDismiss,
-        modifier = Modifier.weight(1f),
-        text = stringResource(R.string.action_cancel),
-        variant = ButtonVariant.Text,
-        enabled = !formState.isSubmitting
-      )
-
+    confirmButton = {
       HesabyarButton(
         onClick = {
           submitManualTransaction(
@@ -80,7 +71,6 @@ internal fun ManualTransactionDialog(
             onDismiss = onDismiss
           )
         },
-        modifier = Modifier.weight(1f),
         text =
           if (formState.isEditMode) {
             stringResource(R.string.transaction_save_changes)
@@ -91,6 +81,14 @@ internal fun ManualTransactionDialog(
         colors = ButtonDefaults.buttonColors(containerColor = typeColor),
         enabled = !formState.isSubmitting,
         loading = formState.isSubmitting
+      )
+    },
+    dismissButton = {
+      HesabyarButton(
+        onClick = onDismiss,
+        text = stringResource(R.string.action_cancel),
+        variant = ButtonVariant.Text,
+        enabled = !formState.isSubmitting
       )
     }
   ) {
@@ -258,6 +256,12 @@ private fun submitManualTransaction(
       val validationError = formState.validateAccounts()
       if (validationError != null) {
         showToast(context, context.getString(validationError))
+        return@launch
+      }
+
+      val finalAmountRial = formState.calculateFinalAmountRial()
+      if (finalAmountRial <= 0L) {
+        showToast(context, context.getString(R.string.error_tx_amount_invalid))
         return@launch
       }
 

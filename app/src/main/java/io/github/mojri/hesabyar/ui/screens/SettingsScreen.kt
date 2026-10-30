@@ -1388,7 +1388,7 @@ fun AiConfigDialog(
       onClearModelFetchState()
       onDismiss()
     },
-    actions = {
+    confirmButton = {
       HesabyarButton(
         onClick = {
           onSave(
@@ -1406,6 +1406,8 @@ fun AiConfigDialog(
         text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled
       )
+    },
+    dismissButton = {
       HesabyarButton(
         onClick = {
           onClearModelFetchState()

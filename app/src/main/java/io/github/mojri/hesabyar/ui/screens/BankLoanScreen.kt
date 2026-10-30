@@ -234,7 +234,7 @@ internal class AddBankLoanFormState(
 
   val canConfirm: Boolean
     get() {
-      val count = countVal ?: 0
+      val count = countVal ?: return false
       return bankName.trim().isNotBlank() && receivedRial > 0 && monthlyRial > 0 && count > 0
     }
 }
@@ -296,12 +296,13 @@ internal fun AddBankLoanDialog(
     confirmButton = {
       HesabyarButton(
         onClick = {
+          val count = state.countVal ?: return@HesabyarButton
           onConfirm(
             state.bankName.trim(),
             state.loanName.trim(),
             state.receivedRial,
             state.monthlyRial,
-            state.countVal ?: 0,
+            count,
             state.startDate,
             state.description.trim()
           )

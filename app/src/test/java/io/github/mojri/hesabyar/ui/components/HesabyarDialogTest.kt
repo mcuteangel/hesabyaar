@@ -230,6 +230,32 @@ class HesabyarDialogTest {
     )
   }
 
+  @Test
+  fun dialogPrefersCustomSlotOverTextParametersWhenBothProvided() {
+    var customConfirmClicked = false
+    val customText = "دکمه اختصاصی"
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmText = CONFIRM_TEXT,
+        onConfirm = {},
+        confirmButton = {
+          TextButton(onClick = { customConfirmClicked = true }) {
+            Text(customText)
+          }
+        }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(customText).assertIsDisplayed().performClick()
+    assertTrue(customConfirmClicked)
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertDoesNotExist()
+  }
+
   private companion object {
     const val DIALOG_TITLE = "عنوان دیالوگ"
     const val DIALOG_CONTENT = "متن محتوای دیالوگ"

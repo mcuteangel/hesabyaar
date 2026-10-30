@@ -328,4 +328,17 @@ class BankLoanFormTest {
     }
     composeRule.onNodeWithText("ثبت وام بانکی").assertIsDisplayed()
   }
+
+  @Test
+  fun addBankLoanFormStateRejectsOverflowCount() {
+    val state =
+      AddBankLoanFormState(
+        bankName = "ملی",
+        received = "50000",
+        monthly = "5000",
+        count = "99999999999999999999"
+      )
+    assertFalse("Overflow count must not allow confirm", state.canConfirm)
+    assertEquals(null, state.countVal)
+  }
 }
