@@ -20,12 +20,12 @@ None (Plan 027 / PR #562 in review and autofix).
 - **Deliverables:**
     - [x] Standardized `HesabyarDialog` in `ui/components/HesabyarDialog.kt` with structured `confirmButton` and `dismissButton` slots (trailing RTL layout) and `showCloseButton: Boolean = false` default.
     - [x] Standardized `ConfirmDialog` in `ui/components/ConfirmDialog.kt`: suppresses empty dismiss buttons when `dismissText` is blank and uses standard `action_confirm` / `action_cancel` string resources.
-    - [x] Added standardized `action_*` string keys in `res/values/strings.xml` per `docs/LOCALIZATION.md` (`action_cancel`, `action_confirm`, `action_save`, `action_delete`, `action_close`, `action_understood`).
+    - [x] Added standardized `action_*` string keys in `res/values/strings.xml` per `docs/LOCALIZATION.md` (`action_cancel`, `action_confirm`, `action_save`, `action_delete`, `action_close`).
     - [x] Fixed buried "ذخیره" button in `AccountManagementScreen.kt` by moving save action out of scrollable body into sticky dialog action row.
     - [x] Fixed cramped action buttons in `ConfirmationDialog` (`SmartAssistantScreen.kt`) by removing `Modifier.fillMaxWidth()` and adopting `ButtonVariant.Text` for dismiss.
-    - [x] Migrated all raw `AlertDialog` calls across feature screens (`AddPersonLoanDialog`, `InstallmentScreen`, `BankLoanScreen`, `CategoryManagementScreen`, `TransactionDetailDialog`, `SettingsScreen`) to `HesabyarDialog` with 0 `@Suppress` additions.
+    - [x] Migrated all raw `AlertDialog` calls across feature screens (`AddPersonLoanDialog`, `InstallmentScreen`, `BankLoanScreen`, `CategoryManagementScreen`, `TransactionDetailDialog`, `SettingsScreen`) to `HesabyarDialog` with 2 documented `@Suppress("TooGenericExceptionCaught")` additions for coroutine cancellation safety.
     - [x] Standardized all dismiss buttons across pickers and dialogs to `ButtonVariant.Text` (`CustomTimePickerDialog`, `JalaliDatePickerDialog`, `ManualTransactionDialog`, `ReportsScreen`).
-    - [x] Added unit tests in `HesabyarDialogTest.kt` (8 tests) and `ConfirmDialogTest.kt` (4 tests).
+    - [x] Added unit tests in `HesabyarDialogTest.kt` (10 tests) and `ConfirmDialogTest.kt` (4 tests).
     - [x] Verified zero raw `AlertDialog` calls in active feature screens, `./gradlew ktlintFormat ktlintCheck detekt --no-daemon` passing with 0 findings, `./gradlew testDebugUnitTest --no-daemon` passing with 0 failures, and `python scripts/check_docs.py` reporting 0 broken references.
 
 - **Task:** Issue #586 — Return validation error codes across FFI and map to error_* keys in Kotlin (Plan 026)

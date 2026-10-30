@@ -35,7 +35,7 @@ Issue #350, Phase 2 of `plans/013-ui-ux-overhaul.md`, and the UI/UX audit (`hesa
    - **`ConfirmDialog.kt:65-69` Blank Button Bug:** When `dismissText` is passed as `""` (e.g. `AccountDeleteWarningDialog` in `AccountManagementScreen.kt:348`), `ConfirmDialog` unconditionally renders `TextButton { Text("") }`, resulting in a phantom clickable button on screen.
 
 5. **Hardcoded Labels and Lack of Standardized `action_*` String Resources:**
-   - Per `docs/LOCALIZATION.md`, reusable UI action verbs must use the `action_*` key prefix (`action_confirm`, `action_cancel`, `action_save`, `action_delete`, `action_close`, `action_understood`).
+   - Per `docs/LOCALIZATION.md`, reusable UI action verbs must use the `action_*` key prefix (`action_confirm`, `action_cancel`, `action_save`, `action_delete`, `action_close`).
    - Dialogs currently use a mix of hardcoded Persian strings (`"انصراف"`, `"ذخیره"`, `"تایید"`, `"بستن"`) or legacy keys (`R.string.cancel_label`, `R.string.understood_label`).
 
 ---
@@ -46,26 +46,26 @@ Issue #350, Phase 2 of `plans/013-ui-ux-overhaul.md`, and the UI/UX audit (`hesa
   - `HesabyarDialog` in `ui/components/HesabyarDialog.kt` adds structured `confirmButton: (@Composable () -> Unit)? = null` and `dismissButton: (@Composable () -> Unit)? = null` slots while preserving `actions: (@Composable RowScope.() -> Unit)? = null` for backward compatibility.
   - In RTL layouts, `confirmButton` is placed at the end (far left) and `dismissButton` is adjacent to it (right of confirm).
   - `showCloseButton` defaults to `false` for standard dialogs.
-  - Dialog content area is bounded with `Modifier.heightIn(max = 0.85f * screenHeight)` or equivalent so dialogs size to content and do not grow unbounded.
+  - Dialog content area is bounded with `Modifier.weight(1f, fill = false)` on the scrollable body so dialogs size to content and do not grow unbounded, with optional `heightFraction` (expanding to `1f` on full screen).
 - [x] **Criterion 2 (Standardized `ConfirmDialog` Component):**
   - `ConfirmDialog.kt` checks `if (dismissText.isNotBlank())` before rendering the dismiss button slot, eliminating the blank clickable button when `dismissText = ""`.
   - Default labels use `R.string.action_confirm` ("تأیید") and `R.string.action_cancel` ("انصراف").
   - Confirm button is Filled (`HesabyarButton` with `confirmColor`, default `error`); dismiss button is always `ButtonVariant.Text`.
 - [x] **Criterion 3 (Standardized `action_*` String Keys in `strings.xml`):**
-  - Add standardized keys per `docs/LOCALIZATION.md`: `action_cancel` ("انصراف"), `action_confirm` ("تأیید"), `action_save` ("ذخیره"), `action_delete` ("حذف"), `action_close` ("بستن"), `action_understood` ("متوجه شدم").
+  - Add standardized keys per `docs/LOCALIZATION.md`: `action_cancel` ("انصراف"), `action_confirm` ("تأیید"), `action_save` ("ذخیره"), `action_delete` ("حذف"), `action_close` ("بستن").
   - Retain existing `cancel_label`, `delete_label`, and `understood_label` as aliases or maintain them to ensure zero regression across other untouched screens.
 - [x] **Criterion 4 (Fix Buried & Broken Actions in AccountDialog and SmartAssistant):**
   - `AccountManagementScreen.kt`: The "ذخیره" button is moved out of the scrollable form body into `confirmButton` (Filled). "انصراف" is wired into `dismissButton` (Text). The dialog actions remain visible at all times without scrolling.
   - `SmartAssistantScreen.kt`: `Modifier.fillMaxWidth()` is removed from both dialog buttons in `ConfirmationDialog`. Dismiss button uses `ButtonVariant.Text`.
 - [x] **Criterion 5 (Raw `AlertDialog` Elimination Outside `ui/components`):**
   - `AddPersonLoanDialog.kt`, `AccountManagementScreen.kt:AccountDialog`, `SmartAssistantScreen.kt:ConfirmationDialog`, `InstallmentScreen.kt:AddInstallmentDialog`, `BankLoanScreen.kt:BankLoanDialog`, `CategoryManagementScreen.kt:CategoryDialog`, `TransactionDetailDialog.kt`, and `SettingsScreen.kt` (3 PIN/restore dialogs) are migrated to `HesabyarDialog`.
-  - `rg '\bAlertDialog\(' app/src/main` produces 0 matches in `ui/screens/` (excluding dead code `LoanManagementScreen.kt` tracked under #340).
+  - `rg '\bAlertDialog\(' app/src/main` produces 0 matches in `ui/screens/` (excluding dead code `LoanManagementScreen.kt` tracked under #340), with `ConfirmDialog` in `ui/components/` remaining the single standard wrapper component for simple confirmation alerts.
 - [x] **Criterion 6 (Dismiss and Confirm Button Styling Compliance):**
   - Across all 12 dialogs/surfaces highlighted in issue #350, all dismiss actions use `ButtonVariant.Text` (or `TextButton`), all confirm actions use `ButtonVariant.Filled`, and destructive confirm actions use `Filled` with `colorScheme.error`.
   - Raw `OutlinedButton` and `ButtonVariant.Outlined` are replaced on dialog dismiss actions in `CustomTimePickerDialog.kt`, `JalaliDatePickerDialog.kt`, `ManualTransactionDialog.kt`, and `ReportsScreen.kt`.
 - [x] **Criterion 7 (Automated Unit & Regression Tests):**
-  - New unit tests in `HesabyarDialogTest.kt` verify structured confirm/dismiss slot layout, callbacks, and `showCloseButton` behavior.
-  - New unit tests in `ConfirmDialogTest.kt` verify confirm/dismiss callbacks, error color styling, and verify that empty `dismissText = ""` renders no dismiss node.
+  - New unit tests in `HesabyarDialogTest.kt` (10 tests) verify structured confirm/dismiss slot layout, callbacks, slot precedence over text parameters, and `showCloseButton` behavior.
+  - New unit tests in `ConfirmDialogTest.kt` (4 tests) verify confirm/dismiss callbacks, error color styling, and verify that empty `dismissText = ""` renders no dismiss node.
   - Existing tests (`AddPersonLoanDialogTest`, `AccountManagementScreenDeleteDialogTest`, etc.) remain green.
 - [x] **Criterion 8 (Static Verification & Codebase Hygiene):**
   - `./gradlew ktlintCheck detekt --no-daemon` passes with 0 findings; no detekt baseline edits.
@@ -79,7 +79,7 @@ Issue #350, Phase 2 of `plans/013-ui-ux-overhaul.md`, and the UI/UX audit (`hesa
 ### Phase 1 — Foundations: `HesabyarDialog` Slots, `ConfirmDialog` Bug Fix, and String Resources <!-- check-docs: planned -->
 
 - [x] **Step 1.1: Add standard `action_*` strings in `res/values/strings.xml`**
-  - Add `action_cancel` ("انصراف"), `action_confirm` ("تأیید"), `action_save` ("ذخیره"), `action_delete` ("حذف"), `action_close` ("بستن"), `action_understood` ("متوجه شدم").
+  - Add `action_cancel` ("انصراف"), `action_confirm` ("تأیید"), `action_save` ("ذخیره"), `action_delete` ("حذف"), `action_close` ("بستن").
   - Keep `cancel_label`, `delete_label`, `understood_label` intact for existing callers.
 
 - [x] **Step 1.2: Upgrade `ui/components/HesabyarDialog.kt` API**
