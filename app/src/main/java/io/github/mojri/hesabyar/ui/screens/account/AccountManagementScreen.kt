@@ -154,7 +154,7 @@ fun AccountManagementScreen(
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
   var formDialogTargetId by rememberSaveable { mutableStateOf(NO_FORM_DIALOG_ID) }
-  var dialogState by remember(formDialogTargetId) {
+  var dialogState by remember {
     mutableStateOf<AccountDialogState>(restoreDialogState(formDialogTargetId, accounts))
   }
   val scope = rememberCoroutineScope()
@@ -176,6 +176,7 @@ fun AccountManagementScreen(
   // recreation. The dialog itself does not. This effect reopens the dialog.
   LaunchedEffect(formDialogTargetId, accounts) {
     if (formDialogTargetId == NO_FORM_DIALOG_ID) return@LaunchedEffect
+    // If user explicitly opened a dialog (Add/Edit), don't overwrite it.
     if (dialogState is AccountDialogState.Add || dialogState is AccountDialogState.Edit) return@LaunchedEffect
     // Stale persisted Add instance ids (negative, other than -1) from before
     // the instanceId refactor must never resurrect an orphaned Add dialog.
@@ -188,7 +189,9 @@ fun AccountManagementScreen(
     if (target != null) {
       dialogState = AccountDialogState.Edit(target)
     } else {
-      formDialogTargetId = NO_FORM_DIALOG_ID
+      // Positive ID with no matching account: treat as a restored Add dialog
+      // (its instanceId was persisted in formDialogTargetId). Do not reset the
+      // target here; the restored Add dialogState will show the dialog.
     }
   }
 
@@ -387,15 +390,22 @@ private fun restoreDialogState(
   formDialogTargetId: Long,
   accounts: List<AccountEntity>
 ): AccountDialogState {
-  // Negative ids (other than NO_FORM_DIALOG_ID = -1) are stale persisted Add
-  // instance ids from before the instanceId refactor. Treat them as None so a
-  // stale Add target never resurrects an orphaned dialog with an arbitrary id.
-  val validTarget = formDialogTargetId > 0
-  val account = if (validTarget) accounts.find { it.id == formDialogTargetId } else null
-  return if (account != null) {
-    AccountDialogState.Edit(account)
+  // Negative ids (including NO_FORM_DIALOG_ID = -1) cover "no dialog" and stale
+  // persisted Add instance ids from before the instanceId refactor. Treat them
+  // as None so a stale Add target never resurrects an orphaned dialog with
+  // an arbitrary id.
+  val targetId = formDialogTargetId.takeIf { it > 0 }
+  // Positive id: match against existing accounts; unmatched ids are restored
+  // as Add dialog instanceIds (survives process recreation/restoration).
+  val matched = targetId?.let { id -> accounts.find { it.id == id } }
+  return if (matched == null) {
+    if (targetId == null) {
+      AccountDialogState.None
+    } else {
+      AccountDialogState.Add(instanceId = targetId)
+    }
   } else {
-    AccountDialogState.None
+    AccountDialogState.Edit(matched)
   }
 }
 
