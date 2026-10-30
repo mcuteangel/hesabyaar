@@ -154,8 +154,12 @@ fun AccountManagementScreen(
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
   var formDialogTargetId by rememberSaveable { mutableStateOf(NO_FORM_DIALOG_ID) }
+  // Edit targets and Add instance ids live in separate saveable slots. One Long
+  // cannot carry both: a deleted Edit target and a live Add instance id would
+  // be indistinguishable positive ids and one would resurrect the other.
+  var addRestoreId by rememberSaveable { mutableStateOf(0L) }
   var dialogState by remember {
-    mutableStateOf<AccountDialogState>(restoreDialogState(formDialogTargetId, accounts))
+    mutableStateOf<AccountDialogState>(restoreDialogState(formDialogTargetId, addRestoreId, accounts))
   }
   val scope = rememberCoroutineScope()
 
@@ -179,19 +183,20 @@ fun AccountManagementScreen(
     // If user explicitly opened a dialog (Add/Edit), don't overwrite it.
     if (dialogState is AccountDialogState.Add || dialogState is AccountDialogState.Edit) return@LaunchedEffect
     // Stale persisted Add instance ids (negative, other than -1) from before
-    // the instanceId refactor must never resurrect an orphaned Add dialog.
+    // the instanceId refactor must never resurrect an orphaned dialog.
     if (formDialogTargetId < 0) {
       formDialogTargetId = NO_FORM_DIALOG_ID
       return@LaunchedEffect
     }
     if (accounts.isEmpty()) return@LaunchedEffect
     val target = accounts.find { it.id == formDialogTargetId }
-    if (target != null) {
-      dialogState = AccountDialogState.Edit(target)
+    if (target == null) {
+      // Positive target whose account is gone (deleted between sessions) is a
+      // dead Edit target, never a restored Add dialog: the Add instanceId has
+      // its own slot now. Reset so no phantom dialog opens.
+      formDialogTargetId = NO_FORM_DIALOG_ID
     } else {
-      // Positive ID with no matching account: treat as a restored Add dialog
-      // (its instanceId was persisted in formDialogTargetId). Do not reset the
-      // target here; the restored Add dialogState will show the dialog.
+      dialogState = AccountDialogState.Edit(target)
     }
   }
 
@@ -203,9 +208,13 @@ fun AccountManagementScreen(
     onBack = onBack,
     onDialogStateChange = { newState ->
       dialogState = newState
-      formDialogTargetId =
+      addRestoreId =
         when (newState) {
           is AccountDialogState.Add -> newState.instanceId
+          else -> 0L
+        }
+      formDialogTargetId =
+        when (newState) {
           is AccountDialogState.Edit -> newState.account.id
           else -> NO_FORM_DIALOG_ID
         }
@@ -385,29 +394,25 @@ private fun AccountManagementDialogs(
   }
 }
 
-/** Reconstructs the saved [AccountDialogState] from the persisted target id. */
-private fun restoreDialogState(
+/**
+ * Reconstructs the saved [AccountDialogState] from the persisted target ids.
+ * The two ids live in separate slots, so their meanings never collide: the Add
+ * slot carries the live Add instanceId (System.nanoTime()); the form slot
+ * carries an Edit account id. An unmatched Edit target is dead and restores
+ * to None — it never falls back to a phantom Add dialog.
+ */
+internal fun restoreDialogState(
   formDialogTargetId: Long,
+  addRestoreId: Long,
   accounts: List<AccountEntity>
-): AccountDialogState {
-  // Negative ids (including NO_FORM_DIALOG_ID = -1) cover "no dialog" and stale
-  // persisted Add instance ids from before the instanceId refactor. Treat them
-  // as None so a stale Add target never resurrects an orphaned dialog with
-  // an arbitrary id.
-  val targetId = formDialogTargetId.takeIf { it > 0 }
-  // Positive id: match against existing accounts; unmatched ids are restored
-  // as Add dialog instanceIds (survives process recreation/restoration).
-  val matched = targetId?.let { id -> accounts.find { it.id == id } }
-  return if (matched == null) {
-    if (targetId == null) {
-      AccountDialogState.None
-    } else {
-      AccountDialogState.Add(instanceId = targetId)
-    }
-  } else {
-    AccountDialogState.Edit(matched)
+): AccountDialogState =
+  when {
+    addRestoreId != 0L -> AccountDialogState.Add(instanceId = addRestoreId)
+    formDialogTargetId > 0L ->
+      accounts.find { it.id == formDialogTargetId }?.let { AccountDialogState.Edit(it) }
+        ?: AccountDialogState.None
+    else -> AccountDialogState.None
   }
-}
 
 @Composable
 private fun DeleteAccountConfirmDialog(
