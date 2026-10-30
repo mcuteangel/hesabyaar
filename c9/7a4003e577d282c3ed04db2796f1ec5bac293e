@@ -1,0 +1,20 @@
+.github/workflows/android-ci.yml
+  s_c8cb47df8392ed::t_cf2602ccfd9e64 254
+  s_c8cb47df8392ed::t_75975dbd4bd29e 66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c97a4003e577d282c3ed04db2796f1ec5bac293e",
+  "prompts": {},
+  "sessions": {
+    "s_c8cb47df8392ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67923586-1d42-4afa-beb3-15a04802d34a",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
