@@ -108,3 +108,4 @@ coverage*.lcov
 junit*.xml
 *-junit.xml
 
+.mimosa/
