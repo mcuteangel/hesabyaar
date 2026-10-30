@@ -60,13 +60,7 @@ fun String.toCleanLongOrNull(): Long? = filterDigitsPreservingLeadingMinus().toL
  * Validation can then reject negative input.
  */
 fun String.filterDigitsPreservingLeadingMinus(): String {
-  var sign = ""
-  for (c in this) {
-    if (c.acceptedDigitOrNull() != null) break
-    if (c == '-' || c == '\u2212') {
-      sign = "-"
-      break
-    }
-  }
+  val prefix = takeWhile { it.acceptedDigitOrNull() == null }
+  val sign = if (prefix.any { it == '-' || it == '\u2212' }) "-" else ""
   return sign + filterDigits()
 }
