@@ -38,36 +38,29 @@ fun String.filterDigits(): String {
 }
 
 /**
- * Parses the accepted digits into a [Long]. Other characters are ignored.
- * Returns null when the text holds no digit or overflows [Long].
+ * Parses the accepted digits into a [Long].
+ * The parser preserves a minus before the first digit.
+ * The minus can be ASCII or Unicode.
+ * It can follow leading whitespace and bidirectional marks.
+ * A preserved minus yields a negative [Long].
+ * The parser drops a minus anywhere else.
+ * The parser returns null when the text holds no digit.
+ * The parser returns null when the text holds only a lone minus.
+ * The parser returns null when the value overflows [Long].
+ * The parser returns null for negative overflow too.
  */
-fun String.toCleanLongOrNull(): Long? = filterDigits().toLongOrNull()
-
-/** Bidirectional control characters (Unicode Bidi_Control property). */
-private val BIDI_MARKS =
-  setOf(
-    '\u061C',
-    '\u200E',
-    '\u200F',
-    '\u202A',
-    '\u202B',
-    '\u202C',
-    '\u202D',
-    '\u202E',
-    '\u2066',
-    '\u2067',
-    '\u2068',
-    '\u2069'
-  )
+fun String.toCleanLongOrNull(): Long? = filterDigitsPreservingLeadingMinus().toLongOrNull()
 
 /**
- * Keeps accepted digits only, in ASCII form, preserving a leading minus
- * sign (ASCII or Unicode) so validation can still reject negative input.
- * Leading whitespace and bidirectional marks before the sign are dropped;
- * a minus anywhere else is dropped with the other non-digit characters.
+ * Keeps accepted digits only, in ASCII form.
+ * The parser preserves a minus before the first digit.
+ * The minus can be ASCII or Unicode.
+ * Prefix text before the minus does not remove it.
+ * The parser drops a minus after the first digit.
+ * Validation can then reject negative input.
  */
 fun String.filterDigitsPreservingLeadingMinus(): String {
-  val trimmed = dropWhile { it.isWhitespace() || it in BIDI_MARKS }
-  val sign = if (trimmed.startsWith("-") || trimmed.startsWith("\u2212")) "-" else ""
-  return sign + trimmed.filterDigits()
+  val prefix = takeWhile { it.acceptedDigitOrNull() == null }
+  val sign = if (prefix.any { it == '-' || it == '\u2212' }) "-" else ""
+  return sign + filterDigits()
 }
