@@ -63,6 +63,7 @@ jobs:
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
+      HAS_GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN != '' }}
       # Single definition of the trusted-run predicate (event, fork, actor);
       # the verify step references this instead of repeating the expression.
       IS_TRUSTED_RUN: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' }}
@@ -250,7 +251,7 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Run Gravity on Debug APK
-        if: ${{ success() && secrets.GRAVITY_TOKEN != '' }}
+        if: ${{ success() && env.HAS_GRAVITY_TOKEN == 'true' }}
         continue-on-error: true
         run: npx --yes @gravityci/cli "app/build/outputs/apk/debug/*.apk"
         env:
