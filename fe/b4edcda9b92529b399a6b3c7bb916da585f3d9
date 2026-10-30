@@ -1,0 +1,22 @@
+progress.md
+  s_9d0f88e244df98::t_cc71d61df85745 23,26,28
+plans/archive/027-unified-dialog-policy-and-raw-alertdialog-migration.md
+  s_9d0f88e244df98::t_ea33561472707d 38
+  s_9d0f88e244df98::t_5bb44f0026e157 49,55,62,67-68,82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "feb4edcda9b92529b399a6b3c7bb916da585f3d9",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
