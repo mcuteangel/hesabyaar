@@ -34,7 +34,6 @@
         "gradle",
         "gradle-wrapper"
       ],
-      "ignoreUnstable": false,
       "allowedVersions": "/^\\d+(\\.\\d+)*(-(alpha|Beta|beta|rc|RC|preview|eap|milestone|m|M)[-.]?\\d*)?$/"
     }
   ]
