@@ -63,6 +63,7 @@ jobs:
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
+      HAS_GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN != '' }}
       # Single definition of the trusted-run predicate (event, fork, actor);
       # the verify step references this instead of repeating the expression.
       IS_TRUSTED_RUN: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' }}
@@ -240,6 +241,7 @@ jobs:
           coverage-files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Build Debug APK
+        id: build-debug-apk
         run: ./gradlew assembleDebug --warning-mode all
 
       - name: Upload Debug APK
@@ -248,6 +250,20 @@ jobs:
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Run Gravity on Debug APK
+        if: ${{ !cancelled() && steps.build-debug-apk.outcome == 'success' && env.HAS_GRAVITY_TOKEN == 'true' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        run: npx --yes @gravityci/cli@0.1.2 "app/build/outputs/apk/debug/*.apk"
+        env:
+          # Prevent credential leakage.
+          # Job-level environment exports DEEPSOURCE_DSN to all steps.
+          # Blank this variable so npm execution cannot read it.
+          DEEPSOURCE_DSN: ""
+          GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN }}
+          GRAVITY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Fail if Coveralls token missing on trusted runs
         # Derives from the verify step's outcome so the trusted-run condition
         # lives in exactly one place; !cancelled() keeps it reporting after

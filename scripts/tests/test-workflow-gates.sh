@@ -83,5 +83,13 @@ check_fork_guard "$WF/codspeed-rust.yml"
 check_gate "$WF/super-linter.yml" actions workflows ci_scripts config code rust
 check_gate "$WF/lint.yml" actions workflows ci_scripts
 
+# Gravity size-tracking step assertions (pins, credential guard, outcome dependency)
+for token in '@gravityci/cli@0.1.2' 'env.HAS_GRAVITY_TOKEN' 'steps.build-debug-apk.outcome'; do
+  if ! grep -Fq "$token" "$WF/android-ci.yml"; then
+    echo "FAIL: android-ci.yml missing Gravity assertion token: $token"
+    fail=1
+  fi
+done
+
 if [ "$fail" -ne 0 ]; then exit 1; fi
 echo "ALL GATE CHECKS PASS"
