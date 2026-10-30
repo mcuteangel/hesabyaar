@@ -586,30 +586,27 @@ fun JalaliDatePickerDialog(
               variant = ButtonVariant.Text
             )
 
-            Button(
+            HesabyarButton(
               onClick = {
                 val javaCal =
                   JalaliCalendarHelper.jalaliToGregorian(
                     selectedYear,
                     selectedMonth,
                     selectedDay
-                  ) ?: return@Button
-                // Preserve existing hour and minute of the timestamp
-                val prevCal = Calendar.getInstance().apply { timeInMillis = initialTimestamp }
-                javaCal.set(Calendar.HOUR_OF_DAY, prevCal.get(Calendar.HOUR_OF_DAY))
-                javaCal.set(Calendar.MINUTE, prevCal.get(Calendar.MINUTE))
-                onDateSelected(javaCal.timeInMillis)
-                onDismissRequest()
+                  )
+                if (javaCal != null) {
+                  // Preserve existing hour and minute of the timestamp
+                  val prevCal = Calendar.getInstance().apply { timeInMillis = initialTimestamp }
+                  javaCal.set(Calendar.HOUR_OF_DAY, prevCal.get(Calendar.HOUR_OF_DAY))
+                  javaCal.set(Calendar.MINUTE, prevCal.get(Calendar.MINUTE))
+                  onDateSelected(javaCal.timeInMillis)
+                  onDismissRequest()
+                }
               },
               modifier = Modifier.weight(1.3f).height(46.dp),
-              shape = ShapeTokens.Medium
-            ) {
-              Text(
-                "تایید نهایی",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
-              )
-            }
+              text = stringResource(R.string.action_confirm),
+              variant = ButtonVariant.Filled
+            )
           }
         }
       }

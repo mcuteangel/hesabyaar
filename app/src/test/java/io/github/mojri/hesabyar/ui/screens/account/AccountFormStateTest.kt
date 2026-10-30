@@ -183,6 +183,27 @@ class AccountFormStateTest {
   }
 
   @Test
+  fun switchingTypeAwayFromBankClearsBankDetails() {
+    val state = AccountFormState(initialAccount = null)
+    state.name = "حساب سپه"
+    state.onTypeSelected(AccountType.BANK)
+    state.bankName = "سپه"
+    state.cardNumber = "589210..."
+    state.accountNumber = "12345"
+    state.iban = "IR123..."
+    state.initialBalance = "0"
+
+    state.onTypeSelected(AccountType.CASH_WALLET)
+
+    val data = state.toFormData()
+    assertEquals(AccountType.CASH_WALLET, data.type)
+    assertEquals("Switching away from BANK must clear bank details", null, data.bankName)
+    assertEquals(null, data.cardNumber)
+    assertEquals(null, data.accountNumber)
+    assertEquals(null, data.iban)
+  }
+
+  @Test
   fun addModeWithNonBankAccountTypeLeavesBankDetailsNull() {
     val state = AccountFormState(initialAccount = null)
     state.name = "کیف پول جیبی"

@@ -69,7 +69,7 @@ fun ExportPassphraseDialog(
         )
         HesabyarButton(
           onClick = onDismiss,
-          text = stringResource(R.string.cancel_label),
+          text = stringResource(R.string.action_cancel),
           variant = ButtonVariant.Text,
           enabled = !isCryptoInProgress
         )

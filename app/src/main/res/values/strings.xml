@@ -2,7 +2,6 @@
     <string name="app_name">حسابیار هوشمند</string>
     <string name="expense_description_with_subject">%1$s (%2$s)</string>
     <string name="expense_description_miscellaneous">هزینه متفرقه (%1$s)</string>
-    <string name="cancel_label">انصراف</string>
     <string name="back_navigation_description">بازگشت</string>
     <string name="exit_dialog_title">خروج از حسابیار</string>
     <string name="exit_dialog_message">می‌خواهید از برنامه خارج شوید؟</string>

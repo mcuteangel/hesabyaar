@@ -423,7 +423,7 @@ private fun DeleteAccountConfirmDialog(
         account.name
       ),
     confirmText = stringResource(id = io.github.mojri.hesabyar.R.string.delete_label),
-    dismissText = stringResource(id = io.github.mojri.hesabyar.R.string.cancel_label),
+    dismissText = stringResource(id = io.github.mojri.hesabyar.R.string.action_cancel),
     onDismiss = onDismiss,
     onConfirm = {
       onConfirmDelete(account)
@@ -682,7 +682,7 @@ private fun AccountDialogFields(state: AccountFormState) {
   )
   AccountDialogTypeField(
     selectedType = state.selectedType,
-    onTypeSelected = { state.selectedType = it },
+    onTypeSelected = { state.onTypeSelected(it) },
     dropdownExpanded = state.typeDropdownExpanded,
     onDropdownExpandedChange = { state.typeDropdownExpanded = it }
   )
@@ -752,6 +752,23 @@ internal class AccountFormState(
 
   val isSaveEnabled: Boolean
     get() = name.isNotBlank() && !balanceError
+
+  /**
+   * Selects the account type and clears the bank-detail fields when the new type is not BANK.
+   * The dialog hides the bank fields for non-BANK types.
+   * Clearing keeps the submitted state logical:
+   * the submitted state never carries data the dialog no longer shows.
+   * toFormData still preserves legacy bank data from an existing account.
+   */
+  fun onTypeSelected(type: AccountType) {
+    selectedType = type
+    if (type != AccountType.BANK) {
+      bankName = ""
+      cardNumber = ""
+      accountNumber = ""
+      iban = ""
+    }
+  }
 
   fun toFormData(): AccountFormData =
     AccountFormData(

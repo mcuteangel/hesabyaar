@@ -107,13 +107,16 @@ internal fun rememberManualTransactionFormState(
   categories: List<Category>,
   selectedAccountId: Long?
 ): ManualTransactionFormState {
+  // Keyed by the edited transaction id. A composable reuse for another
+  // transaction resets every field and re-derives the original amount.
+  val editKey = transactionToEdit?.id
   val isEditMode = transactionToEdit != null
   val selectedType =
-    rememberSaveable {
+    rememberSaveable(editKey) {
       mutableStateOf(transactionToEdit?.type?.name ?: TransactionType.EXPENSE.name)
     }
   val destinationAccountId =
-    rememberSaveable {
+    rememberSaveable(editKey) {
       mutableStateOf(
         if (isEditMode && transactionToEdit.type == TransactionType.TRANSFER) {
           transactionToEdit.destinationAccountId
@@ -123,25 +126,25 @@ internal fun rememberManualTransactionFormState(
       )
     }
   val sourceAccountId =
-    rememberSaveable {
+    rememberSaveable(editKey) {
       mutableStateOf(selectedAccountId ?: transactionToEdit?.accountId)
     }
-  val originalAmountRial = remember { transactionToEdit?.amount ?: 0L }
+  val originalAmountRial = remember(editKey) { transactionToEdit?.amount ?: 0L }
   val amountValue =
-    rememberSaveable(stateSaver = TextFieldValue.Saver) {
+    rememberSaveable(editKey, stateSaver = TextFieldValue.Saver) {
       mutableStateOf(
         TextFieldValue(
           if (isEditMode) CurrencyFormatter.fromRial(transactionToEdit.amount).toString() else ""
         )
       )
     }
-  val amountModified = rememberSaveable { mutableStateOf(false) }
-  val descriptionText = rememberSaveable { mutableStateOf(transactionToEdit?.description.orEmpty()) }
-  val selectedCategoryId = rememberSaveable { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
-  val personNameText = rememberSaveable { mutableStateOf(transactionToEdit?.personName ?: "") }
-  val titleText = rememberSaveable { mutableStateOf(transactionToEdit?.description ?: "") }
-  val daysFromNowText = rememberSaveable { mutableStateOf("30") }
-  val customDate = rememberSaveable { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
+  val amountModified = rememberSaveable(editKey) { mutableStateOf(false) }
+  val descriptionText = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.description.orEmpty()) }
+  val selectedCategoryId = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
+  val personNameText = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.personName ?: "") }
+  val titleText = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.description ?: "") }
+  val daysFromNowText = rememberSaveable(editKey) { mutableStateOf("30") }
+  val customDate = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
   val isSubmitting = remember { mutableStateOf(false) }
 
   return remember(transactionToEdit, categories, selectedAccountId) {

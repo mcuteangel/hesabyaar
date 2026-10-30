@@ -300,14 +300,17 @@ fun DashboardScreen(
     )
   }
 
-  if (deletingTransaction != null) {
+  // Captured before the guard so the confirm callback never reads a stale
+  // state value that recomposition may have already nulled.
+  val transactionToDelete = deletingTransaction
+  if (transactionToDelete != null) {
     ConfirmDialog(
       title = "حذف تراکنش",
       message = "آیا از حذف این تراکنش اطمینان دارید؟",
       confirmText = stringResource(R.string.action_delete),
       dismissText = stringResource(R.string.action_cancel),
       onConfirm = {
-        transactionViewModel.deleteTransaction(deletingTransaction!!)
+        transactionViewModel.deleteTransaction(transactionToDelete)
         deletingTransaction = null
       },
       onDismiss = { deletingTransaction = null }
