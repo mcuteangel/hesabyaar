@@ -1,0 +1,35 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_9d0f88e244df98::t_1714711219d68d 384-390
+  s_9d0f88e244df98::t_f6b7a7a003c57f 756
+  s_9d0f88e244df98::t_6947dc0da869ed 197
+  s_9d0f88e244df98::t_835b4fb5fd6de1 377-383,391-393
+  s_9d0f88e244df98::t_975df658e09019 339
+  s_9d0f88e244df98::t_c95ca143be0d88 619,624
+  s_9d0f88e244df98::t_aa92f5046677b4 326
+  s_9d0f88e244df98::t_502c432090572f 329
+  s_9d0f88e244df98::t_e54fac899b3160 158,180-181,183
+  s_9d0f88e244df98::t_cbb4c1eec0f034 738-739,742-745
+  s_9d0f88e244df98::t_c61862f259d36d 752-755
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ManualTransactionDialog.kt
+  s_9d0f88e244df98::t_d79265d23a60a9 329-330
+  s_9d0f88e244df98::t_124a6909dc7b83 308-312
+  s_9d0f88e244df98::t_b76cc3d854ac08 226
+  s_9d0f88e244df98::t_a7de4676a8bbbf 186-191
+  s_9d0f88e244df98::t_4fc6dc84278557 269-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "749dab1dcd857b91340d9aa01e24283b1fa12749",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "poolside/laguna-s-2.1:free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
