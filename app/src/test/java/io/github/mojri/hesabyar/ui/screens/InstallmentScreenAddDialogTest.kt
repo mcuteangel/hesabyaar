@@ -162,6 +162,17 @@ class InstallmentScreenAddDialogTest {
   }
 
   @Test
+  fun prefixedNegativeAmountIsRejectedAndKeepsDialogOpen() {
+    openAddDialog()
+    fillDialog("قسط ماشین", "IRR -5,000")
+    composeRule.onNodeWithText("-5000").assertIsDisplayed()
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertTrue("nothing must be saved", repo.saved.isEmpty())
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+  }
+
+  @Test
   fun tomanAmountOverflowingRialConversionIsRejectedAndKeepsDialogOpen() {
     openAddDialog()
     fillDialog("قسط ماشین", "922337203685477581")

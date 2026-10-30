@@ -39,7 +39,7 @@ fun String.filterDigits(): String {
 
 /**
  * Parses the accepted digits into a [Long].
- * The parser preserves a leading minus sign.
+ * The parser preserves a minus before the first digit.
  * The minus can be ASCII or Unicode.
  * It can follow leading whitespace and bidirectional marks.
  * A preserved minus yields a negative [Long].
@@ -51,31 +51,22 @@ fun String.filterDigits(): String {
  */
 fun String.toCleanLongOrNull(): Long? = filterDigitsPreservingLeadingMinus().toLongOrNull()
 
-/** Bidirectional control characters (Unicode Bidi_Control property). */
-private val BIDI_MARKS =
-  setOf(
-    '\u061C',
-    '\u200E',
-    '\u200F',
-    '\u202A',
-    '\u202B',
-    '\u202C',
-    '\u202D',
-    '\u202E',
-    '\u2066',
-    '\u2067',
-    '\u2068',
-    '\u2069'
-  )
-
 /**
- * Keeps accepted digits only, in ASCII form, preserving a leading minus
- * sign (ASCII or Unicode) so validation can still reject negative input.
- * Leading whitespace and bidirectional marks before the sign are dropped;
- * a minus anywhere else is dropped with the other non-digit characters.
+ * Keeps accepted digits only, in ASCII form.
+ * The parser preserves a minus before the first digit.
+ * The minus can be ASCII or Unicode.
+ * Prefix text before the minus does not remove it.
+ * The parser drops a minus after the first digit.
+ * Validation can then reject negative input.
  */
 fun String.filterDigitsPreservingLeadingMinus(): String {
-  val trimmed = dropWhile { it.isWhitespace() || it in BIDI_MARKS }
-  val sign = if (trimmed.startsWith("-") || trimmed.startsWith("\u2212")) "-" else ""
-  return sign + trimmed.filterDigits()
+  var sign = ""
+  for (c in this) {
+    if (c.acceptedDigitOrNull() != null) break
+    if (c == '-' || c == '\u2212') {
+      sign = "-"
+      break
+    }
+  }
+  return sign + filterDigits()
 }
