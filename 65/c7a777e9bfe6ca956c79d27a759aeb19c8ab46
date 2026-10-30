@@ -1,0 +1,21 @@
+.github/workflows/android-ci.yml
+  s_c8cb47df8392ed::t_0bd7d1ede7cb72 244,255
+scripts/tests/test-workflow-gates.sh
+  s_c8cb47df8392ed::t_5a72bdf15a08ae 86-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "65c7a777e9bfe6ca956c79d27a759aeb19c8ab46",
+  "prompts": {},
+  "sessions": {
+    "s_c8cb47df8392ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67923586-1d42-4afa-beb3-15a04802d34a",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
