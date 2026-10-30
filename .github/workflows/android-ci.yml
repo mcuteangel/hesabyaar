@@ -257,6 +257,7 @@ jobs:
         timeout-minutes: 5
         run: npx --yes @gravityci/cli@0.1.2 "app/build/outputs/apk/debug/*.apk"
         env:
+          DEEPSOURCE_DSN: ""
           GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN }}
           GRAVITY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
