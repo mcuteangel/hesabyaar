@@ -35,7 +35,7 @@
         "gradle-wrapper"
       ],
       "ignoreUnstable": false,
-      "allowedVersions": "/^\\d+(\\.\\d+)*(-(alpha|beta|rc|RC|preview|eap|milestone|m|M)[-.]?\\d*)?$/"
+      "allowedVersions": "/^\\d+(\\.\\d+)*(-(alpha|Beta|beta|rc|RC|preview|eap|milestone|m|M)[-.]?\\d*)?$/"
     }
   ]
 }
