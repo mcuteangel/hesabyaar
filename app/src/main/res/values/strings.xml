@@ -241,6 +241,7 @@
     <string name="transaction_submit">ثبت تراکنش</string>
     <string name="transaction_save_changes">ذخیره تغییرات</string>
     <string name="transaction_details_title">جزئیات تراکنش</string>
+    <string name="transaction_destination_unknown">(نامشخص)</string>
     <string name="installment_save">ذخیره قسط</string>
     <string name="person_loan_submit">ثبت</string>
     <string name="add_person_loan_debtor_title">ثبت طلب از %1$s</string>

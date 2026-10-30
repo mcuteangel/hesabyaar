@@ -59,7 +59,9 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
  * @param showCloseButton Whether to render the close [IconButton] in the header.
  * @param leadingIcon Optional icon rendered before the title in the header.
  * @param confirmButton Structured confirm button slot placed at the trailing edge.
+ *   Takes precedence over [confirmText]/[onConfirm] when both are supplied.
  * @param dismissButton Structured dismiss button slot placed adjacent to confirm.
+ *   Takes precedence over [dismissText]/[onDismiss] when both are supplied.
  * @param actions Optional fallback composable rendered as a bottom row when structured slots are not used.
  *   Deprecated in favor of structured [confirmText]/[onConfirm] and [dismissText]/[onDismiss]
  *   (or [confirmButton]/[dismissButton] slots).
@@ -110,8 +112,8 @@ fun HesabyarDialog(
     Surface(
       modifier =
         modifier
-          .then(dialogWidthModifier)
           .fillMaxWidth(effectiveWidthFraction)
+          .then(dialogWidthModifier)
           .then(dialogHeightModifier),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,

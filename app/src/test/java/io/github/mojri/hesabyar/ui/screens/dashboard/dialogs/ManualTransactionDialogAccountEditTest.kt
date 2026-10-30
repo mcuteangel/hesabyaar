@@ -295,4 +295,69 @@ class ManualTransactionDialogAccountEditTest {
 
     org.junit.Assert.assertNull(captured.value)
   }
+
+  @Test
+  fun unmodifiedEditWithLegacyZeroAmountDoesNotBlockClientValidation() {
+    val zeroOriginal = original.copy(amount = 0L)
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        transactionToEdit = zeroOriginal,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    composeRule.onNodeWithText("ذخیره تغییرات").performClick()
+    composeRule.waitForIdle()
+
+    org.junit.Assert.assertNotNull(captured.value)
+    org.junit.Assert.assertEquals(0L, captured.value?.amountRial)
+  }
+
+  @Test
+  fun revertingEditedAmountToOriginalDisplayStringPreservesOriginalRial() {
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        transactionToEdit = original,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    val amountInput = composeRule.onNode(hasTestTag("manual_amount_input"))
+    val originalText = CurrencyFormatter.fromRial(original.amount).toString()
+
+    amountInput.performTextClearance()
+    amountInput.performTextInput("99999")
+    composeRule.waitForIdle()
+
+    amountInput.performTextClearance()
+    amountInput.performTextInput(originalText)
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("ذخیره تغییرات").performClick()
+    composeRule.waitUntil(timeoutMillis = 5_000) { captured.value != null }
+
+    val request = captured.value
+    assertNotNull(request)
+    assertEquals(
+      "Reverting amount to original string must preserve original exact Rial value",
+      original.amount,
+      request?.amountRial
+    )
+  }
 }

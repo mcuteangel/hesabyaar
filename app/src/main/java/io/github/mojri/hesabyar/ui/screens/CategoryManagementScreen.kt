@@ -418,7 +418,7 @@ internal class CategoryFormState(
   var typeDropdownExpanded by typeDropdownExpandedState
 
   val isValid: Boolean
-    get() = name.trim().isNotBlank() && finalKey.isNotBlank() && typeToSave != CategoryType.UNKNOWN
+    get() = name.trim().isNotBlank() && finalKey.isNotBlank()
 
   val finalKey: String
     get() {

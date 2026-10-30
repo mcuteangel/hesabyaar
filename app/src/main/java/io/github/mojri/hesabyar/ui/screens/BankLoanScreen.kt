@@ -21,6 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -237,31 +239,45 @@ internal class AddBankLoanFormState(
       val count = countVal ?: return false
       return bankName.trim().isNotBlank() && receivedRial > 0 && monthlyRial > 0 && count > 0
     }
+
+  companion object {
+    val Saver: Saver<AddBankLoanFormState, *> =
+      listSaver(
+        save = {
+          listOf(
+            it.bankName,
+            it.loanName,
+            it.received,
+            it.monthly,
+            it.count,
+            it.description,
+            it.startDate,
+            it.showDatePicker
+          )
+        },
+        restore = {
+          AddBankLoanFormState(
+            bankName = it[0] as String,
+            loanName = it[1] as String,
+            received = it[2] as String,
+            monthly = it[3] as String,
+            count = it[4] as String,
+            description = it[5] as String,
+            startDate = it[6] as Long,
+            showDatePicker = it[7] as Boolean
+          )
+        }
+      )
+  }
 }
 
 @Composable
 private fun rememberAddBankLoanFormState(initialStartDate: Long = System.currentTimeMillis()): AddBankLoanFormState {
-  val bankNameState = rememberSaveable { mutableStateOf("") }
-  val loanNameState = rememberSaveable { mutableStateOf("") }
-  val receivedState = rememberSaveable { mutableStateOf("") }
-  val monthlyState = rememberSaveable { mutableStateOf("") }
-  val countState = rememberSaveable { mutableStateOf("") }
-  val descriptionState = rememberSaveable { mutableStateOf("") }
-  val startDateState = rememberSaveable { mutableStateOf(initialStartDate) }
-  val showDatePickerState = rememberSaveable { mutableStateOf(false) }
-
-  return androidx.compose.runtime.remember {
-    AddBankLoanFormState(
-      bankNameState = bankNameState,
-      loanNameState = loanNameState,
-      receivedState = receivedState,
-      monthlyState = monthlyState,
-      countState = countState,
-      descriptionState = descriptionState,
-      startDateState = startDateState,
-      showDatePickerState = showDatePickerState
-    )
-  }
+  val formState =
+    rememberSaveable(saver = AddBankLoanFormState.Saver) {
+      AddBankLoanFormState(startDate = initialStartDate)
+    }
+  return formState
 }
 
 @VisibleForTesting
@@ -419,11 +435,6 @@ internal fun isInvalidCount(text: String): Boolean {
 
 @Composable
 private fun invalidCountText(text: String): String? {
-  if (text.isBlank()) return null
-  val parsed = text.toIntOrNull()
-  return when {
-    parsed == null -> "تعداد اقساط وارد شده نامعتبر است"
-    parsed <= 0 -> "تعداد اقساط باید بیشتر از صفر باشد"
-    else -> null
-  }
+  if (!isInvalidCount(text)) return null
+  return stringResource(R.string.error_bank_loan_installment_count_invalid)
 }

@@ -196,7 +196,7 @@ private fun TransactionAccountRow(
             if (destAccount != null) {
               "${sourceAccount.name} → ${destAccount.name}"
             } else {
-              "${sourceAccount.name} → (نامشخص)"
+              "${sourceAccount.name} → ${stringResource(R.string.transaction_destination_unknown)}"
             }
           } else {
             sourceAccount.name

@@ -67,13 +67,12 @@ import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.security.GeneralSecurityException
 
 fun Context.findActivity(): FragmentActivity? {
   var currentContext = this
@@ -759,19 +758,20 @@ private object SecurityDialogs {
       true
     } catch (e: CancellationException) {
       throw e
-    } catch (e: GeneralSecurityException) {
-      AppLogger.e("SettingsScreen", "Security exception clearing PIN", e)
-      false
-    } catch (e: IOException) {
-      AppLogger.e("SettingsScreen", "IO exception clearing PIN", e)
-      false
-    } catch (e: SecurityException) {
-      AppLogger.e("SettingsScreen", "Permission exception clearing PIN", e)
-      false
     } catch (e: Exception) {
-      AppLogger.e("SettingsScreen", "Unexpected exception clearing PIN", e)
+      AppLogger.e("SettingsScreen", "Exception clearing PIN", e)
       false
     }
+
+  private inline fun runSafeCallback(block: () -> Unit) {
+    try {
+      block()
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      AppLogger.e("SettingsScreen", "Exception in callback", e)
+    }
+  }
 
   private suspend fun verifyAndClearPin(
     context: Context,
@@ -795,18 +795,48 @@ private object SecurityDialogs {
       null -> onVerifyError("خطا در بررسی رمز عبور")
       false -> onInvalidPin("رمز عبور اشتباه است")
       true -> {
-        try {
-          if (safeClearPin(context)) {
-            onSuccess()
-          } else {
-            onClearFailed("خطا در غیرفعالسازی قفل برنامه")
-          }
-        } catch (e: CancellationException) {
-          throw e
-        } catch (e: Exception) {
-          AppLogger.e("SettingsScreen", "Unexpected exception during safeClearPin", e)
-          onClearFailed("خطا در غیرفعالسازی قفل برنامه")
+        if (safeClearPin(context)) {
+          runSafeCallback(onSuccess)
+        } else {
+          runSafeCallback { onClearFailed("خطا در غیرفعالسازی قفل برنامه") }
         }
+      }
+    }
+  }
+
+  private fun performPinVerification(
+    scope: CoroutineScope,
+    context: Context,
+    pin: String,
+    onSuccess: () -> Unit,
+    parentOnClearFailed: ((String) -> Unit)?,
+    onDismiss: () -> Unit,
+    setVerifying: (Boolean) -> Unit,
+    setPinError: (String?) -> Unit
+  ) {
+    scope.launch {
+      setVerifying(true)
+      try {
+        verifyAndClearPin(
+          context = context,
+          pin = pin,
+          onSuccess = onSuccess,
+          onClearFailed = { error ->
+            setPinError(error)
+            runSafeCallback {
+              parentOnClearFailed?.invoke(error) ?: onDismiss()
+            }
+          },
+          onInvalidPin = { setPinError(it) },
+          onVerifyError = { setPinError(it) }
+        )
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        AppLogger.e("SettingsScreen", "Unexpected exception in VerifyPinDialog", e)
+        setPinError("خطا در بررسی رمز عبور")
+      } finally {
+        setVerifying(false)
       }
     }
   }
@@ -822,7 +852,6 @@ private object SecurityDialogs {
     var currentPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf<String?>(null) }
     var verifying by remember { mutableStateOf(false) }
-    val parentOnClearFailed = onClearFailed
 
     HesabyarDialog(
       onDismissRequest = { if (!verifying) onDismiss() },
@@ -831,33 +860,16 @@ private object SecurityDialogs {
       confirmEnabled = currentPin.length == PIN_LENGTH && !verifying,
       confirmLoading = verifying,
       onConfirm = {
-        scope.launch {
-          verifying = true
-          try {
-            verifyAndClearPin(
-              context = context,
-              pin = currentPin,
-              onSuccess = onPinVerifiedAndCleared,
-              onClearFailed = { error ->
-                pinError = error
-                if (parentOnClearFailed != null) {
-                  parentOnClearFailed(error)
-                } else {
-                  onDismiss()
-                }
-              },
-              onInvalidPin = { pinError = it },
-              onVerifyError = { pinError = it }
-            )
-          } catch (e: CancellationException) {
-            throw e
-          } catch (e: Exception) {
-            AppLogger.e("SettingsScreen", "Unexpected exception in VerifyPinDialog", e)
-            pinError = "خطا در بررسی رمز عبور"
-          } finally {
-            verifying = false
-          }
-        }
+        performPinVerification(
+          scope = scope,
+          context = context,
+          pin = currentPin,
+          onSuccess = onPinVerifiedAndCleared,
+          parentOnClearFailed = onClearFailed,
+          onDismiss = onDismiss,
+          setVerifying = { verifying = it },
+          setPinError = { pinError = it }
+        )
       },
       dismissText = stringResource(R.string.action_cancel),
       onDismiss = { if (!verifying) onDismiss() }

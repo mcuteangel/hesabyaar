@@ -83,7 +83,6 @@ class ConfirmDialogTest {
         message = DIALOG_MESSAGE,
         confirmText = CUSTOM_CONFIRM,
         confirmColor = Color.Red,
-        confirmContentColor = Color.White,
         onConfirm = { confirmed = true },
         onDismiss = {}
       )

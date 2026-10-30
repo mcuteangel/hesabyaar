@@ -177,8 +177,16 @@ fun AccountManagementScreen(
   LaunchedEffect(formDialogTargetId, accounts) {
     if (formDialogTargetId == NO_FORM_DIALOG_ID) return@LaunchedEffect
     if (dialogState is AccountDialogState.Add || dialogState is AccountDialogState.Edit) return@LaunchedEffect
-    if (accounts.isNotEmpty()) {
-      dialogState = restoreDialogState(formDialogTargetId, accounts)
+    // Stale persisted Add instance ids (negative, other than -1) from before
+    // the instanceId refactor must never resurrect an orphaned Add dialog.
+    if (formDialogTargetId < 0) {
+      formDialogTargetId = NO_FORM_DIALOG_ID
+      return@LaunchedEffect
+    }
+    if (accounts.isEmpty()) return@LaunchedEffect
+    val target = accounts.find { it.id == formDialogTargetId }
+    if (target != null) {
+      dialogState = AccountDialogState.Edit(target)
     } else {
       formDialogTargetId = NO_FORM_DIALOG_ID
     }
@@ -379,15 +387,15 @@ private fun restoreDialogState(
   formDialogTargetId: Long,
   accounts: List<AccountEntity>
 ): AccountDialogState {
-  if (formDialogTargetId == NO_FORM_DIALOG_ID) return AccountDialogState.None
-  val restored = formDialogTargetId
-  val account = if (restored > 0) accounts.find { it.id == restored } else null
+  // Negative ids (other than NO_FORM_DIALOG_ID = -1) are stale persisted Add
+  // instance ids from before the instanceId refactor. Treat them as None so a
+  // stale Add target never resurrects an orphaned dialog with an arbitrary id.
+  val validTarget = formDialogTargetId > 0
+  val account = if (validTarget) accounts.find { it.id == formDialogTargetId } else null
   return if (account != null) {
     AccountDialogState.Edit(account)
-  } else if (restored > 0) {
-    AccountDialogState.None
   } else {
-    AccountDialogState.Add(instanceId = restored)
+    AccountDialogState.None
   }
 }
 

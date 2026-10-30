@@ -89,7 +89,6 @@ internal fun ExitConfirmDialog(
     confirmText = stringResource(R.string.exit_dialog_confirm),
     dismissText = stringResource(R.string.cancel_label),
     confirmColor = MaterialTheme.colorScheme.primary,
-    confirmContentColor = MaterialTheme.colorScheme.onPrimary,
     onConfirm = onConfirm,
     onDismiss = onDismiss
   )

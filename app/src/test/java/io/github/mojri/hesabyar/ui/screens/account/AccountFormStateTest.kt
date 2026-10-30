@@ -183,14 +183,10 @@ class AccountFormStateTest {
   }
 
   @Test
-  fun nonBankAccountTypeClearsBankDetailsInFormData() {
+  fun addModeWithNonBankAccountTypeLeavesBankDetailsNull() {
     val state = AccountFormState(initialAccount = null)
     state.name = "کیف پول جیبی"
     state.selectedType = AccountType.CASH_WALLET
-    state.bankName = "بانک نامربوط"
-    state.cardNumber = "6037..."
-    state.accountNumber = "999"
-    state.iban = "IR999..."
     state.initialBalance = "0"
 
     val data = state.toFormData()
@@ -202,84 +198,27 @@ class AccountFormStateTest {
   }
 
   @Test
-  fun switchingFromBankToCashWalletNullsExistingBankDetails() {
-    val existingBank =
-      AccountEntity(
-        id = 5,
-        name = "حساب قدیمی",
-        type = AccountType.BANK,
-        bankName = "ملی",
-        cardNumber = "603799...",
-        accountNumber = "0100...",
-        iban = "IR100...",
-        initialBalance = 500_000L
-      )
-    val state = AccountFormState(initialAccount = existingBank)
-    assertEquals(AccountType.BANK, state.selectedType)
-
-    // User switches type to CASH_WALLET
-    state.selectedType = AccountType.CASH_WALLET
-    val data = state.toFormData()
-
-    assertEquals(AccountType.CASH_WALLET, data.type)
-    assertEquals("Bank name must be cleared for cash wallet", null, data.bankName)
-    assertEquals("Card number must be cleared for cash wallet", null, data.cardNumber)
-    assertEquals("Account number must be cleared for cash wallet", null, data.accountNumber)
-    assertEquals("IBAN must be cleared for cash wallet", null, data.iban)
-  }
-
-  @Test
-  fun hasExistingBankDetailsDetectsExistingDetailsOnBankEntity() {
-    val existingBank =
-      AccountEntity(
-        id = 5,
-        name = "حساب قدیمی",
-        type = AccountType.BANK,
-        bankName = "ملی",
-        initialBalance = 500_000L
-      )
-    val state = AccountFormState(initialAccount = existingBank)
-    assertTrue("Must detect existing bank details", state.hasExistingBankDetails)
-
-    val plainAccount =
-      AccountEntity(
-        id = 6,
-        name = "کیف پول",
-        type = AccountType.CASH_WALLET,
-        initialBalance = 100_000L
-      )
-    val statePlain = AccountFormState(initialAccount = plainAccount)
-    assertFalse("Must be false when no bank details exist", statePlain.hasExistingBankDetails)
-  }
-
-  @Test
-  fun willClearBankDetailsWarnsOnBankSwitchOrLegacyDetails() {
-    val existingBank =
-      AccountEntity(
-        id = 5,
-        name = "حساب بانکی",
-        type = AccountType.BANK,
-        bankName = "ملی",
-        initialBalance = 500_000L
-      )
-    val stateBank = AccountFormState(initialAccount = existingBank)
-    assertFalse("BANK account does not clear bank details", stateBank.willClearBankDetails)
-
-    stateBank.selectedType = AccountType.CASH_WALLET
-    assertTrue("Switching BANK to CASH_WALLET flags bank details clearance", stateBank.willClearBankDetails)
-
+  fun editModeWithLegacyCashAccountPreservesExistingBankDetails() {
     val legacyCashAccount =
       AccountEntity(
         id = 7,
         name = "کیف پول قدیمی",
         type = AccountType.CASH_WALLET,
         bankName = "تجارت",
+        cardNumber = "6273...",
+        accountNumber = "9876",
+        iban = "IR987...",
         initialBalance = 100_000L
       )
-    val stateLegacy = AccountFormState(initialAccount = legacyCashAccount)
-    assertTrue("Non-bank account with legacy bank details flags clearance", stateLegacy.willClearBankDetails)
+    val state = AccountFormState(initialAccount = legacyCashAccount)
+    state.name = "کیف پول به‌روز شده"
 
-    stateLegacy.selectedType = AccountType.BANK
-    assertFalse("Switching legacy account back to BANK preserves bank details", stateLegacy.willClearBankDetails)
+    val data = state.toFormData()
+    assertEquals("کیف پول به‌روز شده", data.name)
+    assertEquals(AccountType.CASH_WALLET, data.type)
+    assertEquals("تجارت", data.bankName)
+    assertEquals("6273...", data.cardNumber)
+    assertEquals("9876", data.accountNumber)
+    assertEquals("IR987...", data.iban)
   }
 }
