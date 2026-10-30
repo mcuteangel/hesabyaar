@@ -309,13 +309,13 @@ class BankLoanFormTest {
     countNode.performTextInput("0")
     composeRule.waitForIdle()
 
-    composeRule.onNodeWithText("تعداد اقساط باید بیشتر از صفر باشد").assertIsDisplayed()
+    composeRule.onNodeWithText("تعداد اقساط وام نامعتبر است").assertIsDisplayed()
 
     countNode.performTextClearance()
     countNode.performTextInput("12")
     composeRule.waitForIdle()
 
-    composeRule.onAllNodesWithText("تعداد اقساط باید بیشتر از صفر باشد").assertCountEquals(0)
+    composeRule.onAllNodesWithText("تعداد اقساط وام نامعتبر است").assertCountEquals(0)
   }
 
   @Test
