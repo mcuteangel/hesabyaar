@@ -2,8 +2,10 @@ package io.github.mojri.hesabyar.ui.screens.dashboard.dialogs
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.data.Category
@@ -28,7 +30,8 @@ import org.robolectric.annotation.Config
  * The title field does not render in edit mode.
  * Edit mode excludes INSTALLMENT from the type selector.
  * TransactionType has no INSTALLMENT value.
- * These tests do not cover installment dispatch.
+ * These tests do not cover installment edit dispatch.
+ * One test covers INSTALLMENT submit in create mode.
  * SubmitManualTransactionUseCaseTest covers the installment write path.
  * A separate issue tracks a real installment edit path.
  */
@@ -93,6 +96,39 @@ class ManualTransactionDialogInstallmentTitleEditTest {
     assertNotNull("Submit must not be blocked", request)
     assertEquals("Edit must keep the dedicated installment title", "Car loan", request?.title)
     assertEquals("Edit must keep the original description", "Monthly notes", request?.descriptionText)
+  }
+
+  // -- INSTALLMENT submit in create mode (the only INSTALLMENT form path) ------
+
+  @Test
+  fun createDialogInstallmentSubmitKeepsTitleIndependentFromDescription() {
+    val captured = mutableStateOf<SubmitManualTransactionUseCase.SubmitManualTransactionRequest?>(null)
+
+    composeRule.setContent {
+      ManualTransactionDialog(
+        onSubmit = { request ->
+          captured.value = request
+          SubmitManualTransactionUseCase.SubmitResult(success = true)
+        },
+        categories = categories,
+        accounts = accounts,
+        selectedAccountId = 10L,
+        onDismiss = {},
+      )
+    }
+
+    composeRule.onNodeWithText("قسط").performClick()
+    composeRule.onNodeWithTag("manual_amount_input").performTextInput("3000")
+    composeRule.onNodeWithTag("manual_title_input").performTextInput("Car loan")
+    composeRule.onNodeWithTag("manual_description_input").performTextInput("Monthly notes")
+    composeRule.onNodeWithText("ثبت تراکنش").performClick()
+    composeRule.waitUntil(timeoutMillis = 5_000) { captured.value != null }
+
+    val request = captured.value
+    assertNotNull("Submit must not be blocked", request)
+    assertEquals("Create must submit as INSTALLMENT", "INSTALLMENT", request?.selectedType)
+    assertEquals("Create must keep the installment title", "Car loan", request?.title)
+    assertEquals("Create must keep the description independent", "Monthly notes", request?.descriptionText)
   }
 
   @Test
