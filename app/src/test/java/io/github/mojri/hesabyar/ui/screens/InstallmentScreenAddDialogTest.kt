@@ -151,6 +151,28 @@ class InstallmentScreenAddDialogTest {
   }
 
   @Test
+  fun negativeAmountIsRejectedAndKeepsDialogOpen() {
+    openAddDialog()
+    fillDialog("قسط ماشین", "-5000")
+    composeRule.onNodeWithText("-5000").assertIsDisplayed()
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertTrue("nothing must be saved", repo.saved.isEmpty())
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+  }
+
+  @Test
+  fun prefixedNegativeAmountIsRejectedAndKeepsDialogOpen() {
+    openAddDialog()
+    fillDialog("قسط ماشین", "IRR -5,000")
+    composeRule.onNodeWithText("-5000").assertIsDisplayed()
+    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
+    settle()
+    assertTrue("nothing must be saved", repo.saved.isEmpty())
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+  }
+
+  @Test
   fun tomanAmountOverflowingRialConversionIsRejectedAndKeepsDialogOpen() {
     openAddDialog()
     fillDialog("قسط ماشین", "922337203685477581")
@@ -181,16 +203,6 @@ class InstallmentScreenAddDialogTest {
     assertEquals("one installment must be saved", 1, repo.saved.size)
     assertEquals("amount unchanged in Rial mode", Long.MAX_VALUE, repo.saved.single().amount)
     composeRule.onNodeWithText(DIALOG_TITLE).assertDoesNotExist()
-  }
-
-  @Test
-  fun negativeAmountIsRejectedAndKeepsDialogOpen() {
-    openAddDialog()
-    fillDialog("قسط ماشین", "-50000")
-    composeRule.onNodeWithText(CONFIRM_BUTTON).performClick()
-    settle()
-    assertTrue("negative amounts must not be saved", repo.saved.isEmpty())
-    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
   }
 
   @Test
