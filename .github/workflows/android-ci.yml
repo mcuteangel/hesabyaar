@@ -241,6 +241,7 @@ jobs:
           coverage-files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
 
       - name: Build Debug APK
+        id: build-debug-apk
         run: ./gradlew assembleDebug --warning-mode all
 
       - name: Upload Debug APK
@@ -251,7 +252,7 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Run Gravity on Debug APK
-        if: ${{ success() && env.HAS_GRAVITY_TOKEN == 'true' }}
+        if: ${{ !cancelled() && steps.build-debug-apk.outcome == 'success' && env.HAS_GRAVITY_TOKEN == 'true' }}
         continue-on-error: true
         timeout-minutes: 5
         run: npx --yes @gravityci/cli@0.1.2 "app/build/outputs/apk/debug/*.apk"
