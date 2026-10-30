@@ -1,0 +1,21 @@
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/account/AccountManagementScreen.kt
+  s_9d0f88e244df98::t_4b6673c843c7c6 179,192-194
+  s_9d0f88e244df98::t_60ad37adadf273 393-406,408
+  s_9d0f88e244df98::t_51e2a4278ac29c 157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d670038eaf0cf714752fa276d281eff6329406ee",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "nvidia/nemotron-3.5-super-vl:free"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
