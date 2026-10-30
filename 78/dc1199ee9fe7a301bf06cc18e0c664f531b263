@@ -1,0 +1,32 @@
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/BankLoanFormTest.kt
+  s_9d0f88e244df98::t_5d8e533003ba50 331-343
+app/src/main/java/io/github/mojri/hesabyar/ui/components/HesabyarDialog.kt
+  s_9d0f88e244df98::t_5d8e533003ba50 90,98-100,114,221-242,250-262
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/SettingsScreen.kt
+  s_9d0f88e244df98::t_16557787907d67 1391,1409-1410
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ManualTransactionDialog.kt
+  s_9d0f88e244df98::t_753ed0b1d604e4 63,85-91
+  s_9d0f88e244df98::t_5d8e533003ba50 262-267
+app/src/test/java/io/github/mojri/hesabyar/ui/screens/dashboard/dialogs/ManualTransactionDialogAccountEditTest.kt
+  s_9d0f88e244df98::t_5d8e533003ba50 270-297
+app/src/main/java/io/github/mojri/hesabyar/ui/screens/BankLoanScreen.kt
+  s_9d0f88e244df98::t_5d8e533003ba50 237,299,305
+app/src/test/java/io/github/mojri/hesabyar/ui/components/HesabyarDialogTest.kt
+  s_9d0f88e244df98::t_5d8e533003ba50 233-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "78dc1199ee9fe7a301bf06cc18e0c664f531b263",
+  "prompts": {},
+  "sessions": {
+    "s_9d0f88e244df98": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "29219be8-fda1-420c-a19a-f018f32850a3",
+        "model": "gemini-3.8-flash-n"
+      },
+      "human_author": "mcuteangel <mpcuteangel@Gmail.com>"
+    }
+  }
+}
