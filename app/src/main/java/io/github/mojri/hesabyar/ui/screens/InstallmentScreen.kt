@@ -25,7 +25,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
-import io.github.mojri.hesabyar.core.filterDigits
+import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.Installment
 import io.github.mojri.hesabyar.ui.BankLoanViewModel
@@ -227,7 +227,7 @@ fun InstallmentScreen(
 
           HesabyarInputField(
             value = amountText,
-            onValueChange = { amountText = it.filterDigits() },
+            onValueChange = { amountText = it.filterDigitsPreservingLeadingMinus() },
             label = "مبلغ قسط (${CurrencyFormatter.unitLabel})"
           )
 
