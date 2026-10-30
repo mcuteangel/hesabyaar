@@ -257,6 +257,9 @@ jobs:
         timeout-minutes: 5
         run: npx --yes @gravityci/cli@0.1.2 "app/build/outputs/apk/debug/*.apk"
         env:
+          # Prevent credential leakage.
+          # Job-level environment exports DEEPSOURCE_DSN to all steps.
+          # Blank this variable so npm execution cannot read it.
           DEEPSOURCE_DSN: ""
           GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN }}
           GRAVITY_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
