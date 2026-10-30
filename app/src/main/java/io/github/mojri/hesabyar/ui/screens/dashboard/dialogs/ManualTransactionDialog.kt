@@ -183,6 +183,12 @@ internal class ManualTransactionFormState(
   val isSubmittingState: MutableState<Boolean>
 ) {
   val isEditMode: Boolean get() = transactionToEdit != null
+  val originalDisplayAmount: String =
+    if (transactionToEdit != null) {
+      CurrencyFormatter.fromRial(transactionToEdit.amount).toString()
+    } else {
+      ""
+    }
   var selectedType: String by selectedTypeState
   var destinationAccountId: Long? by destinationAccountIdState
   var sourceAccountId: Long? by sourceAccountIdState
@@ -217,7 +223,7 @@ internal class ManualTransactionFormState(
   fun buildRequest(): SubmitManualTransactionUseCase.SubmitManualTransactionRequest {
     val finalAmountDisplay = amountValue.text.toLongOrNull() ?: 0L
     val accountId =
-      requireNotNull(sourceAccountId) { "sourceAccountId must be validated before building request" }
+      sourceAccountId ?: throw IllegalStateException("sourceAccountId must be validated before building request")
     return SubmitManualTransactionUseCase.SubmitManualTransactionRequest(
       amountDisplay = finalAmountDisplay,
       selectedType = selectedType,
@@ -260,7 +266,8 @@ private fun submitManualTransaction(
       }
 
       val finalAmountRial = formState.calculateFinalAmountRial()
-      if (finalAmountRial <= 0L) {
+      val isUnmodifiedEdit = formState.isEditMode && !formState.amountModified
+      if (finalAmountRial <= 0L && !isUnmodifiedEdit) {
         showToast(context, context.getString(R.string.error_tx_amount_invalid))
         return@launch
       }
@@ -298,7 +305,11 @@ private fun ManualTransactionFormBody(
     categories = formState.categories,
     onTypeSelected = { type, categoryId ->
       formState.selectedType = type
-      formState.selectedCategoryId = categoryId
+      if (type == TransactionType.EXPENSE.name || type == TransactionType.INCOME.name) {
+        formState.selectedCategoryId = categoryId
+      } else {
+        formState.selectedCategoryId = 0L
+      }
       if (type != "TRANSFER") {
         formState.destinationAccountId = null
       }
@@ -315,8 +326,8 @@ private fun ManualTransactionFormBody(
     amountValue = formState.amountValue,
     typeColor = typeColor,
     onAmountChanged = { value, _ ->
-      if (formState.isEditMode && value.text != formState.amountValue.text) {
-        formState.amountModified = true
+      if (formState.isEditMode) {
+        formState.amountModified = value.text != formState.originalDisplayAmount
       }
       formState.amountValue = value
     }
