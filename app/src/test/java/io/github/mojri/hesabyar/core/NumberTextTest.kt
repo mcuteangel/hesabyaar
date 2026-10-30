@@ -60,5 +60,18 @@ class NumberTextTest {
     assertEquals("ALM before Unicode minus", "-5000", "\u061C\u22125000".filterDigitsPreservingLeadingMinus())
     assertEquals("Empty stays empty", "", "".filterDigitsPreservingLeadingMinus())
     assertEquals("Lone minus stays minus", "-", "-".filterDigitsPreservingLeadingMinus())
+    assertEquals("Currency prefix before minus kept", "-5000", "IRR -5,000".filterDigitsPreservingLeadingMinus())
+    assertEquals("Persian prefix before minus kept", "-5000", "تومان -۵۰۰۰".filterDigitsPreservingLeadingMinus())
+  }
+
+  @Test
+  fun leadingMinusParsesAsNegative() {
+    assertEquals("ASCII minus parses negative", -5000L, "-5000".toCleanLongOrNull())
+    assertEquals("Currency prefix minus parses negative", -5000L, "IRR -5,000".toCleanLongOrNull())
+    assertEquals("Unicode minus parses negative", -5000L, "\u22125000".toCleanLongOrNull())
+    assertEquals("Persian digits after minus parse negative", -5000L, "-۵۰۰۰".toCleanLongOrNull())
+    assertEquals("Mid-string minus dropped", 50L, "5-0".toCleanLongOrNull())
+    assertNull("Lone minus returns null", "-".toCleanLongOrNull())
+    assertNull("Negative overflow returns null", "-999999999999999999999999".toCleanLongOrNull())
   }
 }
