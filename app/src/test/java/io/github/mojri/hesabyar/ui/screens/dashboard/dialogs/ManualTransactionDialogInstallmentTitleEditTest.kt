@@ -20,15 +20,17 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Compose UI tests for the INSTALLMENT edit path in [ManualTransactionDialog]:
- * the title field must stay independent of the description field. Before the
- * fix, titleText was seeded from transactionToEdit?.description, the same
- * source as descriptionText, so an edit showed identical text in both fields
- * and could overwrite the installment title and notes identically. The title
- * now comes from the dedicated installmentTitle parameter instead.
- * The title field itself is not rendered in edit mode (the edit-mode type
- * selector excludes INSTALLMENT), so the assertions read the captured
- * submit request rather than a visible title node.
+ * Tests title seeding on the edit path in [ManualTransactionDialog].
+ * The dialog seeds title state from the installmentTitle parameter.
+ * The dialog seeds description state from the transaction description.
+ * The two seeds stay independent.
+ * The tests assert the values in the captured submit request.
+ * The title field does not render in edit mode.
+ * Edit mode excludes INSTALLMENT from the type selector.
+ * TransactionType has no INSTALLMENT value.
+ * These tests do not cover installment dispatch.
+ * SubmitManualTransactionUseCaseTest covers the installment write path.
+ * A separate issue tracks a real installment edit path.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [34])
