@@ -163,6 +163,11 @@ jobs:
         if: ${{ env.IS_TRUSTED_RUN == 'true' && env.HAS_CODEANT_TOKEN == 'true' }}
         continue-on-error: true
         timeout-minutes: 5
+        # Job-level environment exports DEEPSOURCE_DSN to all steps.
+        # The CodeAnt step does not need it.
+        # Clear it here, as the Gravity step does.
+        env:
+          DEEPSOURCE_DSN: ""
         uses: CodeAnt-AI/codeant-coverage-action@a8938a62b2a8681f5832921b6a5090865848c3a1 # v0.0.6
         with:
           access_token: ${{ secrets.CODEANT_TOKEN }}
