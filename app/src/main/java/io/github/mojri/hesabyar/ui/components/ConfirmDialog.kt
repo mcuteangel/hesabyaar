@@ -1,9 +1,11 @@
 package io.github.mojri.hesabyar.ui.components
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import io.github.mojri.hesabyar.R
 
 /**
@@ -20,12 +22,8 @@ fun ConfirmDialog(
   onConfirm: () -> Unit,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
-  confirmText: String =
-    androidx.compose.ui.res
-      .stringResource(R.string.action_confirm),
-  dismissText: String =
-    androidx.compose.ui.res
-      .stringResource(R.string.action_cancel),
+  confirmText: String = stringResource(R.string.action_confirm),
+  dismissText: String = stringResource(R.string.action_cancel),
   confirmColor: Color = MaterialTheme.colorScheme.error
 ) {
   HesabyarDialog(
@@ -38,7 +36,7 @@ fun ConfirmDialog(
     dismissText = if (dismissText.isNotBlank()) dismissText else null,
     onDismiss = if (dismissText.isNotBlank()) onDismiss else null,
     content = {
-      androidx.compose.material3.Text(text = message)
+      Text(text = message)
     }
   )
 }

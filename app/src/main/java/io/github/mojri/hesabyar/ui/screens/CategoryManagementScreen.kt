@@ -692,6 +692,8 @@ private fun CategoryColorPicker(
       CATEGORY_COLORS.forEach { color ->
         val isSelected = selectedColor == color
         val colorHex = (color and 0xFFFFFFL).toString(16).padStart(6, '0')
+        // TalkBack label from resources per docs/LOCALIZATION.md.
+        val swatchLabel = stringResource(R.string.category_color_swatch, colorHex)
         Box(
           modifier =
             Modifier
@@ -703,7 +705,7 @@ private fun CategoryColorPicker(
                 onClick = { onColorSelected(color) },
                 role = Role.RadioButton
               ).semantics {
-                contentDescription = "رنگ #$colorHex"
+                contentDescription = swatchLabel
               },
           contentAlignment = Alignment.Center
         ) {

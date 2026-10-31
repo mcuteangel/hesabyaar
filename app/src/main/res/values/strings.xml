@@ -236,6 +236,9 @@
     <string name="action_edit">ویرایش</string>
     <string name="action_close">بستن</string>
 
+    <!-- Category feature-scoped labels -->
+    <string name="category_color_swatch">رنگ #%1$s</string>
+
     <!-- Specific feature dialog actions -->
     <string name="transaction_submit">ثبت تراکنش</string>
     <string name="transaction_save_changes">ذخیره تغییرات</string>
