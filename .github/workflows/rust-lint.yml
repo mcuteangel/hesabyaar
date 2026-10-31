@@ -63,6 +63,7 @@ jobs:
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
+      HAS_CODEANT_TOKEN: ${{ secrets.CODEANT_TOKEN != '' }}
       # Single definition of the trusted-run predicate (event, fork, actor);
       # the verify step references this instead of repeating the expression.
       IS_TRUSTED_RUN: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork != true)) && github.event.repository.fork != true && github.actor != 'dependabot[bot]' }}
@@ -168,6 +169,25 @@ jobs:
           CODACY_PROJECT_NAME: hesabyaar
         with:
           coverage-reports: rust/lcov.prefixed.info
+
+      - name: Upload coverage to CodeAnt AI (experiment)
+        # Phase 2 experiment: does CodeAnt accept LCOV?
+        # Docs say XML only. The action README claims more formats.
+        # This step is on a test branch only, not on main.
+        # File is the prefixed LCOV, as Codacy and DeepSource use.
+        # The trusted-run guard skips fork runs and Dependabot runs.
+        # The step timeout is five minutes.
+        # The upload is non-blocking.
+        if: ${{ env.IS_TRUSTED_RUN == 'true' && env.HAS_CODEANT_TOKEN == 'true' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          DEEPSOURCE_DSN: ""
+        uses: CodeAnt-AI/codeant-coverage-action@a8938a62b2a8681f5832921b6a5090865848c3a1 # v0.0.6
+        with:
+          access_token: ${{ secrets.CODEANT_TOKEN }}
+          coverage_file: rust/lcov.prefixed.info
+          module: rust
 
       - name: Save Rust coverage to cache
         # Best-effort: seeds the coverage cache so that PR syncs whose
