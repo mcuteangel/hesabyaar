@@ -55,4 +55,13 @@ class RawColorOutsideThemeTest {
     """.trimIndent()
     assertEquals(1, rule.lint(code).size)
   }
+
+  @Test
+  fun flagsAliasedColorCall() {
+    val code = """
+      import androidx.compose.ui.graphics.Color as C
+      fun palette() = C(0xFF4CAF50)
+    """.trimIndent()
+    assertEquals(1, rule.lint(code).size)
+  }
 }

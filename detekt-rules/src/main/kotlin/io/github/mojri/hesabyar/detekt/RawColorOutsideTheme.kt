@@ -8,13 +8,13 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
+import org.jetbrains.kotlin.psi.KtFile
 
 class RawColorOutsideTheme(config: Config) :
   Rule(config, "Raw Color hex outside the theme.") {
   override fun visitCallExpression(expression: KtCallExpression) {
     super.visitCallExpression(expression)
-    val callee = expression.calleeExpression?.text?.substringAfterLast(".")
-    if (callee != "Color") return
+    if (!isColorCall(expression)) return
     for (arg in expression.valueArguments) {
       val argument = unwrap(arg.getArgumentExpression()) as? KtConstantExpression ?: continue
       if (!argument.text.startsWith("0x", ignoreCase = true)) continue
@@ -22,6 +22,21 @@ class RawColorOutsideTheme(config: Config) :
       report(Finding(Entity.from(expression), msg))
       return
     }
+  }
+
+  private fun isColorCall(expression: KtCallExpression): Boolean {
+    val callee = expression.calleeExpression?.text?.substringAfterLast(".") ?: return false
+    if (callee == "Color") return true
+    return colorAliases(expression.containingKtFile).contains(callee)
+  }
+
+  private fun colorAliases(file: KtFile): Set<String> {
+    val aliases = mutableSetOf<String>()
+    for (directive in file.importList?.imports.orEmpty()) {
+      val alias = directive.alias?.name ?: continue
+      if (directive.importedFqName?.asString()?.endsWith(".Color") == true) aliases.add(alias)
+    }
+    return aliases
   }
 
   private fun unwrap(expression: KtExpression?): KtExpression? {

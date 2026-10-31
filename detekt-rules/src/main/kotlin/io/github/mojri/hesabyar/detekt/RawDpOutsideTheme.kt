@@ -9,17 +9,33 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPrefixExpression
 
 class RawDpOutsideTheme(config: Config) :
   Rule(config, "Raw .dp literals outside the theme.") {
   override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
     super.visitDotQualifiedExpression(expression)
-    val selector = expression.selectorExpression as? KtNameReferenceExpression
-    if (selector?.getReferencedName() != "dp") return
+    if (!isDpSelector(expression)) return
     if (!isRawNumber(expression.receiverExpression)) return
     val msg = "Raw .dp literal ${expression.text} outside the theme; use a design token."
     report(Finding(Entity.from(expression), msg))
+  }
+
+  private fun isDpSelector(expression: KtDotQualifiedExpression): Boolean {
+    val selector = expression.selectorExpression as? KtNameReferenceExpression ?: return false
+    val name = selector.getReferencedName()
+    if (name == "dp") return true
+    return dpAliases(expression.containingKtFile).contains(name)
+  }
+
+  private fun dpAliases(file: KtFile): Set<String> {
+    val aliases = mutableSetOf<String>()
+    for (directive in file.importList?.imports.orEmpty()) {
+      val alias = directive.alias?.name ?: continue
+      if (directive.importedFqName?.asString()?.endsWith(".dp") == true) aliases.add(alias)
+    }
+    return aliases
   }
 
   private fun isRawNumber(expression: KtExpression?): Boolean {
