@@ -147,6 +147,21 @@ jobs:
           flags: android
           fail_ci_if_error: false
 
+      - name: Upload coverage to CodeAnt AI
+        # Phase 1 only: Android JaCoCo XML. CodeAnt's official docs support
+        # XML only (Cobertura/JaCoCo), so Rust LCOV and script LCOV are not
+        # uploaded here. Forked-PR runs get no secrets, so skip like Qlty;
+        # continue-on-error like the other coverage uploaders, so a CodeAnt
+        # outage never fails the build. CODEANT_TOKEN (CodeAnt cdt_ token,
+        # Codeant CI/CD role, scoped to this repo) must exist as a secret.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        continue-on-error: true
+        uses: CodeAnt-AI/codeant-coverage-action@a8938a62b2a8681f5832921b6a5090865848c3a1 # v0.0.6
+        with:
+          access_token: ${{ secrets.CODEANT_TOKEN }}
+          coverage_file: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          module: android
+
       - name: Verify Coveralls token on trusted runs
         # The final gate step references this id - do not rename without updating it.
         id: verify-coveralls-token
