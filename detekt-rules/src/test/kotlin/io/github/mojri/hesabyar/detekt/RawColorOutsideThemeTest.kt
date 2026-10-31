@@ -85,13 +85,19 @@ class RawColorOutsideThemeTest {
 
   @Test
   fun flagsSignedHexArgument() {
-    val code = "fun palette() = Color(-0xFF4CAF50)"
+    val code = """
+      import androidx.compose.ui.graphics.Color
+      fun palette() = Color(-0xFF4CAF50)
+    """.trimIndent()
     assertEquals(1, rule.lint(code).size)
   }
 
   @Test
   fun flagsParenthesizedSignedHexArgument() {
-    val code = "fun palette() = Color((-(0xFF4CAF50)))"
+    val code = """
+      import androidx.compose.ui.graphics.Color
+      fun palette() = Color((-(0xFF4CAF50)))
+    """.trimIndent()
     assertEquals(1, rule.lint(code).size)
   }
 }
