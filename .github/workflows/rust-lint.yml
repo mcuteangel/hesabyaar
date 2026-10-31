@@ -159,6 +159,11 @@ jobs:
         run: |
           sed -e 's|^SF:\([^/]\)|SF:rust/\1|' -e 's|^SF:rust/rust/|SF:rust/|' rust/lcov.info > rust/lcov.prefixed.info
 
+      - name: Generate Cobertura XML for CodeAnt (experiment)
+        # llvm-cov report reuses the test run data; no test re-run.
+        working-directory: rust
+        run: cargo llvm-cov report --cobertura --output-path cobertura.xml
+
       - name: Run Codacy Coverage Reporter (Rust)
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
         continue-on-error: true
@@ -186,7 +191,7 @@ jobs:
         uses: CodeAnt-AI/codeant-coverage-action@a8938a62b2a8681f5832921b6a5090865848c3a1 # v0.0.6
         with:
           access_token: ${{ secrets.CODEANT_TOKEN }}
-          coverage_file: rust/lcov.prefixed.info
+          coverage_file: rust/cobertura.xml
           module: rust
 
       - name: Save Rust coverage to cache
