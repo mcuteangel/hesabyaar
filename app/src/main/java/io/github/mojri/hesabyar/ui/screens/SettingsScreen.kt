@@ -66,6 +66,8 @@ import io.github.mojri.hesabyar.ui.components.ImportPassphraseDialog
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -200,73 +202,14 @@ fun SettingsScreen(
 
   if (pendingRestore.value != null) {
     val backup: BackupPayload = pendingRestore.value!!
-    AlertDialog(
+    HesabyarDialog(
       onDismissRequest = { backupViewModel.importCoordinator.cancelPendingRestore() },
-      title = {
-        Text("بازیابی پشتیبان", fontWeight = FontWeight.Bold)
-      },
-      text = {
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)) {
-          Text(
-            text = "فایل پشتیبان معتبر است. لطفاً نوع بازیابی را انتخاب کنید:",
-            style = MaterialTheme.typography.bodyMedium
-          )
-          Text(
-            text =
-              "تراکنش‌ها: ${backup.transactions.size} | وام‌ها: ${backup.loans.size} |" +
-                " اقساط: ${backup.installments.size} | دسته‌بندی‌ها: ${backup.categories.size}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-          Spacer(modifier = Modifier.height(SpacingTokens.xs))
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-          ) {
-            RadioButton(
-              selected = restoreMode == RestoreMode.REPLACE,
-              onClick = { backupViewModel.selectedRestoreMode.value = RestoreMode.REPLACE }
-            )
-            Column {
-              Text(
-                "جایگزینی کامل",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-              )
-              Text(
-                "تمام داده‌های فعلی حذف و جایگزین می‌شود",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-            }
-          }
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-          ) {
-            RadioButton(
-              selected = restoreMode == RestoreMode.MERGE,
-              onClick = { backupViewModel.selectedRestoreMode.value = RestoreMode.MERGE }
-            )
-            Column {
-              Text("ادغام", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-              Text(
-                "داده‌های جدید به اطلاعات فعلی اضافه می‌شود",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-            }
-          }
-        }
-      },
+      title = "بازیابی پشتیبان",
       confirmButton = {
         HesabyarButton(
           onClick = { backupViewModel.importCoordinator.executeRestore() },
           text = if (restoreMode == RestoreMode.REPLACE) "جایگزینی کامل" else "ادغام",
+          variant = ButtonVariant.Filled,
           colors =
             if (restoreMode == RestoreMode.REPLACE) {
               ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -278,11 +221,17 @@ fun SettingsScreen(
       dismissButton = {
         HesabyarButton(
           onClick = { backupViewModel.importCoordinator.cancelPendingRestore() },
-          text = stringResource(R.string.cancel_label),
+          text = stringResource(R.string.action_cancel),
           variant = ButtonVariant.Text
         )
       }
-    )
+    ) {
+      RestoreDialogContent(
+        backup = backup,
+        restoreMode = restoreMode,
+        onModeSelect = { backupViewModel.selectedRestoreMode.value = it }
+      )
+    }
   }
 
   // --- Export passphrase dialog ---
@@ -684,134 +633,320 @@ fun SecuritySection(
   }
 
   if (showVerifyPinDialog) {
+    SecurityDialogs.VerifyPinDialog(
+      onDismiss = {
+        showVerifyPinDialog = false
+        pendingDisable = false
+      },
+      onPinVerifiedAndCleared = {
+        isPinSet = false
+        pendingDisable = false
+        showVerifyPinDialog = false
+        settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
+      },
+      onClearFailed = { error ->
+        isPinSet = PinStorage.isPinSet(context)
+        pendingDisable = false
+        showVerifyPinDialog = false
+        settingsViewModel.showMessage(error)
+      }
+    )
+  }
+
+  if (showSetPinDialog) {
+    SecurityDialogs.SetPinDialog(
+      onDismiss = { showSetPinDialog = false },
+      onPinSet = { pin ->
+        try {
+          PinStorage.setPin(context, pin)
+          isPinSet = true
+          showSetPinDialog = false
+          settingsViewModel.showMessage("قفل برنامه با رمز فعال شد")
+        } catch (_: Exception) {
+          settingsViewModel.showMessage("خطا در تنظیم رمز عبور")
+        }
+      }
+    )
+  }
+}
+
+@Composable
+private fun RestoreDialogContent(
+  backup: BackupPayload,
+  restoreMode: RestoreMode,
+  onModeSelect: (RestoreMode) -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier,
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+  ) {
+    Text(
+      text = "فایل پشتیبان معتبر است. لطفاً نوع بازیابی را انتخاب کنید:",
+      style = MaterialTheme.typography.bodyMedium
+    )
+    Text(
+      text =
+        "تراکنش‌ها: ${backup.transactions.size} | وام‌ها: ${backup.loans.size} |" +
+          " اقساط: ${backup.installments.size} | دسته‌بندی‌ها: ${backup.categories.size}",
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(modifier = Modifier.height(SpacingTokens.xs))
+
+    RestoreModeOption(
+      selected = restoreMode == RestoreMode.REPLACE,
+      onClick = { onModeSelect(RestoreMode.REPLACE) },
+      title = "جایگزینی کامل",
+      description = "تمام داده‌های فعلی حذف و جایگزین می‌شود"
+    )
+
+    RestoreModeOption(
+      selected = restoreMode == RestoreMode.MERGE,
+      onClick = { onModeSelect(RestoreMode.MERGE) },
+      title = "ادغام",
+      description = "داده‌های جدید به اطلاعات فعلی اضافه می‌شود"
+    )
+  }
+}
+
+@Composable
+private fun RestoreModeOption(
+  selected: Boolean,
+  onClick: () -> Unit,
+  title: String,
+  description: String
+) {
+  Row(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .selectable(
+          selected = selected,
+          onClick = onClick,
+          role = Role.RadioButton
+        ),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+  ) {
+    RadioButton(
+      selected = selected,
+      onClick = null
+    )
+    Column {
+      Text(
+        text = title,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold
+      )
+      Text(
+        text = description,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+    }
+  }
+}
+
+@Suppress("TooGenericExceptionCaught")
+private object SecurityDialogs {
+  private const val PIN_LENGTH = 6
+
+  private suspend fun safeClearPin(context: Context): Boolean =
+    try {
+      withContext(Dispatchers.IO) { PinStorage.clearPin(context) }
+      true
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      AppLogger.e("SettingsScreen", "Exception clearing PIN", e)
+      false
+    }
+
+  private inline fun runSafeCallback(block: () -> Unit) {
+    try {
+      block()
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      AppLogger.e("SettingsScreen", "Exception in callback", e)
+    }
+  }
+
+  private suspend fun verifyAndClearPin(
+    context: Context,
+    pin: String,
+    onSuccess: () -> Unit,
+    onClearFailed: (String) -> Unit,
+    onInvalidPin: (String) -> Unit,
+    onVerifyError: (String) -> Unit
+  ) {
+    val verified =
+      try {
+        withContext(Dispatchers.IO) { PinStorage.verifyPin(context, pin) }
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        AppLogger.e("SettingsScreen", "Exception verifying PIN", e)
+        null
+      }
+
+    when (verified) {
+      null -> onVerifyError("خطا در بررسی رمز عبور")
+      false -> onInvalidPin("رمز عبور اشتباه است")
+      true -> {
+        if (safeClearPin(context)) {
+          runSafeCallback(onSuccess)
+        } else {
+          runSafeCallback { onClearFailed("خطا در غیرفعالسازی قفل برنامه") }
+        }
+      }
+    }
+  }
+
+  private fun performPinVerification(
+    scope: CoroutineScope,
+    context: Context,
+    pin: String,
+    onSuccess: () -> Unit,
+    parentOnClearFailed: ((String) -> Unit)?,
+    onDismiss: () -> Unit,
+    setVerifying: (Boolean) -> Unit,
+    setPinError: (String?) -> Unit
+  ) {
+    scope.launch {
+      setVerifying(true)
+      try {
+        verifyAndClearPin(
+          context = context,
+          pin = pin,
+          onSuccess = onSuccess,
+          onClearFailed = { error ->
+            setPinError(error)
+            runSafeCallback {
+              parentOnClearFailed?.invoke(error) ?: onDismiss()
+            }
+          },
+          onInvalidPin = { setPinError(it) },
+          onVerifyError = { setPinError(it) }
+        )
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        AppLogger.e("SettingsScreen", "Unexpected exception in VerifyPinDialog", e)
+        setPinError("خطا در بررسی رمز عبور")
+      } finally {
+        setVerifying(false)
+      }
+    }
+  }
+
+  @Composable
+  fun VerifyPinDialog(
+    onDismiss: () -> Unit,
+    onPinVerifiedAndCleared: () -> Unit,
+    onClearFailed: ((String) -> Unit)? = null
+  ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var currentPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf<String?>(null) }
     var verifying by remember { mutableStateOf(false) }
 
-    AlertDialog(
-      onDismissRequest = {
-        showVerifyPinDialog = false
-        pendingDisable = false
+    HesabyarDialog(
+      onDismissRequest = { if (!verifying) onDismiss() },
+      title = "تأیید رمز عبور",
+      confirmText = "تأیید و غیرفعال‌سازی",
+      confirmEnabled = currentPin.length == PIN_LENGTH && !verifying,
+      confirmLoading = verifying,
+      onConfirm = {
+        performPinVerification(
+          scope = scope,
+          context = context,
+          pin = currentPin,
+          onSuccess = onPinVerifiedAndCleared,
+          parentOnClearFailed = onClearFailed,
+          onDismiss = onDismiss,
+          setVerifying = { verifying = it },
+          setPinError = { pinError = it }
+        )
       },
-      title = { Text("تأیید رمز عبور", fontWeight = FontWeight.Bold) },
-      text = {
+      dismissText = stringResource(R.string.action_cancel),
+      onDismiss = { if (!verifying) onDismiss() }
+    ) {
+      HesabyarInputField(
+        value = currentPin,
+        onValueChange = {
+          currentPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH)
+          pinError = null
+        },
+        label = "رمز عبور فعلی",
+        placeholder = "۶ رقم",
+        isError = pinError != null,
+        supportingText = pinError?.let { error -> { Text(error) } },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+      )
+    }
+  }
+
+  @Composable
+  fun SetPinDialog(
+    onDismiss: () -> Unit,
+    onPinSet: (String) -> Unit
+  ) {
+    var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf<String?>(null) }
+
+    HesabyarDialog(
+      onDismissRequest = onDismiss,
+      title = "تنظیم رمز عبور",
+      confirmText = stringResource(R.string.action_save),
+      confirmEnabled = newPin.length == PIN_LENGTH && confirmPin.length == PIN_LENGTH,
+      onConfirm = {
+        when {
+          newPin.length != PIN_LENGTH || !newPin.all { it.isDigit() } -> {
+            pinError = "رمز عبور باید دقیقاً ۶ رقم باشد"
+          }
+          newPin != confirmPin -> {
+            pinError = "رمز عبور مطابقت ندارد"
+          }
+          else -> {
+            onPinSet(newPin)
+          }
+        }
+      },
+      dismissText = stringResource(R.string.action_cancel),
+      onDismiss = onDismiss
+    ) {
+      Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
         HesabyarInputField(
-          value = currentPin,
+          value = newPin,
           onValueChange = {
-            currentPin = it.filter { c -> c.isDigit() }.take(6)
+            newPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH)
             pinError = null
           },
-          label = "رمز عبور فعلی",
+          label = "رمز عبور جدید",
           placeholder = "۶ رقم",
           isError = pinError != null,
           supportingText = pinError?.let { error -> { Text(error) } },
           visualTransformation = PasswordVisualTransformation(),
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
         )
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            scope.launch {
-              verifying = true
-              try {
-                val verified =
-                  withContext(Dispatchers.IO) {
-                    PinStorage.verifyPin(context, currentPin)
-                  }
-                if (verified) {
-                  withContext(Dispatchers.IO) {
-                    PinStorage.clearPin(context)
-                  }
-                  isPinSet = false
-                  pendingDisable = false
-                  showVerifyPinDialog = false
-                  settingsViewModel.showMessage("قفل برنامه غیرفعال شد")
-                } else {
-                  pinError = "رمز عبور اشتباه است"
-                }
-              } finally {
-                verifying = false
-              }
-            }
+        HesabyarInputField(
+          value = confirmPin,
+          onValueChange = {
+            confirmPin = it.filter { c -> c.isDigit() }.take(PIN_LENGTH)
+            pinError = null
           },
-          text = "تأیید و غیرفعال‌سازی",
-          enabled = currentPin.length == 6 && !verifying
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = {
-            showVerifyPinDialog = false
-            pendingDisable = false
-          },
-          text = stringResource(R.string.cancel_label),
-          variant = ButtonVariant.Text
+          label = "تکرار رمز عبور",
+          placeholder = "۶ رقم",
+          visualTransformation = PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
         )
       }
-    )
-  }
-
-  if (showSetPinDialog) {
-    var newPin by remember { mutableStateOf("") }
-    var confirmPin by remember { mutableStateOf("") }
-    var pinError by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-      onDismissRequest = { showSetPinDialog = false },
-      title = { Text("تنظیم رمز عبور", fontWeight = FontWeight.Bold) },
-      text = {
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)) {
-          HesabyarInputField(
-            value = newPin,
-            onValueChange = { newPin = it.filter { c -> c.isDigit() }.take(6) },
-            label = "رمز عبور جدید",
-            placeholder = "۶ رقم",
-            isError = pinError != null,
-            supportingText = pinError?.let { error -> { Text(error) } },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
-          )
-          HesabyarInputField(
-            value = confirmPin,
-            onValueChange = { confirmPin = it.filter { c -> c.isDigit() }.take(6) },
-            label = "تکرار رمز عبور",
-            placeholder = "۶ رقم",
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
-          )
-        }
-      },
-      confirmButton = {
-        HesabyarButton(
-          onClick = {
-            when {
-              newPin.length != 6 || !newPin.all { it.isDigit() } -> {
-                pinError = "رمز عبور باید دقیقاً ۶ رقم باشد"
-              }
-              newPin != confirmPin -> {
-                pinError = "رمز عبور مطابقت ندارد"
-              }
-              else -> {
-                PinStorage.setPin(context, newPin)
-                isPinSet = true
-                showSetPinDialog = false
-                settingsViewModel.showMessage("قفل برنامه با رمز فعال شد")
-              }
-            }
-          },
-          text = "ذخیره",
-          enabled = newPin.length == 6 && confirmPin.length == 6
-        )
-      },
-      dismissButton = {
-        HesabyarButton(
-          onClick = { showSetPinDialog = false },
-          text = stringResource(R.string.cancel_label),
-          variant = ButtonVariant.Text
-        )
-      }
-    )
+    }
   }
 }
 
@@ -1199,8 +1334,8 @@ private fun ConfigDeleteButton(
       message =
         "آیا از حذف پیکربندی «${target.displayName}» اطمینان دارید؟" +
           " کلید API ذخیره‌شده هم پاک می‌شود و این عمل قابل بازگشت نیست.",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = { pendingDelete = null },
       onConfirm = {
         pendingDelete = null
@@ -1265,7 +1400,7 @@ fun AiConfigDialog(
       onClearModelFetchState()
       onDismiss()
     },
-    actions = {
+    confirmButton = {
       HesabyarButton(
         onClick = {
           onSave(
@@ -1280,14 +1415,17 @@ fun AiConfigDialog(
           )
           onClearModelFetchState()
         },
-        text = "ذخیره"
+        text = stringResource(R.string.action_save),
+        variant = ButtonVariant.Filled
       )
+    },
+    dismissButton = {
       HesabyarButton(
         onClick = {
           onClearModelFetchState()
           onDismiss()
         },
-        text = stringResource(R.string.cancel_label),
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }

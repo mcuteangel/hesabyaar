@@ -20,11 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.JalaliCalendarHelper
+import io.github.mojri.hesabyar.ui.components.ButtonVariant
+import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
@@ -575,38 +579,34 @@ fun JalaliDatePickerDialog(
             modifier = Modifier.fillMaxWidth().padding(top = SpacingTokens.sm),
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
           ) {
-            OutlinedButton(
+            HesabyarButton(
               onClick = onDismissRequest,
               modifier = Modifier.weight(1f).height(46.dp),
-              shape = ShapeTokens.Medium
-            ) {
-              Text("انصراف", style = MaterialTheme.typography.labelLarge)
-            }
+              text = stringResource(R.string.action_cancel),
+              variant = ButtonVariant.Text
+            )
 
-            Button(
+            HesabyarButton(
               onClick = {
                 val javaCal =
                   JalaliCalendarHelper.jalaliToGregorian(
                     selectedYear,
                     selectedMonth,
                     selectedDay
-                  ) ?: return@Button
-                // Preserve existing hour and minute of the timestamp
-                val prevCal = Calendar.getInstance().apply { timeInMillis = initialTimestamp }
-                javaCal.set(Calendar.HOUR_OF_DAY, prevCal.get(Calendar.HOUR_OF_DAY))
-                javaCal.set(Calendar.MINUTE, prevCal.get(Calendar.MINUTE))
-                onDateSelected(javaCal.timeInMillis)
-                onDismissRequest()
+                  )
+                if (javaCal != null) {
+                  // Preserve existing hour and minute of the timestamp
+                  val prevCal = Calendar.getInstance().apply { timeInMillis = initialTimestamp }
+                  javaCal.set(Calendar.HOUR_OF_DAY, prevCal.get(Calendar.HOUR_OF_DAY))
+                  javaCal.set(Calendar.MINUTE, prevCal.get(Calendar.MINUTE))
+                  onDateSelected(javaCal.timeInMillis)
+                  onDismissRequest()
+                }
               },
               modifier = Modifier.weight(1.3f).height(46.dp),
-              shape = ShapeTokens.Medium
-            ) {
-              Text(
-                "تایید نهایی",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
-              )
-            }
+              text = stringResource(R.string.action_confirm),
+              variant = ButtonVariant.Filled
+            )
           }
         }
       }

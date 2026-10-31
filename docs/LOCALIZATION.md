@@ -22,6 +22,7 @@ Examples:
 - `action_save`: ذخیره
 - `action_cancel`: انصراف
 - `action_confirm`: تأیید
+- `action_confirm_and_continue`: تأیید و ادامه
 - `action_delete`: حذف
 - `action_edit`: ویرایش
 - `action_retry`: تلاش مجدد
@@ -30,6 +31,8 @@ Examples:
 - `action_add`: افزودن
 
 Do not create screen-specific duplicates like `person_save_button` or `debt_cancel_action`. Use `action_save` and `action_cancel`.
+
+> **Preserving Domain-Specific Meaning:** Do not collapse domain-specific action labels (such as «ثبت تراکنش», «ذخیره تغییرات», or «ذخیره قسط») into vague generic verbs (like «تأیید») if that alters the clear intent or degrades user experience. Generic action verbs belong on standard dialogs and generic confirmations. When an action carries specific domain meaning, extract it as a feature-scoped string (for example `transaction_submit`, `transaction_save_changes`, `installment_save`) instead of substituting a lossy generic label.
 
 ### 2. Form Labels (`label_*`)
 

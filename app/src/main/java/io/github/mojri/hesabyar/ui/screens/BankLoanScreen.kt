@@ -10,12 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +41,7 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
@@ -111,8 +111,8 @@ private fun BankLoanItem(
     ConfirmDialog(
       title = "حذف وام بانکی",
       message = "آیا از حذف این وام و اقساط تولید شده اطمینان دارید؟ این عمل قابل بازگشت نیست.",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = { showDeleteConfirm = false },
       onConfirm = {
         showDeleteConfirm = false
@@ -186,8 +186,103 @@ private fun bankLoanDetailRows(loan: BankLoan) {
   }
 }
 
+internal class AddBankLoanFormState(
+  val bankNameState: androidx.compose.runtime.MutableState<String>,
+  val loanNameState: androidx.compose.runtime.MutableState<String>,
+  val receivedState: androidx.compose.runtime.MutableState<String>,
+  val monthlyState: androidx.compose.runtime.MutableState<String>,
+  val countState: androidx.compose.runtime.MutableState<String>,
+  val descriptionState: androidx.compose.runtime.MutableState<String>,
+  val startDateState: androidx.compose.runtime.MutableState<Long>,
+  val showDatePickerState: androidx.compose.runtime.MutableState<Boolean>
+) {
+  constructor(
+    bankName: String = "",
+    loanName: String = "",
+    received: String = "",
+    monthly: String = "",
+    count: String = "",
+    description: String = "",
+    startDate: Long = System.currentTimeMillis(),
+    showDatePicker: Boolean = false
+  ) : this(
+    bankNameState = mutableStateOf(bankName),
+    loanNameState = mutableStateOf(loanName),
+    receivedState = mutableStateOf(received),
+    monthlyState = mutableStateOf(monthly),
+    countState = mutableStateOf(count),
+    descriptionState = mutableStateOf(description),
+    startDateState = mutableStateOf(startDate),
+    showDatePickerState = mutableStateOf(showDatePicker)
+  )
+
+  var bankName by bankNameState
+  var loanName by loanNameState
+  var received by receivedState
+  var monthly by monthlyState
+  var count by countState
+  var description by descriptionState
+  var startDate by startDateState
+  var showDatePicker by showDatePickerState
+
+  val countVal: Int?
+    get() = count.toIntOrNull()
+
+  val receivedRial: Long
+    get() = DisplayAmountInput.toRialOrNull(received) ?: 0L
+
+  val monthlyRial: Long
+    get() = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
+
+  val canConfirm: Boolean
+    get() {
+      val count = countVal ?: return false
+      return bankName.trim().isNotBlank() && receivedRial > 0 && monthlyRial > 0 && count > 0
+    }
+
+  companion object {
+    val Saver: Saver<AddBankLoanFormState, *> =
+      listSaver(
+        save = {
+          listOf(
+            it.bankName,
+            it.loanName,
+            it.received,
+            it.monthly,
+            it.count,
+            it.description,
+            it.startDate,
+            it.showDatePicker
+          )
+        },
+        restore = {
+          AddBankLoanFormState(
+            bankName = it[0] as String,
+            loanName = it[1] as String,
+            received = it[2] as String,
+            monthly = it[3] as String,
+            count = it[4] as String,
+            description = it[5] as String,
+            startDate = it[6] as Long,
+            showDatePicker = it[7] as Boolean
+          )
+        }
+      )
+  }
+}
+
 @Composable
-private fun AddBankLoanDialog(
+private fun rememberAddBankLoanFormState(initialStartDate: Long = System.currentTimeMillis()): AddBankLoanFormState {
+  val formState =
+    rememberSaveable(saver = AddBankLoanFormState.Saver) {
+      AddBankLoanFormState(startDate = initialStartDate)
+    }
+  return formState
+}
+
+@VisibleForTesting
+@Composable
+internal fun AddBankLoanDialog(
   onDismiss: () -> Unit,
   onConfirm: (
     bankName: String,
@@ -199,76 +294,65 @@ private fun AddBankLoanDialog(
     description: String
   ) -> Unit
 ) {
-  var bankName by rememberSaveable { mutableStateOf("") }
-  var loanName by rememberSaveable { mutableStateOf("") }
-  var received by rememberSaveable { mutableStateOf("") }
-  var monthly by rememberSaveable { mutableStateOf("") }
-  var count by rememberSaveable { mutableStateOf("") }
-  var description by rememberSaveable { mutableStateOf("") }
-  var startDate by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
-  var showDatePicker by rememberSaveable { mutableStateOf(false) }
+  val state = rememberAddBankLoanFormState()
 
-  if (showDatePicker) {
+  if (state.showDatePicker) {
     JalaliDatePickerDialog(
-      initialTimestamp = startDate,
-      onDismissRequest = { showDatePicker = false },
-      onDateSelected = { startDate = it }
+      initialTimestamp = state.startDate,
+      onDismissRequest = { state.showDatePicker = false },
+      onDateSelected = { state.startDate = it }
     )
   }
 
-  val jDate = JalaliCalendarHelper.gregorianToJalali(startDate)
-  val countVal = count.toIntOrNull() ?: 0
-  // Inputs are typed in the user's display unit; the database stores Rial.
-  val receivedVal = DisplayAmountInput.toRialOrNull(received) ?: 0L
-  val monthlyVal = DisplayAmountInput.toRialOrNull(monthly) ?: 0L
-  val canConfirm =
-    bankName.isNotBlank() &&
-      receivedVal > 0 &&
-      monthlyVal > 0 &&
-      countVal > 0
+  val jDate = JalaliCalendarHelper.gregorianToJalali(state.startDate)
 
-  AlertDialog(
+  HesabyarDialog(
     onDismissRequest = onDismiss,
+    title = "ثبت وام بانکی",
     confirmButton = {
       HesabyarButton(
         onClick = {
+          val count = state.countVal ?: return@HesabyarButton
           onConfirm(
-            bankName.trim(),
-            loanName.trim(),
-            receivedVal,
-            monthlyVal,
-            countVal,
-            startDate,
-            description.trim()
+            state.bankName.trim(),
+            state.loanName.trim(),
+            state.receivedRial,
+            state.monthlyRial,
+            count,
+            state.startDate,
+            state.description.trim()
           )
         },
-        text = "ثبت",
-        enabled = canConfirm
+        text = stringResource(R.string.action_save),
+        variant = ButtonVariant.Filled,
+        enabled = state.canConfirm
       )
     },
     dismissButton = {
-      HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Outlined)
-    },
-    title = { Text("ثبت وام بانکی") },
-    text = {
-      BankLoanForm(
-        bankName = bankName,
-        onBankName = { bankName = it },
-        loanName = loanName,
-        onLoanName = { loanName = it },
-        received = received,
-        onReceived = { received = it },
-        monthly = monthly,
-        onMonthly = { monthly = it },
-        count = count,
-        onCount = { count = it },
-        description = description,
-        onDescription = { description = it },
-        startDateLabel = "تاریخ شروع: ${jDate.year}/${jDate.month}/${jDate.day}",
-        onPickDate = { showDatePicker = true }
+      HesabyarButton(
+        onClick = onDismiss,
+        text = stringResource(R.string.action_cancel),
+        variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    BankLoanForm(
+      bankName = state.bankName,
+      onBankName = { state.bankName = it },
+      loanName = state.loanName,
+      onLoanName = { state.loanName = it },
+      received = state.received,
+      onReceived = { state.received = it },
+      monthly = state.monthly,
+      onMonthly = { state.monthly = it },
+      count = state.count,
+      onCount = { state.count = it },
+      description = state.description,
+      onDescription = { state.description = it },
+      startDateLabel = "تاریخ شروع: ${jDate.year}/${jDate.month}/${jDate.day}",
+      onPickDate = { state.showDatePicker = true }
+    )
+  }
 }
 
 @VisibleForTesting
@@ -287,10 +371,11 @@ internal fun BankLoanForm(
   description: String,
   onDescription: (String) -> Unit,
   startDateLabel: String,
-  onPickDate: () -> Unit
+  onPickDate: () -> Unit,
+  modifier: Modifier = Modifier
 ) {
   Column(
-    modifier = Modifier.verticalScroll(rememberScrollState()),
+    modifier = modifier.fillMaxWidth(),
     verticalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
   ) {
     HesabyarInputField(value = bankName, onValueChange = onBankName, label = "نام بانک")
@@ -315,6 +400,8 @@ internal fun BankLoanForm(
       value = count,
       onValueChange = { onCount(it.filterDigits()) },
       label = "تعداد اقساط",
+      isError = isInvalidCount(count),
+      supportingText = invalidCountText(count)?.let { text -> { Text(text) } },
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     HesabyarInputField(value = description, onValueChange = onDescription, label = "توضیحات")
@@ -337,4 +424,17 @@ internal fun isInvalidAmount(text: String): Boolean {
 private fun invalidAmountText(text: String): String? {
   if (!isInvalidAmount(text)) return null
   return stringResource(R.string.balance_invalid_amount)
+}
+
+@VisibleForTesting
+internal fun isInvalidCount(text: String): Boolean {
+  if (text.isBlank()) return false
+  val parsed = text.toIntOrNull()
+  return parsed == null || parsed <= 0
+}
+
+@Composable
+private fun invalidCountText(text: String): String? {
+  if (!isInvalidCount(text)) return null
+  return stringResource(R.string.error_bank_loan_installment_count_invalid)
 }

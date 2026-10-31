@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
 import io.github.mojri.hesabyar.domain.usecase.ManageCategoryUseCase
@@ -130,6 +131,20 @@ class CategoryManagementScreenTest {
     composeRule.onNodeWithText("افزودن دسته‌بندی جدید").assertIsDisplayed()
     composeRule.onNodeWithText("انصراف").performClick()
     composeRule.onNodeWithText("افزودن دسته‌بندی جدید").assertDoesNotExist()
+  }
+
+  @Test
+  fun addDialogSwatchUsesResourceBackedTalkBackLabel() {
+    composeRule.setContent {
+      CategoryManagementScreen(
+        categoryViewModel = viewModel,
+        onBack = {}
+      )
+    }
+
+    composeRule.onNodeWithContentDescription("افزودن دسته‌بندی").performClick()
+    // First palette entry is DEFAULT_CATEGORY_COLOR (0xFF4CAF50L) → hex 4caf50.
+    composeRule.onNodeWithContentDescription("رنگ #4caf50").performScrollTo().assertIsDisplayed()
   }
 
   @Test

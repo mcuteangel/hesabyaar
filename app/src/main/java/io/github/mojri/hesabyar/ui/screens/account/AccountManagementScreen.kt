@@ -13,21 +13,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
 import io.github.mojri.hesabyar.ui.AccountViewModel
@@ -67,6 +64,7 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
@@ -83,7 +81,7 @@ import kotlinx.coroutines.launch
 
 private const val COLOR_PICKER_COLUMNS = 8
 
-private data class AccountFormData(
+internal data class AccountFormData(
   val name: String,
   val type: AccountType,
   val bankName: String?,
@@ -147,9 +145,6 @@ internal fun resolveDeleteDialogState(
 /** No account form dialog survives recreation. */
 private const val NO_FORM_DIALOG_ID = -1L
 
-/** The add-account form dialog survives recreation. */
-private const val ADD_FORM_DIALOG_ID = -2L
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountManagementScreen(
@@ -159,14 +154,12 @@ fun AccountManagementScreen(
 ) {
   val accounts by accountViewModel.accounts.collectAsState()
   var formDialogTargetId by rememberSaveable { mutableStateOf(NO_FORM_DIALOG_ID) }
-  var dialogState by remember(formDialogTargetId) {
-    mutableStateOf<AccountDialogState>(
-      if (formDialogTargetId == ADD_FORM_DIALOG_ID) {
-        AccountDialogState.Add()
-      } else {
-        AccountDialogState.None
-      }
-    )
+  // Edit targets and Add instance ids live in separate saveable slots. One Long
+  // cannot carry both: a deleted Edit target and a live Add instance id would
+  // be indistinguishable positive ids and one would resurrect the other.
+  var addRestoreId by rememberSaveable { mutableStateOf(0L) }
+  var dialogState by remember {
+    mutableStateOf<AccountDialogState>(restoreDialogState(formDialogTargetId, addRestoreId, accounts))
   }
   val scope = rememberCoroutineScope()
 
@@ -187,16 +180,23 @@ fun AccountManagementScreen(
   // recreation. The dialog itself does not. This effect reopens the dialog.
   LaunchedEffect(formDialogTargetId, accounts) {
     if (formDialogTargetId == NO_FORM_DIALOG_ID) return@LaunchedEffect
+    // If user explicitly opened a dialog (Add/Edit), don't overwrite it.
     if (dialogState is AccountDialogState.Add || dialogState is AccountDialogState.Edit) return@LaunchedEffect
-    if (formDialogTargetId == ADD_FORM_DIALOG_ID) {
-      dialogState = AccountDialogState.Add()
+    // Stale persisted Add instance ids (negative, other than -1) from before
+    // the instanceId refactor must never resurrect an orphaned dialog.
+    if (formDialogTargetId < 0) {
+      formDialogTargetId = NO_FORM_DIALOG_ID
+      return@LaunchedEffect
+    }
+    if (accounts.isEmpty()) return@LaunchedEffect
+    val target = accounts.find { it.id == formDialogTargetId }
+    if (target == null) {
+      // Positive target whose account is gone (deleted between sessions) is a
+      // dead Edit target, never a restored Add dialog: the Add instanceId has
+      // its own slot now. Reset so no phantom dialog opens.
+      formDialogTargetId = NO_FORM_DIALOG_ID
     } else {
-      val target = accounts.find { it.id == formDialogTargetId }
-      if (target != null) {
-        dialogState = AccountDialogState.Edit(target)
-      } else if (accounts.isNotEmpty()) {
-        formDialogTargetId = NO_FORM_DIALOG_ID
-      }
+      dialogState = AccountDialogState.Edit(target)
     }
   }
 
@@ -208,9 +208,13 @@ fun AccountManagementScreen(
     onBack = onBack,
     onDialogStateChange = { newState ->
       dialogState = newState
+      addRestoreId =
+        when (newState) {
+          is AccountDialogState.Add -> newState.instanceId
+          else -> 0L
+        }
       formDialogTargetId =
         when (newState) {
-          is AccountDialogState.Add -> ADD_FORM_DIALOG_ID
           is AccountDialogState.Edit -> newState.account.id
           else -> NO_FORM_DIALOG_ID
         }
@@ -339,16 +343,20 @@ private fun AccountManagementDialogs(
   when (dialogState) {
     AccountDialogState.None -> {}
     is AccountDialogState.Add ->
-      AccountDialog(
-        initialAccount = null,
-        onDismiss = onDismiss,
-        onSave = onSaveAccount,
-        isSaving = isSavingAccount
-      )
+      key(dialogState.instanceId) {
+        AccountDialog(
+          initialAccount = null,
+          instanceId = dialogState.instanceId,
+          onDismiss = onDismiss,
+          onSave = onSaveAccount,
+          isSaving = isSavingAccount
+        )
+      }
     is AccountDialogState.Edit ->
       key(dialogState.account.id) {
         AccountDialog(
           initialAccount = dialogState.account,
+          instanceId = dialogState.account.id,
           onDismiss = onDismiss,
           onSave = { form -> onUpdateAccount(dialogState.account, form) }
         )
@@ -386,6 +394,26 @@ private fun AccountManagementDialogs(
   }
 }
 
+/**
+ * Reconstructs the saved [AccountDialogState] from the persisted target ids.
+ * The two ids live in separate slots, so their meanings never collide: the Add
+ * slot carries the live Add instanceId (System.nanoTime()); the form slot
+ * carries an Edit account id. An unmatched Edit target is dead and restores
+ * to None — it never falls back to a phantom Add dialog.
+ */
+internal fun restoreDialogState(
+  formDialogTargetId: Long,
+  addRestoreId: Long,
+  accounts: List<AccountEntity>
+): AccountDialogState =
+  when {
+    addRestoreId != 0L -> AccountDialogState.Add(instanceId = addRestoreId)
+    formDialogTargetId > 0L ->
+      accounts.find { it.id == formDialogTargetId }?.let { AccountDialogState.Edit(it) }
+        ?: AccountDialogState.None
+    else -> AccountDialogState.None
+  }
+
 @Composable
 private fun DeleteAccountConfirmDialog(
   account: AccountEntity,
@@ -400,7 +428,7 @@ private fun DeleteAccountConfirmDialog(
         account.name
       ),
     confirmText = stringResource(id = io.github.mojri.hesabyar.R.string.delete_label),
-    dismissText = stringResource(id = io.github.mojri.hesabyar.R.string.cancel_label),
+    dismissText = stringResource(id = io.github.mojri.hesabyar.R.string.action_cancel),
     onDismiss = onDismiss,
     onConfirm = {
       onConfirmDelete(account)
@@ -608,197 +636,262 @@ private fun AccountOverflowMenu(
   }
 }
 
-private class AccountDialogFormState(
-  val nameState: MutableState<String>,
-  val selectedTypeState: MutableState<AccountType>,
-  val bankNameState: MutableState<String>,
-  val cardNumberState: MutableState<String>,
-  val accountNumberState: MutableState<String>,
-  val ibanState: MutableState<String>,
-  val initialBalanceState: MutableState<String>,
-  val selectedColorState: MutableState<Long>,
-  val prefilledBalance: String,
-)
+@Composable
+private fun AccountDialog(
+  initialAccount: AccountEntity?,
+  instanceId: Long,
+  onDismiss: () -> Unit,
+  onSave: (AccountFormData) -> Unit,
+  isSaving: Boolean = false
+) {
+  val state = rememberAccountFormState(initialAccount, instanceId)
+
+  HesabyarDialog(
+    title = if (initialAccount != null) "ویرایش حساب" else "افزودن حساب جدید",
+    onDismissRequest = { if (!isSaving) onDismiss() },
+    confirmButton = {
+      HesabyarButton(
+        onClick = {
+          if (!isSaving && state.isSaveEnabled) {
+            onSave(state.toFormData())
+          }
+        },
+        text = stringResource(R.string.action_save),
+        variant = ButtonVariant.Filled,
+        enabled = state.isSaveEnabled && !isSaving
+      )
+    },
+    dismissButton = {
+      HesabyarButton(
+        onClick = onDismiss,
+        text = stringResource(R.string.action_cancel),
+        variant = ButtonVariant.Text,
+        enabled = !isSaving
+      )
+    }
+  ) {
+    AccountDialogFields(state)
+  }
+}
 
 @Composable
-private fun rememberAccountDialogFormState(initialAccount: AccountEntity?): AccountDialogFormState {
-  val accountIdKey = initialAccount?.id ?: ADD_FORM_DIALOG_ID
-  val nameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.name.orEmpty()) }
-  val selectedTypeState =
-    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.type ?: AccountType.BANK) }
-  val bankNameState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.bankName.orEmpty()) }
-  val cardNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.cardNumber.orEmpty()) }
-  val accountNumberState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.accountNumber.orEmpty()) }
-  val ibanState = rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.iban.orEmpty()) }
-  val prefilledBalance =
-    remember(accountIdKey, initialAccount?.initialBalance) {
-      initialAccount?.initialBalance?.let { DisplayAmountInput.toDisplayText(it) } ?: "0"
-    }
-  val initialBalanceState = rememberSaveable(accountIdKey) { mutableStateOf(prefilledBalance) }
-  val selectedColorState =
-    rememberSaveable(accountIdKey) { mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR) }
+private fun AccountDialogFields(state: AccountFormState) {
+  HesabyarInputField(
+    value = state.name,
+    onValueChange = { state.name = it },
+    label = "نام حساب",
+    placeholder = "مثلاً: حساب جاری بانک",
+    shape = ShapeTokens.Medium,
+    singleLine = true,
+    isError = state.name.isBlank()
+  )
+  AccountDialogTypeField(
+    selectedType = state.selectedType,
+    onTypeSelected = { state.onTypeSelected(it) },
+    dropdownExpanded = state.typeDropdownExpanded,
+    onDropdownExpandedChange = { state.typeDropdownExpanded = it }
+  )
+  if (state.selectedType == AccountType.BANK) {
+    AccountDialogBankDetailsFields(
+      bankName = state.bankName,
+      onBankNameChange = { state.bankName = it },
+      cardNumber = state.cardNumber,
+      onCardNumberChange = { state.cardNumber = it },
+      accountNumber = state.accountNumber,
+      onAccountNumberChange = { state.accountNumber = it },
+      iban = state.iban,
+      onIbanChange = { state.iban = it }
+    )
+  }
+  AccountOpeningBalanceField(
+    initialBalance = state.initialBalance,
+    onBalanceChange = { state.initialBalance = it },
+    balanceError = state.balanceError
+  )
+  AccountDialogColorPicker(
+    selectedColor = state.selectedColor,
+    onColorSelected = { state.selectedColor = it }
+  )
+  AccountDialogPreviewRow(
+    name = state.name,
+    selectedType = state.selectedType,
+    selectedColor = state.selectedColor
+  )
+}
 
-  return remember(initialAccount) {
-    AccountDialogFormState(
+internal class AccountFormState(
+  val initialAccount: AccountEntity? = null,
+  nameState: MutableState<String> = mutableStateOf(initialAccount?.name.orEmpty()),
+  selectedTypeState: MutableState<AccountType> = mutableStateOf(initialAccount?.type ?: AccountType.BANK),
+  bankNameState: MutableState<String> = mutableStateOf(initialAccount?.bankName.orEmpty()),
+  cardNumberState: MutableState<String> = mutableStateOf(initialAccount?.cardNumber.orEmpty()),
+  accountNumberState: MutableState<String> = mutableStateOf(initialAccount?.accountNumber.orEmpty()),
+  ibanState: MutableState<String> = mutableStateOf(initialAccount?.iban.orEmpty()),
+  val originalRial: Long? = initialAccount?.initialBalance,
+  val prefilledBalance: String =
+    originalRial?.let { DisplayAmountInput.toDisplayText(it) } ?: "0",
+  initialBalanceState: MutableState<String> = mutableStateOf(prefilledBalance),
+  selectedColorState: MutableState<Long> = mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR),
+  typeDropdownExpandedState: MutableState<Boolean> = mutableStateOf(false)
+) {
+  var name by nameState
+  var selectedType by selectedTypeState
+  var bankName by bankNameState
+  var cardNumber by cardNumberState
+  var accountNumber by accountNumberState
+  var iban by ibanState
+  var initialBalance by initialBalanceState
+  var selectedColor by selectedColorState
+  var typeDropdownExpanded by typeDropdownExpandedState
+
+  val parsedBalance: Long?
+    get() =
+      DisplayAmountInput.resolveEditedRial(
+        text = initialBalance,
+        prefilledText = prefilledBalance,
+        originalRial = originalRial
+      )
+
+  val balanceError: Boolean
+    get() = initialBalance.isBlank() || parsedBalance == null
+
+  val isSaveEnabled: Boolean
+    get() = name.isNotBlank() && !balanceError
+
+  /**
+   * Selects the account type and clears the bank-detail fields when the new type is not BANK.
+   * The dialog hides the bank fields for non-BANK types.
+   * Clearing keeps the submitted state logical:
+   * the submitted state never carries data the dialog no longer shows.
+   * toFormData still preserves legacy bank data from an existing account.
+   */
+  fun onTypeSelected(type: AccountType) {
+    selectedType = type
+    if (type != AccountType.BANK) {
+      bankName = ""
+      cardNumber = ""
+      accountNumber = ""
+      iban = ""
+    }
+  }
+
+  fun toFormData(): AccountFormData =
+    AccountFormData(
+      name = name.trim(),
+      type = selectedType,
+      bankName = bankName.trim().ifBlank { null },
+      cardNumber = cardNumber.trim().ifBlank { null },
+      accountNumber = accountNumber.trim().ifBlank { null },
+      iban = iban.trim().ifBlank { null },
+      initialBalance = parsedBalance ?: 0L,
+      color = selectedColor
+    )
+}
+
+@Composable
+private fun rememberAccountFormState(
+  initialAccount: AccountEntity?,
+  instanceId: Long
+): AccountFormState {
+  val accountIdKey = initialAccount?.id ?: instanceId
+  val originalRial = initialAccount?.initialBalance
+  val prefilledBalance =
+    remember(accountIdKey, originalRial) {
+      originalRial?.let { DisplayAmountInput.toDisplayText(it) } ?: "0"
+    }
+  val nameState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.name.orEmpty())
+    }
+  val selectedTypeState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.type ?: AccountType.BANK)
+    }
+  val bankNameState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.bankName.orEmpty())
+    }
+  val cardNumberState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.cardNumber.orEmpty())
+    }
+  val accountNumberState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.accountNumber.orEmpty())
+    }
+  val ibanState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.iban.orEmpty())
+    }
+  val initialBalanceState =
+    rememberSaveable(accountIdKey, originalRial) {
+      mutableStateOf(prefilledBalance)
+    }
+  val selectedColorState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(initialAccount?.color ?: DEFAULT_ACCOUNT_COLOR)
+    }
+  val typeDropdownExpandedState =
+    rememberSaveable(accountIdKey) {
+      mutableStateOf(false)
+    }
+
+  return remember(accountIdKey, originalRial) {
+    AccountFormState(
+      initialAccount = initialAccount,
       nameState = nameState,
       selectedTypeState = selectedTypeState,
       bankNameState = bankNameState,
       cardNumberState = cardNumberState,
       accountNumberState = accountNumberState,
       ibanState = ibanState,
+      originalRial = originalRial,
+      prefilledBalance = prefilledBalance,
       initialBalanceState = initialBalanceState,
       selectedColorState = selectedColorState,
-      prefilledBalance = prefilledBalance,
+      typeDropdownExpandedState = typeDropdownExpandedState
     )
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AccountDialog(
-  initialAccount: AccountEntity?,
-  onDismiss: () -> Unit,
-  onSave: (AccountFormData) -> Unit,
-  isSaving: Boolean = false
+private fun AccountOpeningBalanceField(
+  initialBalance: String,
+  onBalanceChange: (String) -> Unit,
+  balanceError: Boolean
 ) {
-  val formState = rememberAccountDialogFormState(initialAccount)
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = {
+  HesabyarInputField(
+    value = initialBalance,
+    onValueChange = onBalanceChange,
+    label =
+      stringResource(
+        id = io.github.mojri.hesabyar.R.string.opening_balance_label,
+        CurrencyFormatter.unitLabel
+      ),
+    placeholder = "0",
+    shape = ShapeTokens.Medium,
+    singleLine = true,
+    keyboardOptions =
+      androidx.compose.foundation.text
+        .KeyboardOptions(keyboardType = KeyboardType.Number),
+    visualTransformation = VisualTransformation.None,
+    supportingText = {
       Text(
-        text = if (initialAccount != null) "ویرایش حساب" else "افزودن حساب جدید",
-        fontWeight = FontWeight.Bold
+        text =
+          if (balanceError) {
+            stringResource(
+              id = io.github.mojri.hesabyar.R.string.balance_invalid_amount
+            )
+          } else {
+            stringResource(
+              id = io.github.mojri.hesabyar.R.string.balance_amount_label,
+              CurrencyFormatter.unitLabel
+            )
+          }
       )
     },
-    text = {
-      AccountDialogForm(
-        formState = formState,
-        initialAccount = initialAccount,
-        onSave = onSave,
-        isSaving = isSaving
-      )
-    },
-    confirmButton = {},
-    dismissButton = {
-      HesabyarButton(onClick = onDismiss, text = "انصراف", variant = ButtonVariant.Text)
-    }
+    isError = balanceError
   )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Suppress("LongMethod")
-@Composable
-private fun AccountDialogForm(
-  formState: AccountDialogFormState,
-  initialAccount: AccountEntity?,
-  onSave: (AccountFormData) -> Unit,
-  isSaving: Boolean = false
-) {
-  var name by formState.nameState
-  var selectedType by formState.selectedTypeState
-  var bankName by formState.bankNameState
-  var cardNumber by formState.cardNumberState
-  var accountNumber by formState.accountNumberState
-  var iban by formState.ibanState
-  var initialBalance by formState.initialBalanceState
-  var selectedColor by formState.selectedColorState
-  val prefilledBalance = formState.prefilledBalance
-  val parsedBalance =
-    DisplayAmountInput.resolveEditedRial(
-      text = initialBalance,
-      prefilledText = prefilledBalance,
-      originalRial = initialAccount?.initialBalance
-    )
-  val balanceError = initialBalance.isNotBlank() && parsedBalance == null
-  var typeDropdownExpanded by remember { mutableStateOf(false) }
-
-  Column(
-    modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
-    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-  ) {
-    HesabyarInputField(
-      value = name,
-      onValueChange = { name = it },
-      label = "نام حساب",
-      placeholder = "مثلاً: حساب جاری بانک",
-      shape = ShapeTokens.Medium,
-      singleLine = true,
-      isError = name.isBlank()
-    )
-    AccountDialogTypeField(
-      selectedType = selectedType,
-      onTypeSelected = { selectedType = it },
-      dropdownExpanded = typeDropdownExpanded,
-      onDropdownExpandedChange = { typeDropdownExpanded = it }
-    )
-    AccountDialogBankDetailsFields(
-      bankName = bankName,
-      onBankNameChange = { bankName = it },
-      cardNumber = cardNumber,
-      onCardNumberChange = { cardNumber = it },
-      accountNumber = accountNumber,
-      onAccountNumberChange = { accountNumber = it },
-      iban = iban,
-      onIbanChange = { iban = it }
-    )
-    HesabyarInputField(
-      value = initialBalance,
-      onValueChange = { initialBalance = it },
-      label =
-        stringResource(
-          id = io.github.mojri.hesabyar.R.string.opening_balance_label,
-          CurrencyFormatter.unitLabel
-        ),
-      placeholder = "0",
-      shape = ShapeTokens.Medium,
-      singleLine = true,
-      keyboardOptions =
-        androidx.compose.foundation.text
-          .KeyboardOptions(keyboardType = KeyboardType.Number),
-      visualTransformation = VisualTransformation.None,
-      supportingText = {
-        Text(
-          text =
-            if (balanceError) {
-              stringResource(
-                id = io.github.mojri.hesabyar.R.string.balance_invalid_amount
-              )
-            } else {
-              stringResource(
-                id = io.github.mojri.hesabyar.R.string.balance_amount_label,
-                CurrencyFormatter.unitLabel
-              )
-            }
-        )
-      },
-      isError = balanceError
-    )
-    AccountDialogColorPicker(
-      selectedColor = selectedColor,
-      onColorSelected = { selectedColor = it }
-    )
-    AccountDialogPreviewRow(name = name, selectedType = selectedType, selectedColor = selectedColor)
-    HesabyarButton(
-      onClick = {
-        onSave(
-          AccountFormData(
-            name = name.trim(),
-            type = selectedType,
-            bankName = bankName.trim().ifBlank { null },
-            cardNumber = cardNumber.trim().ifBlank { null },
-            accountNumber = accountNumber.trim().ifBlank { null },
-            iban = iban.trim().ifBlank { null },
-            initialBalance = parsedBalance ?: 0L,
-            color = selectedColor
-          )
-        )
-      },
-      text = "ذخیره",
-      variant = ButtonVariant.Filled,
-      enabled = name.isNotBlank() && !balanceError && !isSaving
-    )
-  }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

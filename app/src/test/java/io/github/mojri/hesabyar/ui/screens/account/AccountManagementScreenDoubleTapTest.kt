@@ -9,7 +9,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.HesabyarRepositoryInterface
@@ -178,7 +177,7 @@ class AccountManagementScreenDoubleTapTest {
   private fun saveButton() = composeRule.onNodeWithText(SAVE_BUTTON_TEXT)
 
   private fun clickSave() {
-    saveButton().performScrollTo().performClick()
+    saveButton().performClick()
   }
 
   private fun settle() {

@@ -23,12 +23,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
@@ -461,8 +463,8 @@ fun CustomTimePickerDialog(
           HesabyarButton(
             onClick = onDismissRequest,
             modifier = Modifier.weight(1f),
-            text = "انصراف",
-            variant = ButtonVariant.Outlined
+            text = stringResource(R.string.action_cancel),
+            variant = ButtonVariant.Text
           )
 
           HesabyarButton(
@@ -471,7 +473,7 @@ fun CustomTimePickerDialog(
               onDismissRequest()
             },
             modifier = Modifier.weight(1.3f),
-            text = "تایید",
+            text = stringResource(R.string.action_confirm),
             variant = ButtonVariant.Filled
           )
         }

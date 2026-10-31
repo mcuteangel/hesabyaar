@@ -3,7 +3,6 @@ package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,13 +11,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.core.filterDigitsPreservingLeadingMinus
 import io.github.mojri.hesabyar.core.toCleanLongOrNull
 import io.github.mojri.hesabyar.data.LoanType
 import io.github.mojri.hesabyar.ui.CurrencyFormatter
 import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
 import io.github.mojri.hesabyar.ui.utils.DisplayAmountInput
@@ -46,26 +47,21 @@ internal fun AddPersonLoanDialog(
   val hasLeadingMinus = amountText.startsWith("-")
   val parsedAmount = amountText.toCleanLongOrNull() ?: 0L
   val isValidAmount = !hasLeadingMinus && parsedAmount >= 1L && !overflowsTomanConversion(parsedAmount)
-  val typeLabel = if (type == LoanType.DEBTOR) "طلب از" else "بدهی به"
+  val title =
+    when {
+      personName.isNotBlank() && type == LoanType.DEBTOR ->
+        stringResource(R.string.add_person_loan_debtor_title, personName.trim())
+      personName.isNotBlank() ->
+        stringResource(R.string.add_person_loan_creditor_title, personName.trim())
+      type == LoanType.DEBTOR ->
+        stringResource(R.string.add_person_loan_debtor_generic_title)
+      else ->
+        stringResource(R.string.add_person_loan_creditor_generic_title)
+    }
 
-  AlertDialog(
+  HesabyarDialog(
+    title = title,
     onDismissRequest = { if (!isSubmitting) onDismiss() },
-    title = {
-      Text(
-        text = "ثبت $typeLabel $personName",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      AddPersonLoanInputs(
-        amountText = amountText,
-        onAmountChange = { amountText = it.filterDigitsPreservingLeadingMinus() },
-        description = description,
-        onDescriptionChange = { description = it },
-        errorMessage = errorMessage
-      )
-    },
     confirmButton = {
       HesabyarButton(
         onClick = {
@@ -74,18 +70,27 @@ internal fun AddPersonLoanDialog(
           }
         },
         enabled = isValidAmount && !isSubmitting,
-        text = "ثبت"
+        text = stringResource(R.string.person_loan_submit),
+        variant = ButtonVariant.Filled
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
         enabled = !isSubmitting,
-        text = "انصراف",
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    AddPersonLoanInputs(
+      amountText = amountText,
+      onAmountChange = { amountText = it.filterDigitsPreservingLeadingMinus() },
+      description = description,
+      onDescriptionChange = { description = it },
+      errorMessage = errorMessage
+    )
+  }
 }
 
 @Composable

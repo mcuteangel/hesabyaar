@@ -1,0 +1,267 @@
+package io.github.mojri.hesabyar.ui.components
+
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.LayoutDirection
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/**
+ * Robolectric Compose UI tests for [HesabyarDialog].
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [34])
+class HesabyarDialogTest {
+  @get:Rule
+  val composeRule = createComposeRule()
+
+  @Test
+  fun dialogRendersTitleAndContent() {
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {}
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(DIALOG_TITLE).assertIsDisplayed()
+    composeRule.onNodeWithText(DIALOG_CONTENT).assertIsDisplayed()
+  }
+
+  @Test
+  fun dialogHidesCloseButtonByDefault() {
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {}
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertDoesNotExist()
+  }
+
+  @Test
+  fun dialogShowsCloseButtonWhenRequestedAndHandlesClick() {
+    var dismissed = false
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = { dismissed = true },
+        isFullScreen = true,
+        showCloseButton = true
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertIsDisplayed()
+    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).performClick()
+    assertTrue(dismissed)
+  }
+
+  @Test
+  fun dialogShowsCloseButtonWhenExplicitlyRequestedEvenWhenNotFullScreen() {
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        isFullScreen = false,
+        showCloseButton = true
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithContentDescription(CLOSE_DESCRIPTION).assertIsDisplayed()
+  }
+
+  @Test
+  fun dialogRendersStandardButtonsFromTextParameters() {
+    var confirmed = false
+    var dismissed = false
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmText = CONFIRM_TEXT,
+        onConfirm = { confirmed = true },
+        dismissText = DISMISS_TEXT,
+        onDismiss = { dismissed = true }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertIsDisplayed().performClick()
+    assertTrue(confirmed)
+
+    composeRule.onNodeWithText(DISMISS_TEXT).assertIsDisplayed().performClick()
+    assertTrue(dismissed)
+  }
+
+  @Test
+  fun dialogRendersStructuredConfirmAndDismissButtons() {
+    var confirmed = false
+    var dismissed = false
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmButton = {
+          TextButton(onClick = { confirmed = true }) {
+            Text(CONFIRM_TEXT)
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = { dismissed = true }) {
+            Text(DISMISS_TEXT)
+          }
+        }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertIsDisplayed().performClick()
+    assertTrue(confirmed)
+
+    composeRule.onNodeWithText(DISMISS_TEXT).assertIsDisplayed().performClick()
+    assertTrue(dismissed)
+  }
+
+  @Test
+  fun dialogRendersLegacyActionsWhenStructuredSlotsAbsent() {
+    var actionClicked = false
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        actions = {
+          TextButton(onClick = { actionClicked = true }) {
+            Text(ACTION_TEXT)
+          }
+        }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(ACTION_TEXT).assertIsDisplayed().performClick()
+    assertTrue(actionClicked)
+  }
+
+  @Test
+  fun dialogRendersBothStructuredButtonsAndLegacyActionsWhenBothProvided() {
+    var confirmClicked = false
+    var actionClicked = false
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmButton = {
+          TextButton(onClick = { confirmClicked = true }) {
+            Text(CONFIRM_TEXT)
+          }
+        },
+        actions = {
+          TextButton(onClick = { actionClicked = true }) {
+            Text(ACTION_TEXT)
+          }
+        }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertIsDisplayed().performClick()
+    assertTrue(confirmClicked)
+    composeRule.onNodeWithText(ACTION_TEXT).assertIsDisplayed().performClick()
+    assertTrue(actionClicked)
+  }
+
+  @Test
+  fun dialogPositionsConfirmButtonAtTrailingEdgeInRtl() {
+    composeRule.setContent {
+      CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        HesabyarDialog(
+          title = DIALOG_TITLE,
+          onDismissRequest = {},
+          confirmButton = {
+            TextButton(onClick = {}) {
+              Text(CONFIRM_TEXT)
+            }
+          },
+          dismissButton = {
+            TextButton(onClick = {}) {
+              Text(DISMISS_TEXT)
+            }
+          }
+        ) {
+          Text(DIALOG_CONTENT)
+        }
+      }
+    }
+
+    val confirmBounds = composeRule.onNodeWithText(CONFIRM_TEXT).getBoundsInRoot()
+    val dismissBounds = composeRule.onNodeWithText(DISMISS_TEXT).getBoundsInRoot()
+    assertTrue(
+      "In RTL layout, confirm button must be at trailing edge (left of dismiss button)",
+      confirmBounds.left < dismissBounds.left
+    )
+  }
+
+  @Test
+  fun dialogPrefersCustomSlotOverTextParametersWhenBothProvided() {
+    var customConfirmClicked = false
+    val customText = "دکمه اختصاصی"
+
+    composeRule.setContent {
+      HesabyarDialog(
+        title = DIALOG_TITLE,
+        onDismissRequest = {},
+        confirmText = CONFIRM_TEXT,
+        onConfirm = {},
+        confirmButton = {
+          TextButton(onClick = { customConfirmClicked = true }) {
+            Text(customText)
+          }
+        }
+      ) {
+        Text(DIALOG_CONTENT)
+      }
+    }
+
+    composeRule.onNodeWithText(customText).assertIsDisplayed().performClick()
+    assertTrue(customConfirmClicked)
+    composeRule.onNodeWithText(CONFIRM_TEXT).assertDoesNotExist()
+  }
+
+  private companion object {
+    const val DIALOG_TITLE = "عنوان دیالوگ"
+    const val DIALOG_CONTENT = "متن محتوای دیالوگ"
+    const val CONFIRM_TEXT = "تأیید"
+    const val DISMISS_TEXT = "انصراف"
+    const val ACTION_TEXT = "اقدام اختیاری"
+    const val CLOSE_DESCRIPTION = "بستن"
+  }
+}

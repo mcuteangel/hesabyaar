@@ -1,16 +1,11 @@
 package io.github.mojri.hesabyar.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,6 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +33,7 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.ConfirmDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarFab
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.HesabyarScaffold
@@ -76,9 +77,11 @@ private val CATEGORY_ICONS =
     "CleaningServices" to Icons.Filled.CleaningServices
   )
 
+private const val DEFAULT_CATEGORY_COLOR = 0xFF4CAF50L
+
 private val CATEGORY_COLORS =
   listOf(
-    0xFF4CAF50L,
+    DEFAULT_CATEGORY_COLOR,
     0xFFFF9800L,
     0xFF2196F3L,
     0xFF009688L,
@@ -282,8 +285,8 @@ private fun CategoryManagementDialogs(
     ConfirmDialog(
       title = "حذف دسته‌بندی",
       message = "آیا از حذف دسته‌بندی «${categoryToDelete.name}» اطمینان دارید؟",
-      confirmText = "حذف",
-      dismissText = "انصراف",
+      confirmText = stringResource(R.string.action_delete),
+      dismissText = stringResource(R.string.action_cancel),
       onDismiss = onDismissDelete,
       onConfirm = {
         categoryViewModel.deleteCategory(categoryToDelete)
@@ -395,7 +398,123 @@ private val CategoryTypeSaver: Saver<CategoryType, String> =
     }
   )
 
-@OptIn(ExperimentalMaterial3Api::class)
+internal class CategoryFormState(
+  val isEditing: Boolean = false,
+  val initialKey: String = "",
+  val initialType: CategoryType = CategoryType.EXPENSE,
+  val isKeyEnabled: Boolean = true,
+  nameState: MutableState<String> = mutableStateOf(""),
+  keyState: MutableState<String> = mutableStateOf(""),
+  selectedIconState: MutableState<String> = mutableStateOf("Paid"),
+  selectedColorState: MutableState<Long> = mutableStateOf(DEFAULT_CATEGORY_COLOR),
+  selectedTypeState: MutableState<CategoryType> = mutableStateOf(initialType),
+  typeDropdownExpandedState: MutableState<Boolean> = mutableStateOf(false)
+) {
+  var name by nameState
+  var key by keyState
+  var selectedIcon by selectedIconState
+  var selectedColor by selectedColorState
+  var selectedType by selectedTypeState
+  var typeDropdownExpanded by typeDropdownExpandedState
+
+  val isValid: Boolean
+    get() = name.trim().isNotBlank() && finalKey.isNotBlank()
+
+  val finalKey: String
+    get() {
+      val derivedNameKey = name.trim().replace("\\s+".toRegex(), "")
+      return if (isEditing && !isKeyEnabled) {
+        initialKey.ifBlank { derivedNameKey }
+      } else {
+        key.trim().ifBlank { derivedNameKey }
+      }
+    }
+
+  val resolvedType: CategoryType
+    get() =
+      when {
+        selectedType != CategoryType.UNKNOWN -> selectedType
+        initialType != CategoryType.UNKNOWN -> initialType
+        else -> CategoryType.EXPENSE
+      }
+
+  val typeToSave: CategoryType
+    get() = resolvedType
+
+  companion object {
+    @Composable
+    fun remember(initialCategory: Category?): CategoryFormState =
+      if (initialCategory != null) {
+        rememberEdit(initialCategory)
+      } else {
+        rememberAdd()
+      }
+
+    @Composable
+    private fun rememberAdd(): CategoryFormState {
+      val nameState = rememberSaveable { mutableStateOf("") }
+      val keyState = rememberSaveable { mutableStateOf("") }
+      val selectedIconState = rememberSaveable { mutableStateOf("Paid") }
+      val selectedColorState = rememberSaveable { mutableStateOf(DEFAULT_CATEGORY_COLOR) }
+      val selectedTypeState =
+        rememberSaveable(stateSaver = CategoryTypeSaver) {
+          mutableStateOf(CategoryType.EXPENSE)
+        }
+      val typeDropdownExpandedState = rememberSaveable { mutableStateOf(false) }
+
+      return androidx.compose.runtime.remember {
+        CategoryFormState(
+          isEditing = false,
+          initialKey = "",
+          initialType = CategoryType.EXPENSE,
+          isKeyEnabled = true,
+          nameState = nameState,
+          keyState = keyState,
+          selectedIconState = selectedIconState,
+          selectedColorState = selectedColorState,
+          selectedTypeState = selectedTypeState,
+          typeDropdownExpandedState = typeDropdownExpandedState
+        )
+      }
+    }
+
+    @Composable
+    private fun rememberEdit(initialCategory: Category): CategoryFormState {
+      val key = initialCategory.id
+      val initialType =
+        if (initialCategory.type != CategoryType.UNKNOWN) {
+          initialCategory.type
+        } else {
+          CategoryType.EXPENSE
+        }
+      val nameState = rememberSaveable(key) { mutableStateOf(initialCategory.name) }
+      val keyState = rememberSaveable(key) { mutableStateOf(initialCategory.key) }
+      val selectedIconState = rememberSaveable(key) { mutableStateOf(initialCategory.icon) }
+      val selectedColorState = rememberSaveable(key) { mutableStateOf(initialCategory.color) }
+      val selectedTypeState =
+        rememberSaveable(key, stateSaver = CategoryTypeSaver) {
+          mutableStateOf(initialType)
+        }
+      val typeDropdownExpandedState = rememberSaveable(key) { mutableStateOf(false) }
+
+      return androidx.compose.runtime.remember(key) {
+        CategoryFormState(
+          isEditing = true,
+          initialKey = initialCategory.key,
+          initialType = initialType,
+          isKeyEnabled = !initialCategory.isDefault,
+          nameState = nameState,
+          keyState = keyState,
+          selectedIconState = selectedIconState,
+          selectedColorState = selectedColorState,
+          selectedTypeState = selectedTypeState,
+          typeDropdownExpandedState = typeDropdownExpandedState
+        )
+      }
+    }
+  }
+}
+
 @Composable
 private fun CategoryDialog(
   initialCategory: Category?,
@@ -403,242 +522,302 @@ private fun CategoryDialog(
   onSave: (name: String, key: String, icon: String, color: Long, type: CategoryType) -> Unit
 ) {
   val isEditing = initialCategory != null
-  var name by rememberSaveable { mutableStateOf(initialCategory?.name.orEmpty()) }
-  var key by rememberSaveable { mutableStateOf(initialCategory?.key.orEmpty()) }
-  var selectedIcon by rememberSaveable { mutableStateOf(initialCategory?.icon ?: "Paid") }
-  var selectedColor by rememberSaveable { mutableStateOf(initialCategory?.color ?: 0xFF4CAF50L) }
-  var selectedType by rememberSaveable(stateSaver = CategoryTypeSaver) {
-    mutableStateOf(initialCategory?.type ?: CategoryType.EXPENSE)
-  }
-  var typeDropdownExpanded by remember { mutableStateOf(false) }
+  val state = CategoryFormState.remember(initialCategory)
 
-  AlertDialog(
+  HesabyarDialog(
     onDismissRequest = onDismiss,
-    title = {
-      Text(
-        text = if (isEditing) "ویرایش دسته‌بندی" else "افزودن دسته‌بندی جدید",
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      Column(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .heightIn(max = 400.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-      ) {
-        HesabyarInputField(
-          value = name,
-          onValueChange = { name = it },
-          label = "نام فارسی",
-          placeholder = "مثلاً: حمل و نقل",
-          shape = ShapeTokens.Medium
-        )
-
-        HesabyarInputField(
-          value = key,
-          onValueChange = { key = it },
-          label = "کلید انگلیسی (اختیاری)",
-          placeholder = "مثلاً: Transportation",
-          shape = ShapeTokens.Medium,
-          enabled = !isEditing || initialCategory?.isDefault != true
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
-          Text(
-            text = "نوع:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-          ExposedDropdownMenuBox(
-            expanded = typeDropdownExpanded,
-            onExpandedChange = { typeDropdownExpanded = it }
-          ) {
-            HesabyarInputField(
-              value = selectedType.displayName,
-              onValueChange = {},
-              modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-              readOnly = true,
-              shape = ShapeTokens.Medium,
-              trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeDropdownExpanded) }
-            )
-            ExposedDropdownMenu(
-              expanded = typeDropdownExpanded,
-              onDismissRequest = { typeDropdownExpanded = false }
-            ) {
-              DropdownMenuItem(
-                text = { Text("هزینه") },
-                onClick = {
-                  selectedType = CategoryType.EXPENSE
-                  typeDropdownExpanded = false
-                }
-              )
-              DropdownMenuItem(
-                text = { Text("درآمد") },
-                onClick = {
-                  selectedType = CategoryType.INCOME
-                  typeDropdownExpanded = false
-                }
-              )
-              DropdownMenuItem(
-                text = { Text("هر دو") },
-                onClick = {
-                  selectedType = CategoryType.BOTH
-                  typeDropdownExpanded = false
-                }
-              )
-            }
-          }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
-          Text(
-            text = "رنگ:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-          LazyVerticalGrid(
-            columns = GridCells.Fixed(8),
-            modifier = Modifier.height(60.dp),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
-          ) {
-            items(CATEGORY_COLORS, key = { it }) { color ->
-              Box(
-                modifier =
-                  Modifier
-                    .size(Dimens.ContainerXSmall)
-                    .clip(CircleShape)
-                    .background(Color(color))
-                    .clickable { selectedColor = color },
-                contentAlignment = Alignment.Center
-              ) {
-                if (selectedColor == color) {
-                  Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(Dimens.IconSmall)
-                  )
-                }
-              }
-            }
-          }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)) {
-          Text(
-            text = "آیکون:",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-          LazyVerticalGrid(
-            columns = GridCells.Fixed(7),
-            modifier = Modifier.height(180.dp),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
-          ) {
-            items(CATEGORY_ICONS.entries.toList(), key = { it.key }) { (iconName, iconVector) ->
-              val isSelected = selectedIcon == iconName
-              Box(
-                modifier =
-                  Modifier
-                    .size(Dimens.ContainerSmall)
-                    .clip(ShapeTokens.Small)
-                    .background(
-                      if (isSelected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = Dimens.SURFACE_TINT_ALPHA)
-                      } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                      }
-                    ).clickable { selectedIcon = iconName },
-                contentAlignment = Alignment.Center
-              ) {
-                Icon(
-                  imageVector = iconVector,
-                  contentDescription = iconName,
-                  modifier = Modifier.size(Dimens.IconAvatarMedium),
-                  tint =
-                    if (isSelected) {
-                      MaterialTheme.colorScheme.primary
-                    } else {
-                      MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-              }
-            }
-          }
-        }
-
-        Row(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .clip(ShapeTokens.Medium)
-              .background(MaterialTheme.colorScheme.surfaceContainerLow)
-              .padding(SpacingTokens.md),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-        ) {
-          val previewIcon = CATEGORY_ICONS[selectedIcon] ?: Icons.Filled.Paid
-          val previewColor = Color(selectedColor)
-          IconCircle(
-            icon = previewIcon,
-            tint = previewColor,
-            backgroundColor = previewColor,
-            containerSize = Dimens.AvatarMedium,
-            iconSize = Dimens.IconAvatarMedium
-          )
-          Column {
-            Text(
-              text = name.ifBlank { "نام دسته‌بندی" },
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.Bold
-            )
-            Text(
-              text = selectedType.displayName,
-              style = MaterialTheme.typography.labelSmall,
-              color = previewColor
-            )
-          }
-        }
-      }
-    },
+    title = if (isEditing) "ویرایش دسته‌بندی" else "افزودن دسته‌بندی جدید",
     confirmButton = {
       HesabyarButton(
         onClick = {
-          val finalKey =
-            key.trim().ifBlank {
-              name.trim().replace("\\s+".toRegex(), "")
-            }
-          // UNKNOWN is never a user choice: it only arrives from a
-          // corrupted restore. It never persists from this dialog.
-          val typeToSave =
-            if (selectedType == CategoryType.UNKNOWN) {
-              val current = initialCategory?.type
-              if (current != null && current != CategoryType.UNKNOWN) {
-                current
-              } else {
-                CategoryType.EXPENSE
-              }
-            } else {
-              selectedType
-            }
-          onSave(name.trim(), finalKey, selectedIcon, selectedColor, typeToSave)
+          if (state.isValid) {
+            onSave(
+              state.name.trim(),
+              state.finalKey,
+              state.selectedIcon,
+              state.selectedColor,
+              state.typeToSave
+            )
+          }
         },
-        text = "ذخیره",
+        text = stringResource(R.string.action_save),
         variant = ButtonVariant.Filled,
-        enabled = name.isNotBlank()
+        enabled = state.isValid
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onDismiss,
-        text = "انصراف",
+        text = stringResource(R.string.action_cancel),
         variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    CategoryDialogContent(state = state)
+  }
+}
+
+@Composable
+private fun CategoryDialogContent(
+  state: CategoryFormState,
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+  ) {
+    HesabyarInputField(
+      value = state.name,
+      onValueChange = { state.name = it },
+      label = "نام فارسی",
+      placeholder = "مثلاً: حمل و نقل",
+      shape = ShapeTokens.Medium
+    )
+
+    HesabyarInputField(
+      value = state.key,
+      onValueChange = { state.key = it },
+      label = "کلید انگلیسی (اختیاری)",
+      placeholder = "مثلاً: Transportation",
+      shape = ShapeTokens.Medium,
+      enabled = state.isKeyEnabled
+    )
+
+    CategoryTypeDropdown(
+      selectedType = state.selectedType,
+      onTypeSelected = { state.selectedType = it },
+      expanded = state.typeDropdownExpanded,
+      onExpandedChange = { state.typeDropdownExpanded = it }
+    )
+
+    CategoryColorPicker(
+      selectedColor = state.selectedColor,
+      onColorSelected = { state.selectedColor = it }
+    )
+
+    CategoryIconPicker(
+      selectedIcon = state.selectedIcon,
+      onIconSelected = { state.selectedIcon = it }
+    )
+
+    CategoryPreviewCard(
+      name = state.name,
+      selectedType = state.typeToSave,
+      selectedIcon = state.selectedIcon,
+      selectedColor = state.selectedColor
+    )
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryTypeDropdown(
+  selectedType: CategoryType,
+  onTypeSelected: (CategoryType) -> Unit,
+  expanded: Boolean,
+  onExpandedChange: (Boolean) -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier,
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+  ) {
+    Text(
+      text = "نوع:",
+      style = MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    ExposedDropdownMenuBox(
+      expanded = expanded,
+      onExpandedChange = onExpandedChange
+    ) {
+      HesabyarInputField(
+        value = selectedType.displayName,
+        onValueChange = {},
+        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        readOnly = true,
+        shape = ShapeTokens.Medium,
+        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+      )
+      ExposedDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { onExpandedChange(false) }
+      ) {
+        DropdownMenuItem(
+          text = { Text("هزینه") },
+          onClick = {
+            onTypeSelected(CategoryType.EXPENSE)
+            onExpandedChange(false)
+          }
+        )
+        DropdownMenuItem(
+          text = { Text("درآمد") },
+          onClick = {
+            onTypeSelected(CategoryType.INCOME)
+            onExpandedChange(false)
+          }
+        )
+        DropdownMenuItem(
+          text = { Text("هر دو") },
+          onClick = {
+            onTypeSelected(CategoryType.BOTH)
+            onExpandedChange(false)
+          }
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun CategoryColorPicker(
+  selectedColor: Long,
+  onColorSelected: (Long) -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier,
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+  ) {
+    Text(
+      text = "رنگ:",
+      style = MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    FlowRow(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
+      verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+    ) {
+      CATEGORY_COLORS.forEach { color ->
+        val isSelected = selectedColor == color
+        val colorHex = (color and 0xFFFFFFL).toString(16).padStart(6, '0')
+        // TalkBack label from resources per docs/LOCALIZATION.md.
+        val swatchLabel = stringResource(R.string.category_color_swatch, colorHex)
+        Box(
+          modifier =
+            Modifier
+              .size(Dimens.ContainerXSmall)
+              .clip(CircleShape)
+              .background(Color(color))
+              .selectable(
+                selected = isSelected,
+                onClick = { onColorSelected(color) },
+                role = Role.RadioButton
+              ).semantics {
+                contentDescription = swatchLabel
+              },
+          contentAlignment = Alignment.Center
+        ) {
+          if (isSelected) {
+            Icon(
+              imageVector = Icons.Filled.Check,
+              contentDescription = null,
+              tint = Color.White,
+              modifier = Modifier.size(Dimens.IconSmall)
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun CategoryIconPicker(
+  selectedIcon: String,
+  onIconSelected: (String) -> Unit,
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier,
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+  ) {
+    Text(
+      text = "آیکون:",
+      style = MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    FlowRow(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.xs),
+      verticalArrangement = Arrangement.spacedBy(SpacingTokens.xs)
+    ) {
+      CATEGORY_ICONS.forEach { (iconName, iconVector) ->
+        val isSelected = selectedIcon == iconName
+        Box(
+          modifier =
+            Modifier
+              .size(Dimens.ContainerSmall)
+              .clip(ShapeTokens.Small)
+              .background(
+                if (isSelected) {
+                  MaterialTheme.colorScheme.primary.copy(alpha = Dimens.SURFACE_TINT_ALPHA)
+                } else {
+                  MaterialTheme.colorScheme.surfaceContainerLow
+                }
+              ).selectable(
+                selected = isSelected,
+                onClick = { onIconSelected(iconName) },
+                role = Role.RadioButton
+              ),
+          contentAlignment = Alignment.Center
+        ) {
+          Icon(
+            imageVector = iconVector,
+            contentDescription = iconName,
+            modifier = Modifier.size(Dimens.IconAvatarMedium),
+            tint =
+              if (isSelected) {
+                MaterialTheme.colorScheme.primary
+              } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+              }
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun CategoryPreviewCard(
+  name: String,
+  selectedType: CategoryType,
+  selectedIcon: String,
+  selectedColor: Long,
+  modifier: Modifier = Modifier
+) {
+  Row(
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .clip(ShapeTokens.Medium)
+        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+        .padding(SpacingTokens.md),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
+  ) {
+    val previewIcon = CATEGORY_ICONS[selectedIcon] ?: Icons.Filled.Paid
+    val previewColor = Color(selectedColor)
+    IconCircle(
+      icon = previewIcon,
+      tint = previewColor,
+      backgroundColor = previewColor,
+      containerSize = Dimens.AvatarMedium,
+      iconSize = Dimens.IconAvatarMedium
+    )
+    Column {
+      Text(
+        text = name.ifBlank { "نام دسته‌بندی" },
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Bold
+      )
+      Text(
+        text = selectedType.displayName,
+        style = MaterialTheme.typography.labelSmall,
+        color = previewColor
+      )
+    }
+  }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.mojri.hesabyar.R
 import io.github.mojri.hesabyar.api.ParsedResult
 import io.github.mojri.hesabyar.data.Category
 import io.github.mojri.hesabyar.data.CategoryType
@@ -49,6 +51,7 @@ import io.github.mojri.hesabyar.ui.components.ButtonVariant
 import io.github.mojri.hesabyar.ui.components.HesabyarButton
 import io.github.mojri.hesabyar.ui.components.HesabyarCard
 import io.github.mojri.hesabyar.ui.components.HesabyarChip
+import io.github.mojri.hesabyar.ui.components.HesabyarDialog
 import io.github.mojri.hesabyar.ui.components.HesabyarInputField
 import io.github.mojri.hesabyar.ui.components.HesabyarTabRow
 import io.github.mojri.hesabyar.ui.components.JalaliDateTimePicker
@@ -887,8 +890,8 @@ fun ParsedResultCard(
         HesabyarButton(
           onClick = onCancel,
           modifier = Modifier.weight(1f),
-          text = "انصراف",
-          variant = ButtonVariant.Outlined
+          text = stringResource(R.string.action_cancel),
+          variant = ButtonVariant.Text
         )
 
         HesabyarButton(
@@ -964,40 +967,31 @@ fun ConfirmationDialog(
   val typeLabel = resolveTypeLabel(result.type)
   val amountColor = resolveAmountColor(result.type)
 
-  AlertDialog(
+  HesabyarDialog(
+    title = "تایید تراکنش",
     onDismissRequest = onCancel,
-    title = {
-      Text(
-        text = "تایید تراکنش",
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold
-      )
-    },
-    text = {
-      ConfirmationDialogContent(
-        result = result,
-        confidenceColor = confidenceColor,
-        typeLabel = typeLabel,
-        amountColor = amountColor
-      )
-    },
     confirmButton = {
       HesabyarButton(
         onClick = onConfirm,
-        modifier = Modifier.fillMaxWidth(),
-        text = "تایید و ادامه",
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        text = stringResource(R.string.action_confirm_and_continue),
+        variant = ButtonVariant.Filled
       )
     },
     dismissButton = {
       HesabyarButton(
         onClick = onCancel,
-        modifier = Modifier.fillMaxWidth(),
-        text = "انصراف",
-        variant = ButtonVariant.Outlined
+        text = stringResource(R.string.action_cancel),
+        variant = ButtonVariant.Text
       )
     }
-  )
+  ) {
+    ConfirmationDialogContent(
+      result = result,
+      confidenceColor = confidenceColor,
+      typeLabel = typeLabel,
+      amountColor = amountColor
+    )
+  }
 }
 
 @Composable

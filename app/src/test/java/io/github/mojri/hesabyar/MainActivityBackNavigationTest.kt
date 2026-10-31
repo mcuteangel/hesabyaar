@@ -41,7 +41,7 @@ class MainActivityBackNavigationTest {
   private val dialogTitle by lazy { context.getString(R.string.exit_dialog_title) }
   private val dialogMessage by lazy { context.getString(R.string.exit_dialog_message) }
   private val btnConfirmExit by lazy { context.getString(R.string.exit_dialog_confirm) }
-  private val btnDismissCancel by lazy { context.getString(R.string.cancel_label) }
+  private val btnDismissCancel by lazy { context.getString(R.string.action_cancel) }
 
   @Test
   fun backWalksHistoryWhenMultipleTabsVisited() {

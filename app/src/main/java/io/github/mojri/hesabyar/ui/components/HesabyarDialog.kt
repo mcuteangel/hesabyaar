@@ -10,22 +10,30 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import io.github.mojri.hesabyar.R
+import io.github.mojri.hesabyar.ui.designsystem.Dimens
 import io.github.mojri.hesabyar.ui.designsystem.ElevationTokens
 import io.github.mojri.hesabyar.ui.designsystem.ShapeTokens
 import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
@@ -50,10 +58,15 @@ import io.github.mojri.hesabyar.ui.designsystem.SpacingTokens
  *   dialog sizes to its content and the body is not forced to fill height.
  * @param showCloseButton Whether to render the close [IconButton] in the header.
  * @param leadingIcon Optional icon rendered before the title in the header.
- * @param actions Optional composable rendered as a bottom row (e.g. Cancel / Save).
+ * @param confirmButton Structured confirm button slot placed at the trailing edge.
+ *   Takes precedence over [confirmText]/[onConfirm] when both are supplied.
+ * @param dismissButton Structured dismiss button slot placed adjacent to confirm.
+ *   Takes precedence over [dismissText]/[onDismiss] when both are supplied.
+ * @param actions Optional fallback composable rendered as a bottom row when structured slots are not used.
+ *   Deprecated in favor of structured [confirmText]/[onConfirm] and [dismissText]/[onDismiss]
+ *   (or [confirmButton]/[dismissButton] slots).
  * @param content Scrollable body content of the dialog.
  */
-@Suppress("LongMethod")
 @Composable
 fun HesabyarDialog(
   title: String,
@@ -61,11 +74,37 @@ fun HesabyarDialog(
   modifier: Modifier = Modifier,
   widthFraction: Float = 0.92f,
   heightFraction: Float? = null,
-  showCloseButton: Boolean = true,
+  isFullScreen: Boolean = false,
+  showCloseButton: Boolean = false,
   leadingIcon: ImageVector? = null,
+  confirmText: String? = null,
+  onConfirm: (() -> Unit)? = null,
+  confirmEnabled: Boolean = true,
+  confirmLoading: Boolean = false,
+  confirmColor: Color? = null,
+  dismissText: String? = null,
+  onDismiss: (() -> Unit)? = null,
+  confirmButton: (@Composable () -> Unit)? = null,
+  dismissButton: (@Composable () -> Unit)? = null,
   actions: (@Composable RowScope.() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit
 ) {
+  val effectiveWidthFraction = if (isFullScreen) 1f else widthFraction
+  val dialogWidthModifier =
+    if (!isFullScreen) {
+      Modifier.widthIn(max = Dimens.DialogMaxWidth)
+    } else {
+      Modifier
+    }
+  val dialogHeightModifier =
+    if (isFullScreen) {
+      Modifier.fillMaxHeight(heightFraction ?: 1f)
+    } else if (heightFraction != null) {
+      Modifier.fillMaxHeight(heightFraction)
+    } else {
+      Modifier
+    }
+
   Dialog(
     onDismissRequest = onDismissRequest,
     properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -73,14 +112,9 @@ fun HesabyarDialog(
     Surface(
       modifier =
         modifier
-          .fillMaxWidth(widthFraction)
-          .then(
-            if (heightFraction != null) {
-              Modifier.fillMaxHeight(heightFraction)
-            } else {
-              Modifier
-            }
-          ),
+          .fillMaxWidth(effectiveWidthFraction)
+          .then(dialogWidthModifier)
+          .then(dialogHeightModifier),
       shape = ShapeTokens.XLarge,
       color = MaterialTheme.colorScheme.surface,
       tonalElevation = ElevationTokens.Level3
@@ -88,65 +122,200 @@ fun HesabyarDialog(
       Column(
         modifier = Modifier.padding(SpacingTokens.xl)
       ) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
-          ) {
-            if (leadingIcon != null) {
-              Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-              )
-            }
-            Text(
-              text = title,
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary
-            )
-          }
-          if (showCloseButton) {
-            IconButton(onClick = onDismissRequest) {
-              Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "بستن",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-            }
-          }
-        }
+        HesabyarDialogHeader(
+          title = title,
+          leadingIcon = leadingIcon,
+          showCloseButton = showCloseButton,
+          onDismissRequest = onDismissRequest
+        )
 
         HorizontalDivider(
           color = MaterialTheme.colorScheme.surfaceContainer
         )
 
-        Column(
-          modifier =
-            Modifier
-              .weight(1f, fill = false)
-              .fillMaxWidth()
-              .verticalScroll(rememberScrollState())
-              .padding(vertical = SpacingTokens.lg),
-          verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
-        ) {
-          content()
-        }
+        HesabyarDialogBody(content = content)
 
-        if (actions != null) {
-          Spacer(modifier = Modifier.size(SpacingTokens.sm))
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.md)
-          ) {
-            actions()
-          }
+        HesabyarDialogActions(
+          confirmText = confirmText,
+          onConfirm = onConfirm,
+          confirmEnabled = confirmEnabled,
+          confirmLoading = confirmLoading,
+          confirmColor = confirmColor,
+          dismissText = dismissText,
+          onDismiss = onDismiss,
+          confirmButton = confirmButton,
+          dismissButton = dismissButton,
+          actions = actions
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun ColumnScope.HesabyarDialogBody(content: @Composable ColumnScope.() -> Unit) {
+  Column(
+    modifier =
+      Modifier
+        .weight(1f, fill = false)
+        .fillMaxWidth()
+        .verticalScroll(rememberScrollState())
+        .padding(vertical = SpacingTokens.lg),
+    verticalArrangement = Arrangement.spacedBy(SpacingTokens.lg)
+  ) {
+    content()
+  }
+}
+
+@Composable
+private fun HesabyarDialogHeader(
+  title: String,
+  leadingIcon: ImageVector?,
+  showCloseButton: Boolean,
+  onDismissRequest: () -> Unit
+) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Row(
+      modifier = Modifier.weight(1f, fill = false),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(SpacingTokens.sm)
+    ) {
+      if (leadingIcon != null) {
+        Icon(
+          imageVector = leadingIcon,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary
+        )
+      }
+      Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary
+      )
+    }
+    // Per M3 guidelines, dialogs default to no header close icon,
+    // but callers may explicitly enable it via showCloseButton.
+    if (showCloseButton) {
+      IconButton(onClick = onDismissRequest) {
+        Icon(
+          imageVector = Icons.Filled.Close,
+          contentDescription = stringResource(R.string.action_close),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun resolveConfirmButton(
+  text: String?,
+  onConfirm: (() -> Unit)?,
+  enabled: Boolean,
+  loading: Boolean,
+  color: Color?,
+  fallback: (@Composable () -> Unit)?
+): (@Composable () -> Unit)? =
+  when {
+    fallback != null -> fallback
+    text.isNullOrBlank() || onConfirm == null -> null
+    else -> {
+      {
+        HesabyarButton(
+          onClick = onConfirm,
+          text = text,
+          variant = ButtonVariant.Filled,
+          enabled = enabled,
+          loading = loading,
+          colors =
+            color?.let {
+              ButtonDefaults.buttonColors(
+                containerColor = it,
+                contentColor = contentColorFor(it)
+              )
+            }
+        )
+      }
+    }
+  }
+
+@Composable
+private fun resolveDismissButton(
+  text: String?,
+  onDismiss: (() -> Unit)?,
+  fallback: (@Composable () -> Unit)?
+): (@Composable () -> Unit)? =
+  when {
+    fallback != null -> fallback
+    text.isNullOrBlank() || onDismiss == null -> null
+    else -> {
+      {
+        HesabyarButton(
+          onClick = onDismiss,
+          text = text,
+          variant = ButtonVariant.Text
+        )
+      }
+    }
+  }
+
+@Composable
+private fun HesabyarDialogActions(
+  confirmText: String?,
+  onConfirm: (() -> Unit)?,
+  confirmEnabled: Boolean,
+  confirmLoading: Boolean,
+  confirmColor: Color?,
+  dismissText: String?,
+  onDismiss: (() -> Unit)?,
+  confirmButton: (@Composable () -> Unit)?,
+  dismissButton: (@Composable () -> Unit)?,
+  actions: (@Composable RowScope.() -> Unit)?
+) {
+  val resolvedConfirm =
+    resolveConfirmButton(
+      text = confirmText,
+      onConfirm = onConfirm,
+      enabled = confirmEnabled,
+      loading = confirmLoading,
+      color = confirmColor,
+      fallback = confirmButton
+    )
+  val resolvedDismiss =
+    resolveDismissButton(
+      text = dismissText,
+      onDismiss = onDismiss,
+      fallback = dismissButton
+    )
+
+  val hasStructured = resolvedConfirm != null || resolvedDismiss != null
+  if (hasStructured || actions != null) {
+    Spacer(modifier = Modifier.size(SpacingTokens.sm))
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement =
+        if (hasStructured) Arrangement.End else Arrangement.spacedBy(SpacingTokens.md),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      if (actions != null) {
+        actions()
+        if (hasStructured) {
+          Spacer(modifier = Modifier.width(SpacingTokens.sm))
         }
+      }
+      if (resolvedDismiss != null) {
+        resolvedDismiss()
+        if (resolvedConfirm != null) {
+          Spacer(modifier = Modifier.width(SpacingTokens.sm))
+        }
+      }
+      if (resolvedConfirm != null) {
+        resolvedConfirm()
       }
     }
   }

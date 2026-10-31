@@ -44,6 +44,9 @@ object Dimens {
 
   val TabHeight = 48.dp
 
+  /** Maximum width for standard alert/confirm dialogs per Material 3 specification (560dp). */
+  val DialogMaxWidth = 560.dp
+
   /** Subtle brand card background tint (8%). */
   const val SUBTLE_BRAND_ALPHA = 0.08f
 

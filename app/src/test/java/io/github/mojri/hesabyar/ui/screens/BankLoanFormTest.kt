@@ -254,4 +254,91 @@ class BankLoanFormTest {
       )
     }
   }
+
+  @Test
+  fun addBankLoanFormStateValidationRejectsBlankBankOrZeroAmounts() {
+    val state = AddBankLoanFormState()
+    assertFalse("Empty state cannot confirm", state.canConfirm)
+
+    state.bankName = "ملی"
+    assertFalse("Zero received amount cannot confirm", state.canConfirm)
+
+    state.received = "100000"
+    assertFalse("Zero monthly amount cannot confirm", state.canConfirm)
+
+    state.monthly = "10000"
+    assertFalse("Zero count cannot confirm", state.canConfirm)
+
+    state.count = "10"
+    assertTrue("Valid state must be confirmable", state.canConfirm)
+    assertEquals(10, state.countVal)
+    assertEquals(1_000_000L, state.receivedRial)
+    assertEquals(100_000L, state.monthlyRial)
+  }
+
+  @Test
+  fun addBankLoanFormStateWhitespaceBankNameIsRejected() {
+    val state =
+      AddBankLoanFormState(
+        bankName = "   ",
+        received = "50000",
+        monthly = "5000",
+        count = "12"
+      )
+    assertFalse("Whitespace bank name must not be confirmable", state.canConfirm)
+  }
+
+  @Test
+  fun isInvalidCountRejectsZeroOrNegativeOrOverflow() {
+    assertFalse("Blank count does not show error", isInvalidCount(""))
+    assertTrue("Zero count is invalid", isInvalidCount("0"))
+    assertTrue("Negative count is invalid", isInvalidCount("-5"))
+    assertTrue("Overflow count is invalid", isInvalidCount("99999999999999999999"))
+    assertFalse("Positive count is valid", isInvalidCount("12"))
+  }
+
+  @Test
+  fun countFieldShowsErrorWhenZero() {
+    val receivedState = mutableStateOf("100000")
+    val monthlyState = mutableStateOf("50000")
+    val countState = mutableStateOf("")
+
+    setBankLoanFormContent(receivedState, monthlyState, countState)
+
+    val countNode = composeRule.onNode(hasText("تعداد اقساط").and(hasSetTextAction()))
+    countNode.performTextInput("0")
+    composeRule.waitForIdle()
+
+    composeRule.onNodeWithText("تعداد اقساط وام نامعتبر است").assertIsDisplayed()
+
+    countNode.performTextClearance()
+    countNode.performTextInput("12")
+    composeRule.waitForIdle()
+
+    composeRule.onAllNodesWithText("تعداد اقساط وام نامعتبر است").assertCountEquals(0)
+  }
+
+  @Test
+  fun addBankLoanDialogRendersWithoutCrashingInsideHesabyarDialog() {
+    composeRule.setContent {
+      AddBankLoanDialog(
+        onDismiss = {},
+        onConfirm = { _, _, _, _, _, _, _ -> }
+      )
+    }
+    composeRule.onNodeWithText("ثبت وام بانکی").assertIsDisplayed()
+  }
+
+  @Test
+  fun addBankLoanFormStateRejectsOverflowCount() {
+    val state =
+      AddBankLoanFormState(
+        bankName = "ملی",
+        received = "50000",
+        monthly = "5000",
+        count = "99999999999999999999"
+      )
+    assertFalse("Overflow count must not allow confirm", state.canConfirm)
+    assertEquals(null, state.countVal)
+  }
 }
