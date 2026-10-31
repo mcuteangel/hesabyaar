@@ -46,6 +46,9 @@ jobs:
       - name: Run OCR resolver tests with coverage
         run: node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=junit-ocr.xml --test-reporter=lcov --test-reporter-destination=coverage-ocr.lcov .github/scripts/*.test.mjs
 
+      - name: Convert LCOV to Cobertura for CodeAnt (experiment)
+        run: node .github/scripts/lcov-to-cobertura.mjs coverage-ocr.lcov coverage-ocr-cobertura.xml
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
@@ -69,7 +72,7 @@ jobs:
         uses: CodeAnt-AI/codeant-coverage-action@a8938a62b2a8681f5832921b6a5090865848c3a1 # v0.0.6
         with:
           access_token: ${{ secrets.CODEANT_TOKEN }}
-          coverage_file: coverage-ocr.lcov
+          coverage_file: coverage-ocr-cobertura.xml
           module: scripts
 
       - name: Verify Coveralls token on trusted runs
