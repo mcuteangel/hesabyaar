@@ -42,6 +42,12 @@ class RawDpOutsideThemeTest {
   }
 
   @Test
+  fun flagsParenthesizedSignedOperand() {
+    val code = "fun layout() = Modifier.offset((-(16)).dp)"
+    assertEquals(1, rule.lint(code).size)
+  }
+
+  @Test
   fun ignoresComputedDpExpressions() {
     val code = "fun layout() = Modifier.padding((16 + 8).dp)"
     assertEquals(0, rule.lint(code).size)

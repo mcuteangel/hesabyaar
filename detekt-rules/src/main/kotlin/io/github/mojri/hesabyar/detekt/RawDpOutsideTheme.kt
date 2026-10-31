@@ -33,7 +33,7 @@ class RawDpOutsideTheme(config: Config) :
   private fun isSignedNumber(expression: KtPrefixExpression): Boolean {
     val sign = expression.operationReference.text
     if (sign != "-" && sign != "+") return false
-    val base = expression.baseExpression as? KtConstantExpression ?: return false
+    val base = unwrap(expression.baseExpression) as? KtConstantExpression ?: return false
     return base.text.firstOrNull()?.isDigit() == true
   }
 
