@@ -64,4 +64,22 @@ class RawColorOutsideThemeTest {
     """.trimIndent()
     assertEquals(1, rule.lint(code).size)
   }
+
+  @Test
+  fun ignoresNonComposeColorImport() {
+    val code = """
+      import android.graphics.Color
+      fun f() = Color(0xFF000000)
+    """.trimIndent()
+    assertEquals(0, rule.lint(code).size)
+  }
+
+  @Test
+  fun flagsStarImportColorCall() {
+    val code = """
+      import androidx.compose.ui.graphics.*
+      fun palette() = Color(0xFF4CAF50)
+    """.trimIndent()
+    assertEquals(1, rule.lint(code).size)
+  }
 }

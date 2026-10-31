@@ -25,9 +25,22 @@ class RawColorOutsideTheme(config: Config) :
   }
 
   private fun isColorCall(expression: KtCallExpression): Boolean {
-    val callee = expression.calleeExpression?.text?.substringAfterLast(".") ?: return false
-    if (callee == "Color") return true
-    return colorAliases(expression.containingKtFile).contains(callee)
+    val text = expression.calleeExpression?.text ?: return false
+    if (text == "androidx.compose.ui.graphics.Color") return true
+    if (text.endsWith(".Color")) {
+      return text.substringBeforeLast(".") == "androidx.compose.ui.graphics"
+    }
+    val file = expression.containingKtFile
+    if (colorAliases(file).contains(text)) return true
+    if (text != "Color") return false
+    return hasComposeColorImport(file)
+  }
+
+  private fun hasComposeColorImport(file: KtFile): Boolean {
+    return file.importList?.imports.orEmpty().any { directive ->
+      val fq = directive.importedFqName?.asString() ?: return@any false
+      if (directive.isAllUnder) fq == "androidx.compose.ui.graphics" else fq == "androidx.compose.ui.graphics.Color"
+    }
   }
 
   private fun colorAliases(file: KtFile): Set<String> {
