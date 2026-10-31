@@ -10,7 +10,7 @@ class RawColorOutsideThemeTest {
   private val rule = RawColorOutsideTheme(TestConfig())
 
   @Test
-  fun `flags raw Color hex literal`() {
+  fun flagsRawColorHexLiteral() {
     val code = """
       import androidx.compose.ui.graphics.Color
       fun palette() = Color(0xFF4CAF50)
@@ -21,7 +21,7 @@ class RawColorOutsideThemeTest {
   }
 
   @Test
-  fun `ignores theme color references`() {
+  fun ignoresThemeColorReferences() {
     val code = """
       import androidx.compose.ui.graphics.Color
       val brand = MaterialTheme.colorScheme.primary
@@ -30,7 +30,7 @@ class RawColorOutsideThemeTest {
   }
 
   @Test
-  fun `ignores non-hex Color arguments`() {
+  fun ignoresNonHexColorArguments() {
     val code = """
       import androidx.compose.ui.graphics.Color
       fun f(c: Long) = Color(c)
@@ -39,7 +39,7 @@ class RawColorOutsideThemeTest {
   }
 
   @Test
-  fun `flags parenthesized hex literal`() {
+  fun flagsParenthesizedHexLiteral() {
     val code = """
       import androidx.compose.ui.graphics.Color
       fun palette() = Color((0xFF4CAF50))
@@ -48,7 +48,7 @@ class RawColorOutsideThemeTest {
   }
 
   @Test
-  fun `flags named hex argument`() {
+  fun flagsNamedHexArgument() {
     val code = """
       import androidx.compose.ui.graphics.Color
       fun palette() = Color(color = 0xFF4CAF50)

@@ -9,7 +9,7 @@ class RawDpOutsideThemeTest {
   private val rule = RawDpOutsideTheme(TestConfig())
 
   @Test
-  fun `flags raw dp literals`() {
+  fun flagsRawDpLiterals() {
     val code = """
       import androidx.compose.ui.unit.dp
       fun layout() = Modifier.padding(16.dp)
@@ -18,31 +18,31 @@ class RawDpOutsideThemeTest {
   }
 
   @Test
-  fun `flags float dp literals`() {
+  fun flagsFloatDpLiterals() {
     val code = "fun layout() = Modifier.size(1.5.dp)"
     assertEquals(1, rule.lint(code).size)
   }
 
   @Test
-  fun `ignores token references`() {
+  fun ignoresTokenReferences() {
     val code = "fun layout() = Modifier.padding(SpacingTokens.lg)"
     assertEquals(0, rule.lint(code).size)
   }
 
   @Test
-  fun `flags parenthesized dp literals`() {
+  fun flagsParenthesizedDpLiterals() {
     val code = "fun layout() = Modifier.padding((16).dp)"
     assertEquals(1, rule.lint(code).size)
   }
 
   @Test
-  fun `flags negative dp literals`() {
+  fun flagsNegativeDpLiterals() {
     val code = "fun layout() = Modifier.offset((-16).dp)"
     assertEquals(1, rule.lint(code).size)
   }
 
   @Test
-  fun `ignores computed dp expressions`() {
+  fun ignoresComputedDpExpressions() {
     val code = "fun layout() = Modifier.padding((16 + 8).dp)"
     assertEquals(0, rule.lint(code).size)
   }
