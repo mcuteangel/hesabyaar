@@ -41,6 +41,7 @@ internal fun ManualTransactionDialog(
   ) -> SubmitManualTransactionUseCase.SubmitResult,
   categories: List<Category>,
   transactionToEdit: Transaction? = null,
+  installmentTitle: String? = null,
   onDismiss: () -> Unit,
   accounts: List<AccountEntity> = emptyList(),
   selectedAccountId: Long? = null,
@@ -76,7 +77,7 @@ internal fun ManualTransactionDialog(
   var descriptionText by rememberSaveable { mutableStateOf(transactionToEdit?.description.orEmpty()) }
   var selectedCategoryId by rememberSaveable { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
   var personNameText by rememberSaveable { mutableStateOf(transactionToEdit?.personName ?: "") }
-  var titleText by rememberSaveable { mutableStateOf(transactionToEdit?.description ?: "") }
+  var titleText by rememberSaveable { mutableStateOf(installmentTitle.orEmpty()) }
   var daysFromNowText by rememberSaveable { mutableStateOf("30") }
   var customDate by rememberSaveable { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
   var isSubmitting by remember { mutableStateOf(false) }
