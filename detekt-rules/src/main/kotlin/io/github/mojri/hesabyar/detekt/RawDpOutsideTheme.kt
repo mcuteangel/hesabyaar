@@ -33,7 +33,7 @@ class RawDpOutsideTheme(config: Config) :
     val aliases = mutableSetOf<String>()
     for (directive in file.importList?.imports.orEmpty()) {
       val alias = directive.alias?.name ?: continue
-      if (directive.importedFqName?.asString()?.endsWith(".dp") == true) aliases.add(alias)
+      if (directive.importedFqName?.asString() == "androidx.compose.ui.unit.dp") aliases.add(alias)
     }
     return aliases
   }

@@ -34,7 +34,7 @@ class RawColorOutsideTheme(config: Config) :
     val aliases = mutableSetOf<String>()
     for (directive in file.importList?.imports.orEmpty()) {
       val alias = directive.alias?.name ?: continue
-      if (directive.importedFqName?.asString()?.endsWith(".Color") == true) aliases.add(alias)
+      if (directive.importedFqName?.asString() == "androidx.compose.ui.graphics.Color") aliases.add(alias)
     }
     return aliases
   }
