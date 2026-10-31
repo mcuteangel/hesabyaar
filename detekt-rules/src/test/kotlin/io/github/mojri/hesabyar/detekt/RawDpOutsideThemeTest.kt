@@ -28,4 +28,22 @@ class RawDpOutsideThemeTest {
     val code = "fun layout() = Modifier.padding(SpacingTokens.lg)"
     assertEquals(0, rule.lint(code).size)
   }
+
+  @Test
+  fun `flags parenthesized dp literals`() {
+    val code = "fun layout() = Modifier.padding((16).dp)"
+    assertEquals(1, rule.lint(code).size)
+  }
+
+  @Test
+  fun `flags negative dp literals`() {
+    val code = "fun layout() = Modifier.offset((-16).dp)"
+    assertEquals(1, rule.lint(code).size)
+  }
+
+  @Test
+  fun `ignores computed dp expressions`() {
+    val code = "fun layout() = Modifier.padding((16 + 8).dp)"
+    assertEquals(0, rule.lint(code).size)
+  }
 }

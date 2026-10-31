@@ -83,3 +83,107 @@ HesabyarTokens:
       - '**/ui/screens/dashboard/components/TransactionMiniItem.kt'
       - '**/ui/screens/dashboard/dialogs/ManualTransactionFormSections.kt'
       - '**/ui/screens/dashboard/dialogs/TransactionDetailDialog.kt'
+
+
+# Compose rules (io.nlopez.compose.rules:detekt plugin, `Compose` section).
+# Pre-existing findings on old UI code, grandfathered per rule from the
+# first CI detekt run on b8bd60dd (80 findings across 28 files); drop an
+# entry once its file is fixed. New code must pass these rules. Test
+# sources are excluded, as with the token rules above.
+Compose:
+  ComposableNaming:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/BankLoanScreen.kt'
+      - '**/ui/screens/dashboard/components/EntranceCard.kt'
+  ComposableParamOrder:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/MainNavigationBars.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionDialog.kt'
+      - '**/ui/screens/dashboard/dialogs/TransactionDetailDialog.kt'
+  LambdaParameterInRestartableEffect:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/auth/LockScreen.kt'
+  ModifierClickableOrder:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/SettingsScreen.kt'
+  ModifierMissing:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/auth/LockScreen.kt'
+      - '**/auth/PinScreen.kt'
+      - '**/ui/screens/InstallmentScreen.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+  ModifierWithoutDefault:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/MainActivity.kt'
+      - '**/ui/screens/PersonsScreen.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
+  MultipleEmitters:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/components/HesabyarButton.kt'
+      - '**/ui/screens/BankLoanScreen.kt'
+      - '**/ui/screens/PersonLoanTimeline.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+  MutableStateAutoboxing:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/CustomTimePickerDialog.kt'
+      - '**/ui/screens/JalaliDatePickerDialog.kt'
+      - '**/ui/screens/PersonDetailSheet.kt'
+      - '**/ui/screens/SmartAssistantScreen.kt'
+      - '**/AccountSelectionTest.kt'
+  ParameterNaming:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/MainActivityNavigation.kt'
+      - '**/MainNavigationBars.kt'
+      - '**/auth/LockScreen.kt'
+      - '**/auth/PinScreen.kt'
+      - '**/ui/components/AccountSelector.kt'
+      - '**/ui/components/AmountQuickFillButtons.kt'
+      - '**/ui/components/JalaliDateTimePicker.kt'
+      - '**/ui/screens/BankLoanScreen.kt'
+      - '**/ui/screens/CustomTimePickerDialog.kt'
+      - '**/ui/screens/JalaliDatePickerDialog.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
+      - '**/ui/screens/dashboard/components/InstallmentMiniItem.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionDialog.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionFormSections.kt'
+  ViewModelForwarding:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/CategoryManagementScreen.kt'
+      - '**/ui/screens/DashboardScreen.kt'
+      - '**/ui/screens/DebtHubScreen.kt'
+      - '**/ui/screens/InstallmentScreen.kt'
+      - '**/ui/screens/PersonDetailSheet.kt'
+      - '**/ui/screens/PersonLoanTimeline.kt'
+      - '**/ui/screens/PersonsScreen.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
