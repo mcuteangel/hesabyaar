@@ -1,5 +1,8 @@
 plugins {
-  kotlin("jvm") version "2.4.21"
+  // No version: org.jetbrains.kotlin.jvm is already on the classpath via
+  // the root kotlin.compose plugin; a versioned request fails CI with
+  // "already on the classpath with an unknown version" (head 35c35c23).
+  kotlin("jvm")
 }
 
 kotlin {

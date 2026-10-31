@@ -16,7 +16,7 @@ class RawDpOutsideTheme(config: Config) :
     if (receiver == null || !receiver.text.first().isDigit()) return
     val selector = expression.selectorExpression as? KtNameReferenceExpression
     if (selector?.getReferencedName() != "dp") return
-    val msg = "Raw spacing ${expression.text} outside the theme; use SpacingTokens."
+    val msg = "Raw .dp literal ${expression.text} outside the theme; use a design token."
     report(Finding(Entity.from(expression), msg))
   }
 }
