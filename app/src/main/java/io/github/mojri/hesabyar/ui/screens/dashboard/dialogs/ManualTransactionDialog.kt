@@ -46,6 +46,7 @@ internal fun ManualTransactionDialog(
   ) -> SubmitManualTransactionUseCase.SubmitResult,
   categories: List<Category>,
   transactionToEdit: Transaction? = null,
+  installmentTitle: String? = null,
   onDismiss: () -> Unit,
   accounts: List<AccountEntity> = emptyList(),
   selectedAccountId: Long? = null,
@@ -53,7 +54,8 @@ internal fun ManualTransactionDialog(
 ) {
   val context = LocalContext.current
   val coroutineScope = rememberCoroutineScope()
-  val formState = rememberManualTransactionFormState(transactionToEdit, categories, selectedAccountId)
+  val formState =
+    rememberManualTransactionFormState(transactionToEdit, categories, selectedAccountId, installmentTitle)
   val typeColor = resolveDialogTypeColor(formState.selectedType)
 
   HesabyarDialog(
@@ -105,7 +107,8 @@ internal fun ManualTransactionDialog(
 internal fun rememberManualTransactionFormState(
   transactionToEdit: Transaction?,
   categories: List<Category>,
-  selectedAccountId: Long?
+  selectedAccountId: Long?,
+  installmentTitle: String? = null
 ): ManualTransactionFormState {
   // Keyed by the edited transaction id. A composable reuse for another
   // transaction resets every field and re-derives the original amount.
@@ -142,7 +145,9 @@ internal fun rememberManualTransactionFormState(
   val descriptionText = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.description.orEmpty()) }
   val selectedCategoryId = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.categoryId ?: 0L) }
   val personNameText = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.personName ?: "") }
-  val titleText = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.description ?: "") }
+  // The installment title comes from the caller's dedicated field, never from
+  // the transaction description (issue #614 fix on main).
+  val titleText = rememberSaveable(editKey) { mutableStateOf(installmentTitle.orEmpty()) }
   val daysFromNowText = rememberSaveable(editKey) { mutableStateOf("30") }
   val customDate = rememberSaveable(editKey) { mutableStateOf(transactionToEdit?.date ?: System.currentTimeMillis()) }
   val isSubmitting = remember { mutableStateOf(false) }
