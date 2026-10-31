@@ -61,4 +61,10 @@ class RawDpOutsideThemeTest {
     """.trimIndent()
     assertEquals(1, rule.lint(code).size)
   }
+
+  @Test
+  fun flagsNestedSignedDpLiteral() {
+    val code = "fun layout() = Modifier.offset((-(-8)).dp)"
+    assertEquals(1, rule.lint(code).size)
+  }
 }

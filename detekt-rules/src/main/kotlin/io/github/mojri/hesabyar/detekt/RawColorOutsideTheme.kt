@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
+import org.jetbrains.kotlin.psi.KtPrefixExpression
 import org.jetbrains.kotlin.psi.KtFile
 
 class RawColorOutsideTheme(config: Config) :
@@ -16,9 +17,8 @@ class RawColorOutsideTheme(config: Config) :
     super.visitCallExpression(expression)
     if (!isColorCall(expression)) return
     for (arg in expression.valueArguments) {
-      val argument = unwrap(arg.getArgumentExpression()) as? KtConstantExpression ?: continue
-      if (!argument.text.startsWith("0x", ignoreCase = true)) continue
-      val msg = "Raw color ${argument.text} outside the theme; use a theme color."
+      val constant = findHexConstant(arg.getArgumentExpression()) ?: continue
+      val msg = "Raw color ${constant.text} outside the theme; use a theme color."
       report(Finding(Entity.from(expression), msg))
       return
     }
@@ -50,6 +50,25 @@ class RawColorOutsideTheme(config: Config) :
       if (directive.importedFqName?.asString() == "androidx.compose.ui.graphics.Color") aliases.add(alias)
     }
     return aliases
+  }
+
+  private fun findHexConstant(expression: KtExpression?): KtConstantExpression? {
+    var current = expression
+    while (true) {
+      current = unwrap(current)
+      when (current) {
+        is KtConstantExpression -> {
+          return if (current.text.startsWith("0x", ignoreCase = true)) current else null
+        }
+        is KtPrefixExpression -> {
+          val sign = current.operationReference.text
+          if (sign != "-" && sign != "+") return null
+          current = current.baseExpression
+          continue
+        }
+        else -> return null
+      }
+    }
   }
 
   private fun unwrap(expression: KtExpression?): KtExpression? {

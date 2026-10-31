@@ -82,4 +82,16 @@ class RawColorOutsideThemeTest {
     """.trimIndent()
     assertEquals(1, rule.lint(code).size)
   }
+
+  @Test
+  fun flagsSignedHexArgument() {
+    val code = "fun palette() = Color(-0xFF4CAF50)"
+    assertEquals(1, rule.lint(code).size)
+  }
+
+  @Test
+  fun flagsParenthesizedSignedHexArgument() {
+    val code = "fun palette() = Color((-(0xFF4CAF50)))"
+    assertEquals(1, rule.lint(code).size)
+  }
 }

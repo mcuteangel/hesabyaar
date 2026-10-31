@@ -39,18 +39,13 @@ class RawDpOutsideTheme(config: Config) :
   }
 
   private fun isRawNumber(expression: KtExpression?): Boolean {
-    return when (val unwrapped = unwrap(expression)) {
-      is KtConstantExpression -> unwrapped.text.firstOrNull()?.isDigit() == true
-      is KtPrefixExpression -> isSignedNumber(unwrapped)
-      else -> false
+    var current = unwrap(expression)
+    while (current is KtPrefixExpression) {
+      val sign = current.operationReference.text
+      if (sign != "-" && sign != "+") return false
+      current = unwrap(current.baseExpression)
     }
-  }
-
-  private fun isSignedNumber(expression: KtPrefixExpression): Boolean {
-    val sign = expression.operationReference.text
-    if (sign != "-" && sign != "+") return false
-    val base = unwrap(expression.baseExpression) as? KtConstantExpression ?: return false
-    return base.text.firstOrNull()?.isDigit() == true
+    return (current as? KtConstantExpression)?.text?.firstOrNull()?.isDigit() == true
   }
 
   private fun unwrap(expression: KtExpression?): KtExpression? {
