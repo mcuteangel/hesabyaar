@@ -34,3 +34,156 @@ complexity:
       - '**/rust/uniffi/**'
       - '**/generated/**'
       - '**/rust/hesabyar_core.kt'
+
+# Design-token rules (local ruleset in the detekt-rules module).
+# Token-definition files never count as violations: theme, designsystem and
+# *Tokens.kt files DEFINE tokens (SpacingTokens, FinancialColors, ...).
+# Test sources are not shipped UI, so they are excluded as well.
+HesabyarTokens:
+  RawColorOutsideTheme:
+    active: true
+    excludes:
+      - '**/ui/theme/**'
+      - '**/ui/designsystem/**'
+      - '**/*Tokens.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
+  RawDpOutsideTheme:
+    active: true
+    excludes:
+      - '**/ui/theme/**'
+      - '**/ui/designsystem/**'
+      - '**/*Tokens.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
+      # Pre-existing raw-dp usages, grandfathered until migrated to
+      # SpacingTokens; drop an entry once its file is migrated.
+      - '**/auth/PinScreen.kt'
+      - '**/ui/components/AccountBalanceCard.kt'
+      - '**/ui/components/AccountSelector.kt'
+      - '**/ui/components/AiResultCard.kt'
+      - '**/ui/components/HesabyarButton.kt'
+      - '**/ui/components/HesabyarScaffold.kt'
+      - '**/ui/components/HesabyarTabRow.kt'
+      - '**/ui/components/MarkdownText.kt'
+      - '**/ui/screens/AnalyticsScreen.kt'
+      - '**/ui/screens/CategoryManagementScreen.kt'
+      - '**/ui/screens/CustomTimePickerDialog.kt'
+      - '**/ui/screens/DashboardScreen.kt'
+      - '**/ui/screens/JalaliDatePickerDialog.kt'
+      - '**/ui/screens/PersonDetailSheet.kt'
+      - '**/ui/screens/PersonsScreen.kt'
+      - '**/ui/screens/ReportsScreen.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+      - '**/ui/screens/SmartAssistantScreen.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
+      - '**/ui/screens/dashboard/components/AccountBreakdownCard.kt'
+      - '**/ui/screens/dashboard/components/DebtorCreditorCards.kt'
+      - '**/ui/screens/dashboard/components/SmartForecastCard.kt'
+      - '**/ui/screens/dashboard/components/TransactionMiniItem.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionFormSections.kt'
+      - '**/ui/screens/dashboard/dialogs/TransactionDetailDialog.kt'
+
+
+# Compose rules (io.nlopez.compose.rules:detekt plugin, `Compose` section).
+# Pre-existing findings on old UI code, grandfathered per rule from the
+# first CI detekt run on b8bd60dd (80 findings across 28 files); drop an
+# entry once its file is fixed. New code must pass these rules. Test
+# sources are excluded, as with the token rules above.
+Compose:
+  ComposableNaming:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/BankLoanScreen.kt'
+      - '**/ui/screens/dashboard/components/EntranceCard.kt'
+  ComposableParamOrder:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/MainNavigationBars.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionDialog.kt'
+      - '**/ui/screens/dashboard/dialogs/TransactionDetailDialog.kt'
+  LambdaParameterInRestartableEffect:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/auth/LockScreen.kt'
+  ModifierClickableOrder:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/SettingsScreen.kt'
+  ModifierMissing:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/auth/LockScreen.kt'
+      - '**/auth/PinScreen.kt'
+      - '**/ui/screens/InstallmentScreen.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+  ModifierWithoutDefault:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/MainActivity.kt'
+      - '**/ui/screens/PersonsScreen.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
+  MultipleEmitters:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/components/HesabyarButton.kt'
+      - '**/ui/screens/BankLoanScreen.kt'
+      - '**/ui/screens/PersonLoanTimeline.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+  MutableStateAutoboxing:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/CustomTimePickerDialog.kt'
+      - '**/ui/screens/JalaliDatePickerDialog.kt'
+      - '**/ui/screens/PersonDetailSheet.kt'
+      - '**/ui/screens/SmartAssistantScreen.kt'
+      - '**/AccountSelectionTest.kt'
+  ParameterNaming:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/MainActivityNavigation.kt'
+      - '**/MainNavigationBars.kt'
+      - '**/auth/LockScreen.kt'
+      - '**/auth/PinScreen.kt'
+      - '**/ui/components/AccountSelector.kt'
+      - '**/ui/components/AmountQuickFillButtons.kt'
+      - '**/ui/components/JalaliDateTimePicker.kt'
+      - '**/ui/screens/BankLoanScreen.kt'
+      - '**/ui/screens/CustomTimePickerDialog.kt'
+      - '**/ui/screens/JalaliDatePickerDialog.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
+      - '**/ui/screens/dashboard/components/InstallmentMiniItem.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionDialog.kt'
+      - '**/ui/screens/dashboard/dialogs/ManualTransactionFormSections.kt'
+  ViewModelForwarding:
+    active: true
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/ui/screens/CategoryManagementScreen.kt'
+      - '**/ui/screens/DashboardScreen.kt'
+      - '**/ui/screens/DebtHubScreen.kt'
+      - '**/ui/screens/InstallmentScreen.kt'
+      - '**/ui/screens/PersonDetailSheet.kt'
+      - '**/ui/screens/PersonLoanTimeline.kt'
+      - '**/ui/screens/PersonsScreen.kt'
+      - '**/ui/screens/SettingsScreen.kt'
+      - '**/ui/screens/account/AccountManagementScreen.kt'
