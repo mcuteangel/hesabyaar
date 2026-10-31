@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import io.github.mojri.hesabyar.data.AccountEntity
 import io.github.mojri.hesabyar.data.AccountType
@@ -117,7 +118,7 @@ class ManualTransactionDialogInstallmentTitleEditTest {
       )
     }
 
-    composeRule.onNodeWithText("قسط").performClick()
+    composeRule.onNodeWithText("قسط").performScrollTo().performClick()
     composeRule.onNodeWithTag("manual_amount_input").performTextInput("3000")
     composeRule.onNodeWithTag("manual_title_input").performTextInput("Car loan")
     composeRule.onNodeWithTag("manual_description_input").performTextInput("Monthly notes")
