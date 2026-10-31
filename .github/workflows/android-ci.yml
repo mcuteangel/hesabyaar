@@ -124,7 +124,7 @@ jobs:
         # gradle/jacoco-coverage.gradle.kts breaks, this step still fails
         # instead of publishing a report from stale exec files.
         # Gradle runs each task once per invocation (no duplicate work).
-        run: ./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :app:jacocoTestReport --warning-mode all
+        run: ./gradlew :app:testDebugUnitTest :app:testDebugUnitTestRust :detekt-rules:test :app:jacocoTestReport --warning-mode all
 
       - name: Assert coverage report exists
         run: test -s app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml

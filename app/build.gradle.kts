@@ -554,6 +554,10 @@ apply(from = "$rootDir/gradle/jacoco-coverage.gradle.kts")
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  // detekt plugins: compose-rules (Compose structure) + the local
+  // design-token ruleset (detekt-rules module).
+  detektPlugins(libs.compose.rules.detekt)
+  detektPlugins(project(":detekt-rules"))
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)

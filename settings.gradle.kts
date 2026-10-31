@@ -44,3 +44,4 @@ dependencyResolutionManagement {
 rootProject.name = "Hesabyar"
 
 include(":app")
+include(":detekt-rules")
