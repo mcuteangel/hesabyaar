@@ -63,6 +63,7 @@ jobs:
     env:
       DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       HAS_COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN != '' }}
+      HAS_CODEANT_TOKEN: ${{ secrets.CODEANT_TOKEN != '' }}
       HAS_GRAVITY_TOKEN: ${{ secrets.GRAVITY_TOKEN != '' }}
       # Single definition of the trusted-run predicate (event, fork, actor);
       # the verify step references this instead of repeating the expression.
@@ -146,6 +147,32 @@ jobs:
           files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           flags: android
           fail_ci_if_error: false
+
+      - name: Upload coverage to CodeAnt AI
+        # Phase 1 uploads only Android JaCoCo XML.
+        # Rust LCOV and script LCOV stay out of scope.
+        # CodeAnt docs and the action README disagree on LCOV support.
+        # Do not upload LCOV reports until support is verified.
+        # The trusted-run guard skips fork runs and Dependabot runs.
+        # Those runs have no CODEANT_TOKEN.
+        # CODEANT_TOKEN is a CodeAnt token with the Codeant CI/CD role.
+        # The token is scoped to this repository only.
+        # The upload is non-blocking.
+        # A CodeAnt outage must not fail the build.
+        # The step timeout is five minutes.
+        if: ${{ env.IS_TRUSTED_RUN == 'true' && env.HAS_CODEANT_TOKEN == 'true' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        # Job-level environment exports DEEPSOURCE_DSN to all steps.
+        # The CodeAnt step does not need it.
+        # Clear it here, as the Gravity step does.
+        env:
+          DEEPSOURCE_DSN: ""
+        uses: CodeAnt-AI/codeant-coverage-action@a8938a62b2a8681f5832921b6a5090865848c3a1 # v0.0.6
+        with:
+          access_token: ${{ secrets.CODEANT_TOKEN }}
+          coverage_file: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          module: android
 
       - name: Verify Coveralls token on trusted runs
         # The final gate step references this id - do not rename without updating it.
